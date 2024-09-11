@@ -117,22 +117,48 @@ middleware or some preprocessor
 - [ ] Middleware that merges global shared data with page shared data.
 ```rust
 use actix_web::App;
-
-struct GlobalProps<PP> {
-    Foo: String,
-    Bar: u8,
-    PageProps: PP
-}
+use serde_json::{Map, Value};
+use serde::{Deserialize, Serialize};
 
 // server setup...
 App::new()
     // returns a middleware that shares these values globally.
     // PageProps field holds the props available for the rendered page only.
-    .wrap(Inertia::SharedPropsMiddleware::share(|page_props| {
-        return GlobalProps {
-            Foo: "this is a global value!".into(),
-            Bar: 255,
-            PageProps: page_props
+    .wrap(Inertia::SharedPropsMiddleware::share(|props: &mut Map<String, Value>| {
+        #[derive(Serialize)]
+        struct User {
+            nickname: String,
+            active: bool
+        }
+        
+        let user = User {
+            nickname: "John".into(),
+            active: true,
         };
+        
+        let mut auth_map = Map::new();
+        auth_map.insert("user".into(), serde_json::to_value(user).unwrap());
+        
+        props.insert("foo".into(), Value::String("this is a global value!".into()));
+        props.insert("bar".into(), 255.into());
+        props.insert("auth".into(), auth_map.into());
     }))
+```
+This would output something like:
+```rust
+{
+    "auth": Object {
+        "user": Object {
+            "active": Bool(true),
+            "nickname": String("John"),
+        },
+    },
+    "bar": Number(255),
+    "foo": String("this is a global value!"),
+    // page props, had been already set to `props` map
+    "event": Object {
+        "max": Number(8),
+        "cancelled": Bool(false),
+    },
+}
 ```
