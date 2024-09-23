@@ -2,6 +2,14 @@ use serde::Serialize;
 use serde_json::{Map, Value};
 use crate::error::InertiaError;
 
+pub(crate) fn inertia_panic(msg: String) {
+    panic!("[Inertia] {}", msg);
+}
+
+pub(crate) fn inertia_err_msg(msg: String) -> String {
+    format!("[Inertia] {}", msg)
+}
+
 pub(crate) fn convert_struct_to_map<T>(s: T) -> Result<Map<String, Value>, InertiaError>
 where T: Serialize
 {
