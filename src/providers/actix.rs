@@ -209,7 +209,7 @@ fn extract_partials_headers_content(req: &HttpRequest, header_name: &HeaderName)
 
 #[cfg(test)]
 mod test {
-    use crate::features::actix::header_names::{
+    use crate::providers::actix::header_names::{
         X_INERTIA_PARTIAL_COMPONENT,
         X_INERTIA_PARTIAL_DATA,
         X_INERTIA_PARTIAL_EXCEPT
@@ -222,7 +222,7 @@ mod test {
     use actix_web::test;
     use actix_web::body::MessageBody;
     use serde_json::json;
-    use crate::features::actix::InertiaHeader;
+    use crate::providers::actix::InertiaHeader;
     use crate::inertia::{InertiaHttpRequest, InertiaResponder, ViewData};
     use crate::props::InertiaProp;
     use crate::req_type::PartialComponent;

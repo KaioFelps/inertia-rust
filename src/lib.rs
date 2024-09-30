@@ -8,7 +8,7 @@ mod error;
 mod req_type;
 mod props;
 
-pub mod features;
+pub mod providers;
 
 pub use inertia::Inertia as Inertia;
 pub use inertia::Component;
