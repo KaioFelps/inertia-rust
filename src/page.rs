@@ -3,6 +3,7 @@ use crate::inertia::Component;
 
 /// Inertia Full Page response to be rendered inside the root template
 /// on the first request or on a full visit request.
+#[derive(Deserialize)]
 pub struct InertiaSSRPage {
     /// All html-string elements to be injected in inertia_head, at the root template.
     pub(crate) head: String,
@@ -23,7 +24,7 @@ impl InertiaSSRPage {
     ///             in the layout.
     ///
     /// [template_path]: crate::inertia::Inertia
-    /// [Map]: Map
+    /// 
     pub fn new(head: String, body: String) -> Self {
         InertiaSSRPage {
             head,
@@ -34,18 +35,18 @@ impl InertiaSSRPage {
 
 /// Response containing a valid Inertia Payload that will be used
 /// by the Inertia client to render the components.
-#[derive(Serialize, Debug, Eq, PartialEq)]
+#[derive(Serialize, Debug, Eq, PartialEq, Clone)]
 pub struct InertiaPage<'response_lt> {
     /// The name of the JavaScript page component.
-    component: Component,
+    pub(crate) component: Component,
     /// The page props (data). A merge of page props and shared props.
-    props: Map<String, Value>,
+    pub(crate) props: Map<String, Value>,
     /// Page's URL. Must be a valid href.
     // this is not the same as Inertia::url, that represents the application url.
     // this url represents the current request's url, i.e. the page url.
-    url: String,
+    pub(crate) url: String,
     /// Current assets version.
-    version: Option<&'response_lt str>,
+    pub(crate) version: Option<&'response_lt str>,
 }
 
 impl<'response_lt> InertiaPage<'response_lt> {
@@ -109,12 +110,11 @@ mod test {
             InertiaProp::Data(serde_json::to_value(vec![serde_json::to_value(event).unwrap()]).unwrap())
         );
 
-        /** Request headers
-        X-Inertia: true
-        X-Inertia-Version: generated_version
-        X-Inertia-Partial-Data: events
-        X-Inertia-Partial-Component: Events
-        */
+        // Request headers
+        // X-Inertia: true
+        // X-Inertia-Version: generated_version
+        // X-Inertia-Partial-Data: events
+        // X-Inertia-Partial-Component: Events
         let req_type = InertiaRequestType::Partial(PartialComponent {
             component: Component("Events".to_string()),
             only: Vec::from(["events".to_string()]),
@@ -151,10 +151,9 @@ mod test {
         props.insert("radioStatus".into(), InertiaProp::Demand(|| json!({"announcer": "John Doe"})));
         props.insert("categories".into(), InertiaProp::Data(vec!["foo".to_string(), "bar".to_string()].into()));
 
-        /** Request headers
-           X-Inertia: true
-           X-Inertia-Version: generated_version
-         */
+        // Request headers
+        // X-Inertia: true
+        // X-Inertia-Version: generated_version
         let req_type = InertiaRequestType::Standard;
 
         let page = InertiaPage::new(

@@ -1,22 +1,22 @@
 use std::future::Future;
 use std::pin::Pin;
 use async_trait::async_trait;
+use reqwest::Url;
 use serde::Serialize;
 use serde_json::{Map, Value};
-use crate::{InertiaError, InertiaSSRPage};
-use crate::utils::{inertia_err_msg, inertia_panic};
+use crate::{InertiaError, InertiaPage, InertiaSSRPage};
 use crate::props::InertiaProps;
 use crate::req_type::InertiaRequestType;
 
-pub const X_INERTIA: &'static str = "x-inertia";
-pub const X_INERTIA_LOCATION: &'static str = "x-inertia-location";
-pub const X_INERTIA_VERSION: &'static str = "x-inertia-version";
-pub const X_INERTIA_PARTIAL_COMPONENT: &'static str = "x-inertia-partial-component";
-pub const X_INERTIA_PARTIAL_DATA: &'static str = "x-inertia-partial-data";
-pub const X_INERTIA_PARTIAL_EXCEPT: &'static str = "x-inertia-partial-except";
+#[allow(unused)] pub const X_INERTIA: &'static str = "x-inertia";
+#[allow(unused)] pub const X_INERTIA_LOCATION: &'static str = "x-inertia-location";
+#[allow(unused)] pub const X_INERTIA_VERSION: &'static str = "x-inertia-version";
+#[allow(unused)] pub const X_INERTIA_PARTIAL_COMPONENT: &'static str = "x-inertia-partial-component";
+#[allow(unused)] pub const X_INERTIA_PARTIAL_DATA: &'static str = "x-inertia-partial-data";
+#[allow(unused)] pub const X_INERTIA_PARTIAL_EXCEPT: &'static str = "x-inertia-partial-except";
 
 /// The javascript component name.
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct Component(pub String);
 
 /// InertiaResponder trait defines methods that every crate feature
@@ -65,16 +65,38 @@ pub enum InertiaVersion {
 }
 
 /// View Data is a struct containing props to be used by the root template.
-pub struct ViewData {
-    pub page_props: Map<String, Value>,
-    pub ssr_props: Option<InertiaSSRPage>,
+pub struct ViewData<'lf> {
+    pub page: InertiaPage<'lf>,
+    pub ssr_page: Option<InertiaSSRPage>,
     pub custom_props: Map<String, Value>
 }
 
-pub(crate) type TemplateResolver = fn(&'_ str, ViewData) -> Pin<Box<dyn Future<Output = Result<String, InertiaError>> + Send + '_>>;
+pub(crate) type TemplateResolver = fn(&'_ str, ViewData) -> Pin<Box<dyn Future<Output = Result<String, InertiaError>> + Send + 'static>>;
 
-pub struct SsrClient<T> {
-    pub sender: hyper::client::conn::http1::SendRequest<T>
+pub struct SsrClient {
+    pub(crate) host: &'static str,
+    pub(crate) port: u16,
+}
+
+impl SsrClient {
+    /// Generates a new custom `SsrClient` struct. Unless you really need to change the ssr server
+    /// url, it is preferred to use `SsrClient::Default` for generating a new SsrClient struct.
+    ///
+    /// # Arguments
+    /// * `host`    -   The host of the server (normally, `127.0.0.1`, since it should run locally
+    /// * `port`    -   The server port
+    pub fn new(host: &'static str, port: u16) -> Self {
+        Self { host, port }
+    }
+}
+
+impl Default for SsrClient {
+    fn default() -> Self {
+        Self {
+            host: "127.0.0.1",
+            port: 13714
+        }
+    }
 }
 
 /// Inertia struct must be a singleton and initialized at the application bootstrap.
@@ -108,8 +130,8 @@ pub struct Inertia {
     /// The return must be the template rendered to HTML. It will be sent as response to full
     /// requests.
     pub(crate) template_resolver: TemplateResolver,
-    /// A client to make request to Inertia Server (and render the page).
-    pub(crate) ssr_client: Option<SsrClient<String>>,
+    /// Address of Inertia local render server. Will be used by Inertia to perform ssr.
+    pub(crate) ssr_url: Option<Url>,
     /// Extra data to be passed to the root template.
     pub(crate) custom_view_data: Map<String, Value>
 }
@@ -136,6 +158,8 @@ impl Inertia {
     }
 
     /// Initializes an instance of [`Inertia`] struct with server-side rendering enabled.
+    /// Run the command to raise the ssr server, or else no ssr will be done. By the way, check the
+    /// GitHub repository readme to find the current command.
     ///
     /// # Arguments
     /// * `url`                 -   A valid [href] of the current application
@@ -144,8 +168,9 @@ impl Inertia {
     /// * `template_path        -   The path for the root html template.
     /// * `template_resolver`   -   A function that renders the given root template html. Check
     ///                             more details at [`Inertia::template_resolver`] doc string.
-    /// * `ssr_host`            -   A [`Uri`] of the Ssr server.
-    /// * `ssr_port`            -   A `u16` number representing the port of the Ssr server.
+    /// * `custom_client`       -   An [`Option<SsrClient>`] with the Inertia Server address.
+    ///                             If `None` is passed to the parameters, `SsrClient::default` will
+    ///                             be used.
     ///
     /// # Errors
     /// Returns an [`InertiaError::SsrError`] if it fails to connect to the server.
@@ -160,38 +185,22 @@ impl Inertia {
         version: InertiaVersion,
         template_path: &'static str,
         template_resolver: TemplateResolver,
-        ssr_host: hyper::Uri,
-        ssr_port: u16,
+        custom_client: Option<SsrClient>,
     ) -> Result<Self, InertiaError> {
-        let address = format!("{}:{}", ssr_host, ssr_port);
-        let stream = match tokio::net::TcpStream::connect(address).await {
-            Err(err) => return Err(InertiaError::SsrError(
-                inertia_err_msg(format!("Failed to start ssr tcp connection: {}", err.to_string()))
-            )),
-            Ok(stream) => stream,
+        let client: SsrClient = custom_client.unwrap_or_else(|| SsrClient::default());
+
+        let ssr_url = if client.host.contains("://") {
+            format!("{}:{}", client.host, client.port)
+        } else {
+            format!("http://{}:{}", client.host, client.port)
         };
 
-        let io = hyper_util::rt::TokioIo::new(stream);
-
-        let (mut sender, conn) =
-            match hyper::client::conn::http1::handshake(io).await {
-                Err(err) => return Err(InertiaError::SsrError(
-                    inertia_err_msg(format!("Failed to execute http handshake: {}", err.to_string()))
-                )),
-                Ok(value) => value,
-            };
-
-        tokio::task::spawn(async move {
-            if let Err(err) = conn.await {
-                inertia_panic(format!("Could not connect to Ssr client: {:?}", err));
-            }
-        });
-
-        let client = SsrClient {
-          sender,
+        let ssr_url = match Url::parse(&ssr_url) {
+            Err(err) => return Err(InertiaError::SsrError(format!("Failed to parse Inertia Server url: {}", err))),
+            Ok(url) => url,
         };
 
-        Ok(Self::instantiate(url, template_path, version, template_resolver, Some(client)))
+        Ok(Self::instantiate(url, template_path, version, template_resolver, Some(ssr_url)))
     }
 
     fn instantiate (
@@ -199,7 +208,7 @@ impl Inertia {
         template_path: &'static str,
         version: InertiaVersion,
         template_resolver: TemplateResolver,
-        ssr_client: Option<SsrClient<String>>
+        ssr_url: Option<Url>
     ) -> Self {
         let version = match version {
             InertiaVersion::Literal(v) => v.leak(),
@@ -211,7 +220,7 @@ impl Inertia {
             template_path,
             version,
             template_resolver,
-            ssr_client,
+            ssr_url,
             custom_view_data: Map::new(),
         }
     }

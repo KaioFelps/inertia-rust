@@ -1,6 +1,7 @@
 use serde::Serialize;
 use serde_json::{Map, Value};
 use crate::error::InertiaError;
+use crate::{InertiaPage, InertiaSSRPage};
 
 pub(crate) fn inertia_panic(msg: String) {
     panic!("[Inertia] {}", msg);
@@ -38,6 +39,32 @@ where T: Serialize
         Ok(json) => Ok(json),
         Err(err) => Err(InertiaError::SerializationError(format!("Failed to serialize map to json: {}", err.to_string()))),
     };
+}
+
+pub(crate) async fn request_page_render<'lf>(
+    server_url: &reqwest::Url,
+    page: InertiaPage<'lf>
+) -> Result<InertiaSSRPage, InertiaError> {
+    let mut render_endpoint = server_url.clone();
+    render_endpoint.set_path("render");
+
+    let response = reqwest::Client::new()
+        .get(render_endpoint)
+        .json(&page)
+        .header("Content-Type", "application/json")
+        .header("Accept", "application/json")
+        .send()
+        .await;
+
+    let response = match response {
+        Err(err) => return Err(InertiaError::SsrError(format!("Failed to render the page at the ssr server: {}", err))),
+        Ok(response) => response
+    };
+
+    match response.json::<InertiaSSRPage>().await {
+        Err(err) => Err(InertiaError::SsrError(format!("Failed to serialize ssr-rendered page: {}", err))),
+        Ok(page) => Ok(page)
+    }
 }
 
 #[cfg(test)]

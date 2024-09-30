@@ -4,9 +4,8 @@ use actix_web::http::header::{HeaderName, HeaderValue};
 use actix_web::body::BoxBody;
 use actix_web::http::StatusCode;
 use async_trait::async_trait;
-use serde::Serialize;
 use crate::{Component, InertiaError, InertiaPage};
-use crate::utils::inertia_err_msg;
+use crate::utils::{inertia_err_msg, request_page_render};
 use crate::inertia::{Inertia, InertiaHttpRequest, InertiaResponder, ViewData};
 use crate::props::InertiaProp;
 use crate::props::InertiaProps;
@@ -17,12 +16,12 @@ mod header_names {
     use actix_web::http::header::HeaderName;
     use crate::inertia;
 
-    pub const X_INERTIA: HeaderName = HeaderName::from_static(inertia::X_INERTIA);
-    pub const X_INERTIA_LOCATION: HeaderName = HeaderName::from_static(inertia::X_INERTIA_LOCATION);
-    pub const X_INERTIA_VERSION: HeaderName = HeaderName::from_static(inertia::X_INERTIA_VERSION);
-    pub const X_INERTIA_PARTIAL_COMPONENT: HeaderName = HeaderName::from_static(inertia::X_INERTIA_PARTIAL_COMPONENT);
-    pub const X_INERTIA_PARTIAL_DATA: HeaderName = HeaderName::from_static(inertia::X_INERTIA_PARTIAL_DATA);
-    pub const X_INERTIA_PARTIAL_EXCEPT: HeaderName = HeaderName::from_static(inertia::X_INERTIA_PARTIAL_EXCEPT);
+    #[allow(unused)] pub const X_INERTIA: HeaderName = HeaderName::from_static(inertia::X_INERTIA);
+    #[allow(unused)] pub const X_INERTIA_LOCATION: HeaderName = HeaderName::from_static(inertia::X_INERTIA_LOCATION);
+    #[allow(unused)] pub const X_INERTIA_VERSION: HeaderName = HeaderName::from_static(inertia::X_INERTIA_VERSION);
+    #[allow(unused)] pub const X_INERTIA_PARTIAL_COMPONENT: HeaderName = HeaderName::from_static(inertia::X_INERTIA_PARTIAL_COMPONENT);
+    #[allow(unused)] pub const X_INERTIA_PARTIAL_DATA: HeaderName = HeaderName::from_static(inertia::X_INERTIA_PARTIAL_DATA);
+    #[allow(unused)] pub const X_INERTIA_PARTIAL_EXCEPT: HeaderName = HeaderName::from_static(inertia::X_INERTIA_PARTIAL_EXCEPT);
 }
 
 pub enum InertiaHeader {
@@ -85,51 +84,58 @@ impl InertiaResponder<HttpResponse, HttpRequest> for Inertia {
         let req_type = req.get_request_type()?;
         let props = InertiaProp::resolve_props(props, req_type);
 
+        let page = InertiaPage::new(
+            component,
+            url,
+            Some(self.version),
+            props,
+        );
+
         // if it's an inertia request, returns an InertiaPage object
         if req.is_inertia_request() {
-            return Ok(InertiaPage::new(
-                component,
-                url,
-                Some(self.version),
-                props,
-            ).respond_to(&req));
+            return Ok(page.respond_to(&req));
         }
 
-        // else returns a html and returns it
-        // probably if it's the first visit
+        let mut ssr_page = None;
+
+        if self.ssr_url.is_some() {
+            match request_page_render(&self.ssr_url.as_ref().unwrap(), page.clone()).await {
+                Err(err) => {
+                    log::warn!("{}", inertia_err_msg(format!(
+                        "Failed to server-side render the page: {:#?}",
+                        err
+                    )));
+                },
+                Ok(page) => {
+                    ssr_page = Some(page);
+                }
+            };
+        }
+
         let view_data = ViewData {
-            ssr_props: None,
-            page_props: props,
+            ssr_page,
+            page,
             custom_props: self.custom_view_data.clone(),
         };
-
-        if self.ssr_client.is_some() {
-            // let client = self.ssr_client.as_ref().unwrap();
-            //
-            // let request = hyper::Request::get("/render".into())
-            //     .body(hyper::body::Bytes::new()).unwrap();
-            //
-            // let mut sender = &client.sender;
-
-            //todo: get InertiaSSRPage and set it to view data ssr_props
-        }
 
         let html = (self.template_resolver)(self.template_path, view_data).await;
 
         if html.is_err() {
-            let err = match html.unwrap_err() {
-                InertiaError::SsrError(err) => err,
-                _ => inertia_err_msg("Internal server-side rendering error.".into())
-            };
+            if let InertiaError::SsrError(err) = html.unwrap_err() {
+                return Err(InertiaError::SsrError(err));
+            }
+
+            let internal_err = inertia_err_msg("Unexpected server-side rendering error.".into());
 
             return Ok(HttpResponseBuilder::new(StatusCode::INTERNAL_SERVER_ERROR)
-                .body(err)
+                .body(internal_err)
                 .respond_to(req));
         }
 
         let html = html.unwrap();
         return Ok(HttpResponseBuilder::new(StatusCode::OK)
             .insert_header(InertiaHeader::Inertia.convert())
+            .insert_header(actix_web::http::header::ContentType::html())
             .body(html)
             .respond_to(req));
     }
@@ -250,7 +256,7 @@ mod test {
         fn resolver(
             path: &str,
             view_data: ViewData
-        ) -> Pin<Box<dyn Future<Output = Result<String, InertiaError>> + Send + '_>> {
+        ) -> Pin<Box<dyn Future<Output = Result<String, InertiaError>> + Send + 'static>> {
             return Box::pin(async move {
                 // import the layout root using your favourite engine
                 // and renders it passing to it the view_data!
@@ -271,9 +277,9 @@ mod test {
 
         let props_clone = props.clone();
 
-        let mut fake_req = actix_web::test::TestRequest::get();
-        let mut fake_req = fake_req.insert_header(InertiaHeader::Inertia.convert());
-        let mut fake_req = fake_req.uri("/users");
+        let fake_req = actix_web::test::TestRequest::get();
+        let fake_req = fake_req.insert_header(InertiaHeader::Inertia.convert());
+        let fake_req = fake_req.uri("/users");
         let fake_req = fake_req.append_header((actix_web::http::header::HOST, "https://my-inertia-website.com".to_string()));
         let fake_req = fake_req.to_http_request();
 
