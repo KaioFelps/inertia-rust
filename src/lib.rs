@@ -7,8 +7,8 @@ mod page;
 mod error;
 mod req_type;
 mod props;
-
 pub mod providers;
+pub mod node_process;
 
 pub use inertia::Inertia as Inertia;
 pub use inertia::Component;
@@ -16,6 +16,7 @@ pub use inertia::InertiaVersion;
 pub use error::InertiaError;
 pub use page::InertiaPage;
 pub use page::InertiaSSRPage;
+pub use inertia::ViewData;
 pub use props::InertiaProps;
 
 #[cfg(test)]

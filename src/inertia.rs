@@ -5,6 +5,7 @@ use reqwest::Url;
 use serde::Serialize;
 use serde_json::{Map, Value};
 use crate::{InertiaError, InertiaPage, InertiaSSRPage};
+use crate::node_process::NodeJsProc;
 use crate::props::InertiaProps;
 use crate::req_type::InertiaRequestType;
 
@@ -126,7 +127,7 @@ pub struct Inertia {
     /// # Errors
     /// Returns an [`InertiaError::SsrError`] if it fails to render the html.
     ///
-    /// # Returns
+    /// # Return
     /// The return must be the template rendered to HTML. It will be sent as response to full
     /// requests.
     pub(crate) template_resolver: TemplateResolver,
@@ -165,7 +166,7 @@ impl Inertia {
     /// * `url`                 -   A valid [href] of the current application
     /// * `version`             -   The current asset version of the application.
     ///                             See [Asset versioning] for more details.
-    /// * `template_path        -   The path for the root html template.
+    /// * `template_path`       -   The path for the root html template.
     /// * `template_resolver`   -   A function that renders the given root template html. Check
     ///                             more details at [`Inertia::template_resolver`] doc string.
     /// * `custom_client`       -   An [`Option<SsrClient>`] with the Inertia Server address.
@@ -227,5 +228,71 @@ impl Inertia {
 
     pub fn get_view_data_mut(&mut self) -> &Map<String, Value> {
         &mut self.custom_view_data
+    }
+
+    /// Instantiates a [`NodeJsProc`] by calling [`NodeJsProc::start`] with the given path and the
+    /// inertia `ssr_url` as server url.
+    ///
+    /// # Arguments
+    /// * `server_file_path`    - The path to the server javascript file. E.g. "dist/server/ssr.js".
+    ///
+    /// # Errors
+    /// Will return an [`InertiaError`] if ssr is not enabled or if something goes wrong on setting
+    /// the node.js server up (if your machine do not have node installed, for example).
+    ///
+    /// # Return
+    /// Returns a [`NodeJsProc`] instance.
+    ///
+    /// # Example
+    /// ```rust
+    /// use inertia_rs::node_process::NodeJsProc;
+    /// use inertia_rs::{Inertia, InertiaVersion, InertiaError, ViewData};
+    /// use std::pin::Pin;
+    /// use std::future::Future;
+    ///
+    /// async fn server() {
+    ///     fn resolver(
+    ///         path: &str, // "www/index.html"
+    ///         view_data: ViewData
+    ///     ) -> Pin<Box<dyn Future<Output = Result<String, InertiaError>> + Send + 'static>> {
+    ///         return Box::pin(async move {
+    ///             // import the layout root and render it using your template engine
+    ///             // lets pretend we rendered it and it ended up being the html output below!
+    ///             Ok("<h1>my rendered page!</h1>".to_string())
+    ///         });
+    ///     }
+    ///
+    ///     let inertia = Inertia::new_with_ssr(
+    ///         "https://www.my-web-app.com".into(),
+    ///         InertiaVersion::Literal("my-assets-version".into()),
+    ///         "www/index.html",
+    ///         resolver,
+    ///         None, // let's use the default url for the ssr server
+    ///     ).await.unwrap();
+    ///
+    ///     let node: Result<NodeJsProc, InertiaError> = inertia.start_node_server("dist/server/ssr.js".into());
+    ///     if node.is_err() {
+    ///         let err = node.unwrap_err();
+    ///         panic!("Failed to start inertia ssr server: {:?}", err);
+    ///     }
+    ///
+    ///     let node = node.unwrap();
+    ///
+    ///     // starts your server here, using inertia.
+    ///     // httpserver().await; or something like this
+    ///
+    ///     let _ = node.kill(); // don't forget to kill the node.js process on shutdown
+    /// }
+    /// ```
+    pub fn start_node_server(&self, server_file_path: String) -> Result<NodeJsProc, InertiaError> {
+        if self.ssr_url.is_none() {
+            return Err(InertiaError::SsrError("Ssr is not enabled and, hence, a ssr server cannot be raised.".into()));
+        }
+
+        let node = NodeJsProc::start(server_file_path, self.ssr_url.as_ref().unwrap().to_string());
+        match node {
+            Err(err) => Err(InertiaError::NodeJsError(err)),
+            Ok(process) => Ok(process)
+        }
     }
 }
