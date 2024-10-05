@@ -1,5 +1,5 @@
 [package]
-name = "inertia_rs"
+name = "inertia_rust"
 description = "A Rust server-adapter for building modern MVC web apps with Inertia."
 repository = "https://github.com/KaioFelps/inertia-rust"
 keywords = ["inertia", "mvc", "react"]
@@ -19,3 +19,5 @@ async-trait = "0.1.83"
 reqwest = { version = "0.12", features = ["json"] }
 actix-web = { version = "4.9.0", features = ["default"], optional = true }
 log = "0.4.22"
+tokio = { version = "1.40.0", features = ["fs", "io-std", "test-util", "rt", "rt-multi-thread", "macros"] }
+futures = "0.3.30"
