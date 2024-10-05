@@ -55,7 +55,7 @@ impl NodeJsProc {
     ///
     /// # Example
     /// ```rust
-    /// use inertia_rs::node_process::{NodeJsError, NodeJsProc};
+    /// use inertia_rust::node_process::{NodeJsError, NodeJsProc};
     ///
     /// async fn server() {
     ///     let node = NodeJsProc::start("dist/server/ssr.js".into(), "localhost:15000".into());

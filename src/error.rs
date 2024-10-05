@@ -5,5 +5,5 @@ pub enum InertiaError {
     SerializationError(String),
     HeaderError(String),
     SsrError(String),
-    NodeJsError(NodeJsError)
+    NodeJsError(NodeJsError),
 }
