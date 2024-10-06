@@ -31,12 +31,15 @@ impl InertiaSSRPage {
             body,
         }
     }
+
+    pub fn get_head(&self) -> &String { &self.head }
+    pub fn get_body(&self) -> &String { &self.body }
 }
 
 /// Response containing a valid Inertia Payload that will be used
 /// by the Inertia client to render the components.
 #[derive(Serialize, Debug, Eq, PartialEq, Clone)]
-pub struct InertiaPage<'response_lt> {
+pub struct InertiaPage {
     /// The name of the JavaScript page component.
     pub(crate) component: Component,
     /// The page props (data). A merge of page props and shared props.
@@ -46,10 +49,10 @@ pub struct InertiaPage<'response_lt> {
     // this url represents the current request's url, i.e. the page url.
     pub(crate) url: String,
     /// Current assets version.
-    pub(crate) version: Option<&'response_lt str>,
+    pub(crate) version: Option<String>,
 }
 
-impl<'response_lt> InertiaPage<'response_lt> {
+impl InertiaPage {
     /// Instantiates an Inertia Page object to sent as http response,
     /// according to [Inertia Protocol].
     ///
@@ -71,7 +74,7 @@ impl<'response_lt> InertiaPage<'response_lt> {
         // this indicates that the version str must live at least until the request is freed
         // from memory. This will happen because the version given is the Inertia::version, a
         // static living str.
-        version: Option<&'response_lt str>,
+        version: Option<String>,
         props: Map<String, Value>,
     ) -> Self {
         InertiaPage {
@@ -124,7 +127,7 @@ mod test {
         let page = InertiaPage::new(
             Component("Events".into()),
             "/events/80".to_string(),
-            Some("generated_version"),
+            Some("generated_version".into()),
             InertiaProp::resolve_props(props, req_type)
         );
 
@@ -159,7 +162,7 @@ mod test {
         let page = InertiaPage::new(
             Component("Categories".into()),
             "/categories".to_string(),
-            Some("generated_version"),
+            Some("generated_version".into()),
             InertiaProp::resolve_props(props, req_type)
         );
 

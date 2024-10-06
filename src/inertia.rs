@@ -1,5 +1,3 @@
-use std::future::Future;
-use std::pin::Pin;
 use async_trait::async_trait;
 use reqwest::Url;
 use serde::Serialize;
@@ -66,13 +64,14 @@ pub enum InertiaVersion {
 }
 
 /// View Data is a struct containing props to be used by the root template.
-pub struct ViewData<'lf> {
-    pub page: InertiaPage<'lf>,
+pub struct ViewData {
+    pub page: InertiaPage,
     pub ssr_page: Option<InertiaSSRPage>,
     pub custom_props: Map<String, Value>
 }
 
-pub(crate) type TemplateResolver = fn(&'_ str, ViewData) -> Pin<Box<dyn Future<Output = Result<String, InertiaError>> + Send + 'static>>;
+pub type TemplateResolverOutput<'lf> = futures::future::BoxFuture<'lf, Result<String, InertiaError>>;
+pub(crate) type TemplateResolver = &'static dyn Fn(&'_ str, ViewData) -> TemplateResolverOutput;
 
 pub struct SsrClient {
     pub(crate) host: &'static str,
@@ -245,28 +244,33 @@ impl Inertia {
     ///
     /// # Example
     /// ```rust
-    /// use inertia_rs::node_process::NodeJsProc;
-    /// use inertia_rs::{Inertia, InertiaVersion, InertiaError, ViewData};
+    /// use inertia_rust::node_process::NodeJsProc;
+    /// use inertia_rust::{Inertia, InertiaVersion, InertiaError, ViewData, TemplateResolverOutput};
     /// use std::pin::Pin;
     /// use std::future::Future;
     ///
     /// async fn server() {
-    ///     fn resolver(
-    ///         path: &str, // "www/index.html"
+    ///     // note that this is the async function and the actual resolver
+    ///     async fn _resolver<'lf>(
+    ///         path: &'lf str, // "www/index.html"
     ///         view_data: ViewData
-    ///     ) -> Pin<Box<dyn Future<Output = Result<String, InertiaError>> + Send + 'static>> {
-    ///         return Box::pin(async move {
-    ///             // import the layout root and render it using your template engine
-    ///             // lets pretend we rendered it and it ended up being the html output below!
-    ///             Ok("<h1>my rendered page!</h1>".to_string())
-    ///         });
+    ///     ) -> Result<String, InertiaError> {
+    ///         // import the layout root and render it using your template engine
+    ///         // lets pretend we rendered it and it ended up being the html output below!
+    ///         Ok("<h1>my rendered page!</h1>".to_string())
     ///     }
     ///
+    ///     // a wrapper for the resolver, so that it can be stored inside the Inertia struct
+    ///     fn resolver<'lf>(path: &'lf str, view_data: ViewData) -> TemplateResolverOutput<'lf>
+    ///     {
+    ///         Box::pin(_resolver(path, view_data))
+    ///     }
+    /// 
     ///     let inertia = Inertia::new_with_ssr(
     ///         "https://www.my-web-app.com".into(),
     ///         InertiaVersion::Literal("my-assets-version".into()),
     ///         "www/index.html",
-    ///         resolver,
+    ///         &resolver,
     ///         None, // let's use the default url for the ssr server
     ///     ).await.unwrap();
     ///
