@@ -7,7 +7,8 @@ mod page;
 mod error;
 mod req_type;
 mod props;
-pub mod providers;
+mod providers;
+
 pub mod node_process;
 
 pub use inertia::Inertia as Inertia;
@@ -18,6 +19,8 @@ pub use page::InertiaPage;
 pub use page::InertiaSSRPage;
 pub use inertia::ViewData;
 pub use props::InertiaProps;
+pub use props::InertiaProp;
+pub use inertia::TemplateResolverOutput;
 
-#[cfg(test)]
-mod tests {}
+#[cfg(feature = "actix")]
+pub use providers::actix::facade::{render, render_with_props};

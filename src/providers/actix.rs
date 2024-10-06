@@ -4,6 +4,7 @@ use actix_web::http::header::{HeaderName, HeaderValue};
 use actix_web::body::BoxBody;
 use actix_web::http::StatusCode;
 use async_trait::async_trait;
+
 use crate::{Component, InertiaError, InertiaPage};
 use crate::utils::{inertia_err_msg, request_page_render};
 use crate::inertia::{Inertia, InertiaHttpRequest, InertiaResponder, ViewData};
@@ -53,7 +54,7 @@ impl InertiaHeader {
     }
 }
 
-impl<'response_lt> Responder for InertiaPage<'response_lt> {
+impl Responder for InertiaPage {
     type Body = BoxBody;
 
     #[inline]
@@ -87,7 +88,7 @@ impl InertiaResponder<HttpResponse, HttpRequest> for Inertia {
         let page = InertiaPage::new(
             component,
             url,
-            Some(self.version),
+            Some(self.version.to_string()),
             props,
         );
 
@@ -213,6 +214,48 @@ fn extract_partials_headers_content(req: &HttpRequest, header_name: &HeaderName)
     return Ok(partials);
 }
 
+pub mod facade {
+    use actix_web::{HttpRequest, HttpResponse};
+    use crate::{Component, Inertia, InertiaError, InertiaProps};
+    use crate::inertia::InertiaResponder;
+    use crate::utils::inertia_err_msg;
+
+    /// Short for calling `render` from the `Inertia` instance configured and added to the request
+    /// AppData.
+    ///
+    /// # Arguments
+    /// * `req`         -   A reference to the HttpRequest.
+    /// * `component`   -   The name of the page javascript component.
+    ///
+    /// # Panic
+    /// Panics if Inertia instance hasn't been configured (set to AppData).
+    pub async fn render(req: &HttpRequest, component: Component) -> Result<HttpResponse, InertiaError> {
+        let inertia = extract_inertia(req);
+        inertia.render(&req, component).await
+    }
+
+    /// Short for calling `render_with_props` from the `Inertia` instance configured and added to the request
+    /// AppData.
+    ///
+    /// # Arguments
+    /// * `req`         -   A reference to the HttpRequest.
+    /// * `component`   -   The name of the page javascript component.
+    ///
+    /// # Panic
+    /// Panics if Inertia instance hasn't been configured (set to AppData).
+    pub async fn render_with_props(req: &HttpRequest, component: Component, props: InertiaProps) -> Result<HttpResponse, InertiaError> {
+        let inertia = extract_inertia(req);
+        inertia.render_with_props(&req, component, props).await
+    }
+
+    fn extract_inertia(req: &HttpRequest) -> &Inertia {
+        match req.app_data::<Inertia>() {
+            None => panic!("{}", &inertia_err_msg("There is no Inertia struct in AppData. Please, assure you have correctly configured Inertia.".into())),
+            Some(inertia) => inertia
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::providers::actix::header_names::{
@@ -221,13 +264,11 @@ mod test {
         X_INERTIA_PARTIAL_EXCEPT
     };
     use std::collections::HashMap;
-    use std::future::Future;
-    use std::pin::Pin;
     use std::str::from_utf8;
-    use crate::{InertiaPage, Inertia, Component, InertiaVersion, InertiaError};
     use actix_web::test;
     use actix_web::body::MessageBody;
     use serde_json::json;
+    use crate::{Component, Inertia, InertiaError, InertiaPage, InertiaVersion, TemplateResolverOutput};
     use crate::providers::actix::InertiaHeader;
     use crate::inertia::{InertiaHttpRequest, InertiaResponder, ViewData};
     use crate::props::InertiaProp;
@@ -235,7 +276,7 @@ mod test {
 
     #[test]
     async fn test_get_partials_requirements() {
-        let mut request = actix_web::test::TestRequest::default();
+        let mut request = test::TestRequest::default();
         request = request.insert_header((X_INERTIA_PARTIAL_COMPONENT, "/Index"));
         request = request.insert_header((X_INERTIA_PARTIAL_DATA, "events,popularUsers")); // not any props but events and popularUsers
 
@@ -253,22 +294,22 @@ mod test {
 
     #[test]
     async fn test_inertia_page() {
-        fn resolver(
-            path: &str,
-            view_data: ViewData
-        ) -> Pin<Box<dyn Future<Output = Result<String, InertiaError>> + Send + 'static>> {
-            return Box::pin(async move {
-                // import the layout root using your favourite engine
-                // and renders it passing to it the view_data!
-                Ok("<h1>my rendered page!</h1>".to_string())
-            });
+        async fn resolver<'lf>(_path: &'lf str, view_data: ViewData) -> Result<String, InertiaError>
+        {
+            // import the layout root using your favourite engine
+            // and renders it passing to it the view_data!
+            Ok(format!("<div id='app' data-page='{}'><div>", serde_json::to_string(&view_data.page).unwrap()))
+        }
+
+        fn resolver_wrapper<'lf>(path: &'lf str, view_data: ViewData) -> TemplateResolverOutput<'lf> {
+            Box::pin(resolver(path, view_data))
         }
 
         let inertia = Inertia::new(
-            "https://my-inertia-website.com",                           // url
+            "https://my-inertia-website.com",                               // url
             InertiaVersion::Resolver(|| "gen_the_version".to_string()),     // (assets) version
-            "/resources/view/template.hbs",                     // template path
-            resolver,                                                       // the template resolver
+            "/resources/view/template.hbs",                                 // template path
+            &resolver_wrapper,                                                       // the template resolver
         );
 
         let mut props = HashMap::<String, InertiaProp>::new();
@@ -277,7 +318,7 @@ mod test {
 
         let props_clone = props.clone();
 
-        let fake_req = actix_web::test::TestRequest::get();
+        let fake_req = test::TestRequest::get();
         let fake_req = fake_req.insert_header(InertiaHeader::Inertia.convert());
         let fake_req = fake_req.uri("/users");
         let fake_req = fake_req.append_header((actix_web::http::header::HOST, "https://my-inertia-website.com".to_string()));
@@ -288,7 +329,7 @@ mod test {
         let page = InertiaPage::new(
             Component("/Users/Index".into()),
             "/users".to_string(),
-            Some("gen_the_version"),
+            Some("gen_the_version".to_string()),
             InertiaProp::resolve_props(props_clone, fake_req.get_request_type().unwrap())
         );
 
