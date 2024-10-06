@@ -1,3 +1,6 @@
+use std::future::Future;
+use std::pin::Pin;
+
 use async_trait::async_trait;
 use reqwest::Url;
 use serde::Serialize;
@@ -70,8 +73,8 @@ pub struct ViewData {
     pub custom_props: Map<String, Value>
 }
 
-pub type TemplateResolverOutput<'lf> = futures::future::BoxFuture<'lf, Result<String, InertiaError>>;
-pub(crate) type TemplateResolver = &'static dyn Fn(&'_ str, ViewData) -> TemplateResolverOutput;
+pub type TemplateResolverOutput<'lf> = Pin<Box<dyn Future<Output = Result<String, InertiaError>> + Send + Sync + 'lf>>;
+pub(crate) type TemplateResolver = &'static (dyn Fn(&'_ str, ViewData) -> TemplateResolverOutput + Send + Sync + 'static);
 
 pub struct SsrClient {
     pub(crate) host: &'static str,
