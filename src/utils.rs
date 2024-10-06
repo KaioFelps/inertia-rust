@@ -3,10 +3,6 @@ use serde_json::{Map, Value};
 use crate::error::InertiaError;
 use crate::{InertiaPage, InertiaSSRPage};
 
-pub(crate) fn inertia_panic(msg: String) {
-    panic!("[Inertia] {}", msg);
-}
-
 pub(crate) fn inertia_err_msg(msg: String) -> String {
     format!("[Inertia] {}", msg)
 }
@@ -41,9 +37,9 @@ where T: Serialize
     };
 }
 
-pub(crate) async fn request_page_render<'lf>(
+pub(crate) async fn request_page_render(
     server_url: &reqwest::Url,
-    page: InertiaPage<'lf>
+    page: InertiaPage
 ) -> Result<InertiaSSRPage, InertiaError> {
     let mut render_endpoint = server_url.clone();
     render_endpoint.set_path("render");
