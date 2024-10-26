@@ -1,5 +1,3 @@
-#[macro_use] extern crate serde;
-
 mod http_method;
 mod inertia;
 mod utils;
@@ -21,6 +19,7 @@ pub use inertia::ViewData;
 pub use props::InertiaProps;
 pub use props::InertiaProp;
 pub use inertia::TemplateResolverOutput;
+pub use inertia::SsrClient;
 
 #[cfg(feature = "actix")]
 pub use providers::actix::facade::{render, render_with_props};
