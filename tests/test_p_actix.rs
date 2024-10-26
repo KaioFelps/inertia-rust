@@ -22,7 +22,7 @@ async fn home(req: HttpRequest) -> HttpResponse {
     }
 
     let err = response.unwrap_err();
-    println!("{:#?}", err);
+    log::error!("{:#?}", err);
     return HttpResponse::InternalServerError().finish();
 }
 
@@ -39,7 +39,7 @@ async fn with_props(req: HttpRequest) -> HttpResponse {
     if response.is_ok() { return response.unwrap(); }
 
     let err = response.unwrap_err();
-    println!("{:#?}", err);
+    log::error!("{:#?}", err);
     return HttpResponse::InternalServerError().finish();
 }
 
