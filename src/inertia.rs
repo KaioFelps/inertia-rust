@@ -1,9 +1,10 @@
 use std::future::Future;
+use std::io;
 use std::pin::Pin;
 
 use async_trait::async_trait;
 use reqwest::Url;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use crate::{InertiaError, InertiaPage, InertiaSSRPage};
 use crate::node_process::NodeJsProc;
@@ -73,8 +74,9 @@ pub struct ViewData {
     pub custom_props: Map<String, Value>
 }
 
-pub type TemplateResolverOutput<'lf> = Pin<Box<dyn Future<Output = Result<String, InertiaError>> + Send + Sync + 'lf>>;
-pub(crate) type TemplateResolver = &'static (dyn Fn(&'_ str, ViewData) -> TemplateResolverOutput + Send + Sync + 'static);
+pub type TemplateResolverOutput = Pin<Box<dyn Future<Output = Result<String, InertiaError>> + Send + Sync + 'static>>;
+// pub(crate) type TemplateResolver = &'static (dyn Fn(&'_ str, ViewData) -> TemplateResolverOutput + Send + Sync + 'static);
+pub(crate) type TemplateResolver<T> = &'static (dyn Fn(&'static str, ViewData, &'static T) -> TemplateResolverOutput + Send + Sync + 'static);
 
 pub struct SsrClient {
     pub(crate) host: &'static str,
@@ -106,7 +108,7 @@ impl Default for SsrClient {
 /// It is supposed to last during the whole application runtime.
 ///
 /// Extra details of how to initialize and keep it is specific to the feature-opted http library.
-pub struct Inertia {
+pub struct Inertia<T> where T : 'static {
     /// URL used between redirects and responses generation, i.g. "https://myapp.com".
     pub(crate) url: &'static str,
     /// The path to find the root html template to render everything in.
@@ -132,32 +134,46 @@ pub struct Inertia {
     /// # Return
     /// The return must be the template rendered to HTML. It will be sent as response to full
     /// requests.
-    pub(crate) template_resolver: TemplateResolver,
+    pub(crate) template_resolver: TemplateResolver<T>,
+    /// The data to provide to template resolver
+    pub(crate) template_resolver_data: &'static T,
     /// Address of Inertia local render server. Will be used by Inertia to perform ssr.
     pub(crate) ssr_url: Option<Url>,
     /// Extra data to be passed to the root template.
     pub(crate) custom_view_data: Map<String, Value>
 }
 
-impl Inertia {
+impl<T> Inertia<T> where T : 'static {
     /// Initializes an instance of [`Inertia`] struct.
     ///
     /// # Arguments
-    /// * `url`                 -   A valid [href] of the current application
-    /// * `version`             -   The current asset version of the application.
-    ///                             See [Asset versioning] for more details.
-    /// * `template_path`       -   The path for the root html template.
-    /// * `template_resolver`   -   A function that renders the given root template html. Check
-    ///                             more details at [`Inertia::template_resolver`] doc string.
+    /// * `url`                     -   A valid [href] of the current application
+    /// * `version`                 -   The current asset version of the application.
+    ///                                 See [Asset versioning] for more details.
+    /// * `template_path`           -   The path for the root html template.
+    /// * `template_resolver`       -   A function that renders the given root template html. Check
+    ///                                 more details at [`Inertia::template_resolver`] doc string.
+    /// * `template_resolver_data`  -   The third parameter of your template resolver. Inertia will
+    ///                                 pass it by reference when calling the resolver function.
+    ///                                 If you don't plan to use it, just pass an empty tuple (both here
+    ///                                 and in your template resolver).
     ///
     /// [`Inertia`]: Inertia
     pub fn new(
         url: &'static str,
         version: InertiaVersion,
         template_path: &'static str,
-        template_resolver: TemplateResolver
+        template_resolver: TemplateResolver<T>,
+        template_resolver_data: &'static T,
     ) -> Self {
-        Self::instantiate(url, template_path, version, template_resolver, None)
+        Self::instantiate(
+            url,
+            template_path,
+            version,
+            template_resolver,
+            template_resolver_data,
+            None
+        )
     }
 
     /// Initializes an instance of [`Inertia`] struct with server-side rendering enabled.
@@ -165,15 +181,19 @@ impl Inertia {
     /// GitHub repository readme to find the current command.
     ///
     /// # Arguments
-    /// * `url`                 -   A valid [href] of the current application
-    /// * `version`             -   The current asset version of the application.
-    ///                             See [Asset versioning] for more details.
-    /// * `template_path`       -   The path for the root html template.
-    /// * `template_resolver`   -   A function that renders the given root template html. Check
-    ///                             more details at [`Inertia::template_resolver`] doc string.
-    /// * `custom_client`       -   An [`Option<SsrClient>`] with the Inertia Server address.
-    ///                             If `None` is passed to the parameters, `SsrClient::default` will
-    ///                             be used.
+    /// * `url`                     -   A valid [href] of the current application
+    /// * `version`                 -   The current asset version of the application.
+    ///                                 See [Asset versioning] for more details.
+    /// * `template_path`           -   The path for the root html template.
+    /// * `template_resolver`       -   A function that renders the given root template html. Check
+    ///                                 more details at [`Inertia::template_resolver`] doc string.
+    /// * `template_resolver_data`  -   The third parameter of your template resolver. Inertia will
+    ///                                 pass it by reference when calling the resolver function.
+    ///                                 If you don't plan to use it, just pass an empty tuple (both here
+    ///                                 and in your template resolver).
+    /// * `custom_client`           -   An [`Option<SsrClient>`] with the Inertia Server address.
+    ///                                 If `None` is passed to the parameters, `SsrClient::default` will
+    ///                                 be used.
     ///
     /// # Errors
     /// Returns an [`InertiaError::SsrError`] if it fails to connect to the server.
@@ -187,9 +207,10 @@ impl Inertia {
         url: &'static str,
         version: InertiaVersion,
         template_path: &'static str,
-        template_resolver: TemplateResolver,
+        template_resolver: TemplateResolver<T>,
+        template_resolver_data: &'static T,
         custom_client: Option<SsrClient>,
-    ) -> Result<Self, InertiaError> {
+    ) -> Result<Self, io::Error> {
         let client: SsrClient = custom_client.unwrap_or_else(|| SsrClient::default());
 
         let ssr_url = if client.host.contains("://") {
@@ -199,18 +220,29 @@ impl Inertia {
         };
 
         let ssr_url = match Url::parse(&ssr_url) {
-            Err(err) => return Err(InertiaError::SsrError(format!("Failed to parse Inertia Server url: {}", err))),
+            Err(err) => {
+                let inertia_err = InertiaError::SsrError(format!("Failed to parse Inertia Server url: {}", err));
+                return Err(inertia_err.to_io_error());
+            },
             Ok(url) => url,
         };
 
-        Ok(Self::instantiate(url, template_path, version, template_resolver, Some(ssr_url)))
+        Ok(Self::instantiate(
+            url,
+            template_path,
+            version,
+            template_resolver,
+            template_resolver_data,
+            Some(ssr_url)
+        ))
     }
 
     fn instantiate (
         url: &'static str,
         template_path: &'static str,
         version: InertiaVersion,
-        template_resolver: TemplateResolver,
+        template_resolver: TemplateResolver<T>,
+        template_resolver_data: &'static T,
         ssr_url: Option<Url>
     ) -> Self {
         let version = match version {
@@ -223,6 +255,7 @@ impl Inertia {
             template_path,
             version,
             template_resolver,
+            template_resolver_data,
             ssr_url,
             custom_view_data: Map::new(),
         }
@@ -254,9 +287,10 @@ impl Inertia {
     ///
     /// async fn server() {
     ///     // note that this is the async function and the actual resolver
-    ///     async fn _resolver<'lf>(
-    ///         path: &'lf str, // "www/index.html"
-    ///         view_data: ViewData
+    ///     async fn _resolver(
+    ///         path: &'static str, // "www/index.html"
+    ///         view_data: ViewData,
+    ///         _data: &'static ()
     ///     ) -> Result<String, InertiaError> {
     ///         // import the layout root and render it using your template engine
     ///         // lets pretend we rendered it and it ended up being the html output below!
@@ -264,9 +298,9 @@ impl Inertia {
     ///     }
     ///
     ///     // a wrapper for the resolver, so that it can be stored inside the Inertia struct
-    ///     fn resolver<'lf>(path: &'lf str, view_data: ViewData) -> TemplateResolverOutput<'lf>
+    ///     fn resolver(path: &'static str, view_data: ViewData, _data: &'static ()) -> TemplateResolverOutput
     ///     {
-    ///         Box::pin(_resolver(path, view_data))
+    ///         Box::pin(_resolver(path, view_data, _data))
     ///     }
     /// 
     ///     let inertia = Inertia::new_with_ssr(
@@ -274,10 +308,11 @@ impl Inertia {
     ///         InertiaVersion::Literal("my-assets-version".into()),
     ///         "www/index.html",
     ///         &resolver,
+    ///         &(),
     ///         None, // let's use the default url for the ssr server
     ///     ).await.unwrap();
     ///
-    ///     let node: Result<NodeJsProc, InertiaError> = inertia.start_node_server("dist/server/ssr.js".into());
+    ///     let node: Result<NodeJsProc, std::io::Error> = inertia.start_node_server("dist/server/ssr.js".into());
     ///     if node.is_err() {
     ///         let err = node.unwrap_err();
     ///         panic!("Failed to start inertia ssr server: {:?}", err);
@@ -291,14 +326,15 @@ impl Inertia {
     ///     let _ = node.kill(); // don't forget to kill the node.js process on shutdown
     /// }
     /// ```
-    pub fn start_node_server(&self, server_file_path: String) -> Result<NodeJsProc, InertiaError> {
+    pub fn start_node_server(&self, server_file_path: String) -> Result<NodeJsProc, io::Error> {
         if self.ssr_url.is_none() {
-            return Err(InertiaError::SsrError("Ssr is not enabled and, hence, a ssr server cannot be raised.".into()));
+            let inertia_err = InertiaError::SsrError("Ssr is not enabled and, hence, a ssr server cannot be raised.".into());
+            return Err(inertia_err.to_io_error());
         }
 
-        let node = NodeJsProc::start(server_file_path, self.ssr_url.as_ref().unwrap().to_string());
+        let node = NodeJsProc::start(server_file_path, self.ssr_url.as_ref().unwrap());
         match node {
-            Err(err) => Err(InertiaError::NodeJsError(err)),
+            Err(err) => Err(InertiaError::NodeJsError(err).to_io_error()),
             Ok(process) => Ok(process)
         }
     }
