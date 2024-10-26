@@ -32,7 +32,7 @@ pub const EXPECTED_RENDER_W_PROPS: &'static str = "
 </html>";
 
 
-async fn _mocked_resolver<'lf>(template_path: &str, view_data: ViewData) -> Result<String, InertiaError> {
+async fn _mocked_resolver(template_path: &str, view_data: ViewData) -> Result<String, InertiaError> {
     let path = Path::new(template_path);
 
     let read_file = tokio::fs::read(&path).await;
@@ -55,7 +55,7 @@ async fn _mocked_resolver<'lf>(template_path: &str, view_data: ViewData) -> Resu
     match view_data.ssr_page {
         Some(ssr) => {
             html = html.replace("%-inertia_body-%", ssr.get_body());
-            html = html.replace("%-inertia_head-%", ssr.get_head());
+            html = html.replace("%-inertia_head-%", &ssr.get_head());
         },
         None => {
             let stringified_page: Result<String, serde_json::Error> = serde_json::to_string(&view_data.page);
@@ -75,6 +75,6 @@ async fn _mocked_resolver<'lf>(template_path: &str, view_data: ViewData) -> Resu
     return Ok(html);
 }
 
-pub fn mocked_resolver<'lf>(template_path: &'lf str, view_data: ViewData) -> TemplateResolverOutput<'lf> {
+pub fn mocked_resolver(template_path: &'static str, view_data: ViewData, _data: &()) -> TemplateResolverOutput {
     Box::pin(_mocked_resolver(template_path, view_data))
 }
