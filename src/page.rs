@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use crate::inertia::Component;
 
@@ -6,7 +7,7 @@ use crate::inertia::Component;
 #[derive(Deserialize)]
 pub struct InertiaSSRPage {
     /// All html-string elements to be injected in inertia_head, at the root template.
-    pub(crate) head: String,
+    pub(crate) head: Vec<String>,
     /// All html-string elements to be injected in inertia_body div container, at the root template.
     pub(crate) body: String,
 }
@@ -25,20 +26,20 @@ impl InertiaSSRPage {
     ///
     /// [template_path]: crate::inertia::Inertia
     /// 
-    pub fn new(head: String, body: String) -> Self {
+    pub fn new(head: Vec<String>, body: String) -> Self {
         InertiaSSRPage {
             head,
             body,
         }
     }
 
-    pub fn get_head(&self) -> &String { &self.head }
+    pub fn get_head(&self) -> String { self.head.join("\n") }
     pub fn get_body(&self) -> &String { &self.body }
 }
 
 /// Response containing a valid Inertia Payload that will be used
 /// by the Inertia client to render the components.
-#[derive(Serialize, Debug, Eq, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
 pub struct InertiaPage {
     /// The name of the JavaScript page component.
     pub(crate) component: Component,
@@ -91,6 +92,7 @@ mod test {
     use std::collections::HashMap;
     use crate::{InertiaPage, Component};
     use actix_web::test;
+    use serde::Serialize;
     use serde_json::json;
     use crate::props::InertiaProp;
     use crate::req_type::{InertiaRequestType, PartialComponent};
