@@ -1,7 +1,7 @@
 mod common;
 
 use std::collections::HashMap;
-use actix_web::{dev::{ServiceFactory, ServiceRequest, ServiceResponse}, get, App, HttpRequest, HttpResponse};
+use actix_web::{dev::{ServiceFactory, ServiceRequest, ServiceResponse}, get, web::Data, App, HttpRequest, HttpResponse};
 use common::template_resolver::{mocked_resolver, EXPECTED_RENDER, EXPECTED_RENDER_W_PROPS};
 use inertia_rust::{Component, Inertia, InertiaProp, InertiaProps, InertiaVersion};
 
@@ -16,7 +16,7 @@ fn super_trim(text: String) -> String {
 
 #[get("/")]
 async fn home(req: HttpRequest) -> HttpResponse {
-    let response = inertia_rust::render(&req, Component("Index".into())).await;
+    let response = inertia_rust::render::<()>(&req, Component("Index".into())).await;
     if response.is_ok() {
         return response.unwrap();
     }
@@ -31,7 +31,7 @@ async fn with_props(req: HttpRequest) -> HttpResponse {
     let mut props: InertiaProps = HashMap::new();
     props.insert("user".to_string(), InertiaProp::Always("John Doe".into()));
 
-    let response = inertia_rust::render_with_props(
+    let response = inertia_rust::render_with_props::<()>(
         &req,
         Component("Index".into()),
         props,
@@ -55,11 +55,12 @@ async fn generate_actix_app() -> App<impl ServiceFactory<
         InertiaVersion::Literal("v1.0.0".into()),
         // "tests/common/root_layout.html",
         "tests/common/root_layout.html",
-        &mocked_resolver
+        &mocked_resolver,
+        &()
     );
 
     App::new()
-        .app_data(inertia)
+        .app_data(Data::new(inertia))
         .service(home)
         .service(with_props)
 }

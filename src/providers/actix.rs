@@ -68,7 +68,7 @@ impl Responder for InertiaPage {
 }
 
 #[async_trait(?Send)]
-impl InertiaResponder<HttpResponse, HttpRequest> for Inertia {
+impl<T> InertiaResponder<HttpResponse, HttpRequest> for Inertia<T> where T : 'static {
     #[inline]
     async fn render(&self, req: &HttpRequest, component: Component) -> Result<HttpResponse, InertiaError> {
         self.render_with_props(&req, component, HashMap::new()).await
@@ -80,9 +80,9 @@ impl InertiaResponder<HttpResponse, HttpRequest> for Inertia {
         req: &HttpRequest,
         component: Component,
         props: InertiaProps
-    ) -> Result<HttpResponse, InertiaError>  {
+    ) -> Result<HttpResponse, InertiaError> {
         let url = req.uri().to_string();
-        let req_type = req.get_request_type()?;
+        let req_type: InertiaRequestType = req.get_request_type()?;
         let props = InertiaProp::resolve_props(props, req_type);
 
         let page = InertiaPage::new(
@@ -119,7 +119,7 @@ impl InertiaResponder<HttpResponse, HttpRequest> for Inertia {
             custom_props: self.custom_view_data.clone(),
         };
 
-        let html = (self.template_resolver)(self.template_path, view_data).await;
+        let html = (self.template_resolver)(self.template_path, view_data, self.template_resolver_data).await;
 
         if html.is_err() {
             if let InertiaError::SsrError(err) = html.unwrap_err() {
@@ -215,9 +215,10 @@ fn extract_partials_headers_content(req: &HttpRequest, header_name: &HeaderName)
 }
 
 pub mod facade {
+    use actix_web::web::Data;
     use actix_web::{HttpRequest, HttpResponse};
-    use crate::{Component, Inertia, InertiaError, InertiaProps};
     use crate::inertia::InertiaResponder;
+    use crate::{Component, Inertia, InertiaError, InertiaProps};
     use crate::utils::inertia_err_msg;
 
     /// Short for calling `render` from the `Inertia` instance configured and added to the request
@@ -229,8 +230,13 @@ pub mod facade {
     ///
     /// # Panic
     /// Panics if Inertia instance hasn't been configured (set to AppData).
-    pub async fn render(req: &HttpRequest, component: Component) -> Result<HttpResponse, InertiaError> {
-        let inertia = extract_inertia(req);
+    pub async fn render<T>(
+        req: &HttpRequest,
+        component: Component
+    ) -> Result<HttpResponse, InertiaError> 
+        where T: 'static
+    {
+        let inertia = extract_inertia::<T>(req);
         inertia.render(&req, component).await
     }
 
@@ -243,13 +249,19 @@ pub mod facade {
     ///
     /// # Panic
     /// Panics if Inertia instance hasn't been configured (set to AppData).
-    pub async fn render_with_props(req: &HttpRequest, component: Component, props: InertiaProps) -> Result<HttpResponse, InertiaError> {
-        let inertia = extract_inertia(req);
+    pub async fn render_with_props<T>(
+        req: &HttpRequest,
+        component: Component,
+        props: InertiaProps
+    ) -> Result<HttpResponse, InertiaError>
+        where T: 'static
+    {
+        let inertia: &Inertia<T> = extract_inertia(req);
         inertia.render_with_props(&req, component, props).await
     }
 
-    fn extract_inertia(req: &HttpRequest) -> &Inertia {
-        match req.app_data::<Inertia>() {
+    fn extract_inertia<T>(req: &HttpRequest) -> &Inertia<T> where T: 'static {
+        match req.app_data::<Data<Inertia<T>>>() {
             None => panic!("{}", &inertia_err_msg("There is no Inertia struct in AppData. Please, assure you have correctly configured Inertia.".into())),
             Some(inertia) => inertia
         }
@@ -294,25 +306,26 @@ mod test {
 
     #[test]
     async fn test_inertia_page() {
-        async fn resolver<'lf>(_path: &'lf str, view_data: ViewData) -> Result<String, InertiaError>
+        async fn resolver(_path: &str, view_data: ViewData, _data: &'static ()) -> Result<String, InertiaError>
         {
             // import the layout root using your favourite engine
             // and renders it passing to it the view_data!
             Ok(format!("<div id='app' data-page='{}'><div>", serde_json::to_string(&view_data.page).unwrap()))
         }
 
-        fn resolver_wrapper<'lf>(path: &'lf str, view_data: ViewData) -> TemplateResolverOutput<'lf> {
-            Box::pin(resolver(path, view_data))
+        fn resolver_wrapper(path: &'static str, view_data: ViewData, _data: &'static ()) -> TemplateResolverOutput {
+            Box::pin(resolver(path, view_data, _data))
         }
 
         let inertia = Inertia::new(
             "https://my-inertia-website.com",                               // url
             InertiaVersion::Resolver(|| "gen_the_version".to_string()),     // (assets) version
             "/resources/view/template.hbs",                                 // template path
-            &resolver_wrapper,                                                       // the template resolver
+            &resolver_wrapper,                                              // the template resolver,
+            &()                                                             // template resolver data
         );
 
-        let mut props = HashMap::<String, InertiaProp>::new();
+        let mut props: HashMap<String, InertiaProp> = HashMap::<String, InertiaProp>::new();
         props.insert("title".into(), InertiaProp::Data("My website's cool title!".into()));
         props.insert("content".into(), InertiaProp::Data("Such a nice content, isn't it?".into()));
 
