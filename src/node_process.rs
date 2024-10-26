@@ -3,6 +3,8 @@ use std::path::Path;
 use std::process::{Child, Command};
 use std::{fmt, io};
 
+use reqwest::Url;
+
 #[derive(Debug, Clone)]
 pub struct NodeJsError {
     cause: String,
@@ -15,6 +17,14 @@ impl NodeJsError {
             cause,
             description,
         }
+    }
+
+    pub fn get_cause(&self) -> String {
+        return self.cause.clone();
+    }
+
+    pub fn get_description(&self) -> String {
+        return self.description.clone();
     }
 }
 
@@ -56,9 +66,15 @@ impl NodeJsProc {
     /// # Example
     /// ```rust
     /// use inertia_rust::node_process::{NodeJsError, NodeJsProc};
+    /// use std::str::FromStr;
     ///
     /// async fn server() {
-    ///     let node = NodeJsProc::start("dist/server/ssr.js".into(), "localhost:15000".into());
+    ///     let local_url = match reqwest::Url::from_str("localhost:15000") {
+    ///         Ok(url) => url,
+    ///         Err(err) => panic!("Failed to parse url: {}", err),
+    ///     };
+    /// 
+    ///     let node = NodeJsProc::start("dist/server/ssr.js".into(), &local_url);
     ///
     ///     if node.is_err() {
     ///         let err: NodeJsError = node.unwrap_err();
@@ -72,7 +88,7 @@ impl NodeJsProc {
     ///     let _ = node.kill();
     /// }
     /// ```
-    pub fn start(server_path: String, server_url: String) -> Result<Self, NodeJsError> {
+    pub fn start(server_path: String, server_url: &Url) -> Result<Self, NodeJsError> {
         let path = Path::new(&server_path);
 
         if !path.exists() {
@@ -86,6 +102,8 @@ impl NodeJsProc {
 
         let child = match Command::new("node")
             .arg(string_path)
+            .arg("--port")
+            .arg(server_url.port().unwrap_or(10000).to_string())
             .spawn() {
             Err(err) => return Err(NodeJsError::new(
                 "Process error".into(),
@@ -96,7 +114,7 @@ impl NodeJsProc {
 
         Ok(NodeJsProc {
             child,
-            server: server_url
+            server: server_url.to_string()
         })
     }
 
