@@ -46,9 +46,9 @@ pub(crate) async fn request_page_render(
 
     let response = reqwest::Client::new()
         .get(render_endpoint)
-        .json(&page)
         .header("Content-Type", "application/json")
         .header("Accept", "application/json")
+        .json(&page)
         .send()
         .await;
 
