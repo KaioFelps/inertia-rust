@@ -1,26 +1,23 @@
 # Requirements of an Inertia.js adapter
 
 ## Responses and routing
-- [ ] Return a rendered Inertia Page as Http Response;
+- [x] Return a rendered Inertia Page as Http Response;
 
 render a page; <br/>
 pass props to the front-end
 
 ```rust
 #[derive(Serialize, Deserialize)]
-struct Props {
-    title: String,
-    user: User,
-}
+struct User { ... }
 
-let props = Props {
-    title: format!("Editing {}", user.name),
-    user,
-};
+let mut props = HashMap::new();
+props.insert("user".into(), serde_json::to_value(user).unwrap());
+props.insert("title".into(), format!("Editing {}", user.name);
 
-// return inertia!("User/Index", props); // with macro
-// return Inertia::render("User"); // render without props
-return Inertia::render_with_props("User/Index".to_string(), props);
+// return inertia_rust::render<T>(&req, "User"); // render without props
+return inertia_rust::render_with_props::<T>(&req, Component("Users/Index".into()), props)
+        .await
+        .unwrap_or(HttpResponse::InternalServerError().finish());
 ```
 
 ---
