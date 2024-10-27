@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    :root {
+        font-family: Poppins, sans-serif;
+    }
+
+    #app {
+        @apply h-full;
+    }
+
+    body {
+        background: #1e1e1e;
+        color: white;
+    }
+}
