@@ -6,6 +6,7 @@ mod error;
 mod req_type;
 mod props;
 mod providers;
+mod features;
 
 pub mod node_process;
 
@@ -23,3 +24,6 @@ pub use inertia::SsrClient;
 
 #[cfg(feature = "actix")]
 pub use providers::actix::facade::{render, render_with_props};
+
+#[cfg(feature = "basic-vite-resolver")]
+pub use features::template_resolvers;
