@@ -62,9 +62,18 @@ pub(crate) trait InertiaHttpRequest {
     fn get_request_type(&self) -> Result<InertiaRequestType, InertiaError>;
 }
 
-pub enum InertiaVersion {
-    Literal(String),
-    Resolver(fn() -> String)
+pub enum InertiaVersion<T> where  T: ToString {
+    Literal(T),
+    Resolver(Box<dyn FnOnce() -> T>)
+}
+
+impl<T> InertiaVersion<T> where T: ToString {
+    pub fn resolve(self) -> &'static str {
+        match self {
+            InertiaVersion::Literal(v) => v.to_string().leak(),
+            InertiaVersion::Resolver(resolver) => resolver().to_string().leak(),
+        }
+    }
 }
 
 /// View Data is a struct containing props to be used by the root template.
@@ -75,7 +84,6 @@ pub struct ViewData {
 }
 
 pub type TemplateResolverOutput = Pin<Box<dyn Future<Output = Result<String, InertiaError>> + Send + Sync + 'static>>;
-// pub(crate) type TemplateResolver = &'static (dyn Fn(&'_ str, ViewData) -> TemplateResolverOutput + Send + Sync + 'static);
 pub(crate) type TemplateResolver<T> = &'static (dyn Fn(&'static str, ViewData, &'static T) -> TemplateResolverOutput + Send + Sync + 'static);
 
 pub struct SsrClient {
@@ -159,13 +167,15 @@ impl<T> Inertia<T> where T : 'static {
     ///                                 and in your template resolver).
     ///
     /// [`Inertia`]: Inertia
-    pub fn new(
+    pub fn new<V>(
         url: &'static str,
-        version: InertiaVersion,
+        version: InertiaVersion<V>,
         template_path: &'static str,
         template_resolver: TemplateResolver<T>,
         template_resolver_data: &'static T,
-    ) -> Self {
+    ) -> Self
+        where V: ToString
+    {
         Self::instantiate(
             url,
             template_path,
@@ -203,14 +213,16 @@ impl<T> Inertia<T> where T : 'static {
     /// [Asset versioning]: https://inertiajs.com/asset-versioning
     /// [`Inertia::template_resolver`]: Inertia
     /// [`InertiaError::SsrError`]: InertiaError::SsrError
-    pub async fn new_with_ssr(
+    pub async fn new_with_ssr<V>(
         url: &'static str,
-        version: InertiaVersion,
+        version: InertiaVersion<V>,
         template_path: &'static str,
         template_resolver: TemplateResolver<T>,
         template_resolver_data: &'static T,
         custom_client: Option<SsrClient>,
-    ) -> Result<Self, io::Error> {
+    ) -> Result<Self, io::Error>
+        where V: ToString
+    {
         let client: SsrClient = custom_client.unwrap_or_else(|| SsrClient::default());
 
         let ssr_url = if client.host.contains("://") {
@@ -237,18 +249,17 @@ impl<T> Inertia<T> where T : 'static {
         ))
     }
 
-    fn instantiate (
+    fn instantiate<V> (
         url: &'static str,
         template_path: &'static str,
-        version: InertiaVersion,
+        version: InertiaVersion<V>,
         template_resolver: TemplateResolver<T>,
         template_resolver_data: &'static T,
         ssr_url: Option<Url>
-    ) -> Self {
-        let version = match version {
-            InertiaVersion::Literal(v) => v.leak(),
-            InertiaVersion::Resolver(resolver) => resolver().leak(),
-        };
+    ) -> Self
+        where V: ToString
+    {
+        let version = version.resolve();
 
         Self {
             url,
@@ -293,7 +304,7 @@ impl<T> Inertia<T> where T : 'static {
     ///         _data: &'static ()
     ///     ) -> Result<String, InertiaError> {
     ///         // import the layout root and render it using your template engine
-    ///         // lets pretend we rendered it and it ended up being the html output below!
+    ///         // lets pretend we rendered it, so it ended up being the html output below!
     ///         Ok("<h1>my rendered page!</h1>".to_string())
     ///     }
     ///

@@ -47,7 +47,7 @@ async fn main() -> std::io::Result<()> {
     // Starts a Inertia manager instance with SSR enabled.
     let inertia: Inertia<Vite> = Inertia::new_with_ssr(
         "http://localhost:8080",
-        InertiaVersion::Literal(vite.get_hash().to_string()),
+        InertiaVersion::Resolver(Box::new(|| vite.get_hash())),
         "www/root.html",
         &inertia_rust::template_resolvers::basic_vite_resolver,
         vite,
@@ -55,11 +55,10 @@ async fn main() -> std::io::Result<()> {
     ).await?;
 
     let inertia_data = Data::new(inertia);
-    
     let inertia_data_to_move = Data::clone(&inertia_data);
     let server = HttpServer::new(move || {
         App::new()
-        .app_data(Data::clone(&inertia_data_to_move))
+        .app_data(inertia_data_to_move.clone())
         .service(home)
         .service(contact)
         // serves vite assets from /assets path
@@ -70,8 +69,8 @@ async fn main() -> std::io::Result<()> {
     }).bind(("127.0.0.1", 8080))?;
     
     // Starts a Node.js child process that runs the Inertia's server-side-rendering server.
-    // It must be after server creation to guarantee that server won't panic and stop node child process
-    // from being killed
+    // It must be started after the server initialization to ensure that the server won't panic and
+    // shutdown without killing Node process.
     let node = inertia_data.start_node_server("dist/ssr/ssr.js".into())?;
     
     let server = server.run().await;
