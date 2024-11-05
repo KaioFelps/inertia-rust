@@ -7,6 +7,7 @@ pub enum InertiaError {
     SerializationError(String),
     HeaderError(String),
     SsrError(String),
+    RenderError(String),
     NodeJsError(NodeJsError),
 }
 
@@ -25,6 +26,7 @@ impl InertiaError {
             InertiaError::NodeJsError(node_err) => format!("{} ({})", node_err.get_cause(), node_err.get_description()),
             InertiaError::SerializationError(err) => err.clone(),
             InertiaError::SsrError(err) => err.clone(),
+            InertiaError::RenderError(err) => err.clone(),
         }
     }
 

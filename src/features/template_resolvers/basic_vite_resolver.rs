@@ -8,7 +8,7 @@ async fn _resolver(path: &str, view_data: ViewData, vite: &Vite) -> Result<Strin
     let path = Path::new(path);
     let file = match tokio::fs::read(&path).await {
         Ok(file) => file,
-        Err(err) => return Err(InertiaError::SsrError(format!(
+        Err(err) => return Err(InertiaError::RenderError(format!(
             "Failed to open root layout at {}: {:#}",
             path.to_str().unwrap(),
             err
@@ -16,7 +16,7 @@ async fn _resolver(path: &str, view_data: ViewData, vite: &Vite) -> Result<Strin
     };
 
     let mut html = match String::from_utf8(file) {
-        Err(err) => return Err(InertiaError::SsrError(format!("Failed to read file contents: {err:?}"))),
+        Err(err) => return Err(InertiaError::RenderError(format!("Failed to read file contents: {err:?}"))),
         Ok(html) => html,
     };
 
