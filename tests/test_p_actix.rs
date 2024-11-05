@@ -52,7 +52,7 @@ async fn generate_actix_app() -> App<impl ServiceFactory<
 >> {
     let inertia = Inertia::new(
         "https://inertiajs.com",
-        InertiaVersion::Literal("v1.0.0".into()),
+        InertiaVersion::Literal("v1.0.0"),
         // "tests/common/root_layout.html",
         "tests/common/root_layout.html",
         &mocked_resolver,
