@@ -13,3 +13,4 @@ vite-rust = { version = "0.1.3", features = ["basic_directives"] }
 regex = "1.11.0"
 serde = "1.0.210"
 dotenvy = "0.15.7"
+env_logger = "0.11.5"

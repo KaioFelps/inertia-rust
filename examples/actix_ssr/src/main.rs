@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::OnceLock};
-use actix_web::{get, web::Data, App, HttpRequest, HttpResponse, HttpServer, Responder};
-use inertia_rust::{Component, Inertia, InertiaProp, InertiaVersion, SsrClient};
+use actix_web::{get, web::Data, App, HttpRequest, HttpServer, Responder};
+use inertia_rust::{Component, Inertia, InertiaProp, InertiaVersion, SsrClient, InertiaErrMapper};
 use serde_json::json;
 use vite_rust::{utils::resolve_path, Vite, ViteConfig};
 
@@ -13,8 +13,9 @@ async fn home(req: HttpRequest) -> impl Responder {
     })));
     props.insert("message".into(), InertiaProp::Data("This message is sent from the server!".to_string().into()));
 
-    inertia_rust::render_with_props::<Vite>(&req, Component("Index".into()), props).await
-    .unwrap_or(HttpResponse::InternalServerError().finish())
+    inertia_rust::render_with_props::<Vite>(&req, Component("Index".into()), props)
+        .await
+        .map_inertia_err()
 }
 
 #[get("/contact")]
@@ -25,8 +26,9 @@ async fn contact(req: HttpRequest) -> impl Responder {
         "email": "johndoe@example.com"
     })));
 
-    inertia_rust::render_with_props::<Vite>(&req, Component("Contact".into()), props).await
-    .unwrap_or(HttpResponse::InternalServerError().finish())
+    inertia_rust::render_with_props::<Vite>(&req, Component("Contact".into()), props)
+        .await
+        .map_inertia_err()
 }
 
 static VITE: OnceLock<Vite> = OnceLock::new();
@@ -34,6 +36,7 @@ static VITE: OnceLock<Vite> = OnceLock::new();
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenvy::dotenv().ok();
+    env_logger::init();
 
     let manifest_path = resolve_path(file!(), "../public/bundle/manifest.json");
     let vite_config = ViteConfig::new_with_defaults(&manifest_path);
