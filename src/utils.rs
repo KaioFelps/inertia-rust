@@ -33,7 +33,7 @@ where T: Serialize
     let map = convert_struct_to_map(s)?;
     return match serde_json::to_string(&map) {
         Ok(json) => Ok(json),
-        Err(err) => Err(InertiaError::SerializationError(format!("Failed to serialize map to json: {}", err.to_string()))),
+        Err(err) => Err(InertiaError::SerializationError(format!("Failed to serialize HashMap: {}", err.to_string()))),
     };
 }
 
@@ -53,12 +53,12 @@ pub(crate) async fn request_page_render(
         .await;
 
     let response = match response {
-        Err(err) => return Err(InertiaError::SsrError(format!("Failed to render the page at the ssr server: {}", err))),
+        Err(err) => return Err(InertiaError::SsrError(format!("Failed to render the page at the SSR Server: {}", err))),
         Ok(response) => response
     };
 
     match response.json::<InertiaSSRPage>().await {
-        Err(err) => Err(InertiaError::SsrError(format!("Failed to serialize ssr-rendered page: {}", err))),
+        Err(err) => Err(InertiaError::SsrError(format!("Failed to desserialize InertiaSSRPage object: {}", err))),
         Ok(page) => Ok(page)
     }
 }
