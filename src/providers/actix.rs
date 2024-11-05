@@ -7,7 +7,7 @@ use async_trait::async_trait;
 
 use crate::{Component, InertiaError, InertiaPage};
 use crate::utils::{inertia_err_msg, request_page_render};
-use crate::inertia::{Inertia, InertiaHttpRequest, InertiaResponder, ViewData};
+use crate::inertia::{Inertia, InertiaErrMapper, InertiaHttpRequest, InertiaResponder, ViewData};
 use crate::props::InertiaProp;
 use crate::props::InertiaProps;
 use crate::req_type::{InertiaRequestType, PartialComponent};
@@ -103,8 +103,9 @@ impl<T> InertiaResponder<HttpResponse, HttpRequest> for Inertia<T> where T : 'st
             match request_page_render(&self.ssr_url.as_ref().unwrap(), page.clone()).await {
                 Err(err) => {
                     log::warn!("{}", inertia_err_msg(format!(
-                        "Failed to server-side render the page: {:#?}",
-                        err
+                        "Error on rendering page {}. {}",
+                        page.component.0,
+                        err.get_cause()
                     )));
                 },
                 Ok(page) => {
@@ -119,21 +120,15 @@ impl<T> InertiaResponder<HttpResponse, HttpRequest> for Inertia<T> where T : 'st
             custom_props: self.custom_view_data.clone(),
         };
 
-        let html = (self.template_resolver)(self.template_path, view_data, self.template_resolver_data).await;
+        let html = match (self.template_resolver)(
+            self.template_path,
+            view_data,
+            self.template_resolver_data
+        ).await {
+            Err(err) => return Err(err),
+            Ok(html) => html,
+        };
 
-        if html.is_err() {
-            if let InertiaError::SsrError(err) = html.unwrap_err() {
-                return Err(InertiaError::SsrError(err));
-            }
-
-            let internal_err = inertia_err_msg("Unexpected server-side rendering error.".into());
-
-            return Ok(HttpResponseBuilder::new(StatusCode::INTERNAL_SERVER_ERROR)
-                .body(internal_err)
-                .respond_to(req));
-        }
-
-        let html = html.unwrap();
         return Ok(HttpResponseBuilder::new(StatusCode::OK)
             .insert_header(InertiaHeader::Inertia.convert())
             .insert_header(actix_web::http::header::ContentType::html())
@@ -146,6 +141,21 @@ impl<T> InertiaResponder<HttpResponse, HttpRequest> for Inertia<T> where T : 'st
         let mut builder = HttpResponseBuilder::new(StatusCode::CONFLICT);
         builder.append_header(InertiaHeader::InertiaLocation(location).convert());
         return builder.finish();
+    }
+}
+
+impl InertiaErrMapper<HttpResponse, HttpRequest> for Result<HttpResponse, InertiaError> {
+    fn map_inertia_err(self) -> HttpResponse {
+        if self.is_ok() {
+            return self.unwrap();
+        }
+
+        let inertia_err = self.unwrap_err().get_cause();
+
+        return HttpResponseBuilder::new(StatusCode::INTERNAL_SERVER_ERROR)
+            .insert_header(actix_web::http::header::ContentType::json())
+            .body(inertia_err)
+            .map_into_boxed_body();
     }
 }
 
@@ -318,11 +328,11 @@ mod test {
         }
 
         let inertia = Inertia::new(
-            "https://my-inertia-website.com",                               // url
-            InertiaVersion::Resolver(|| "gen_the_version".to_string()),     // (assets) version
-            "/resources/view/template.hbs",                                 // template path
+            "https://my-inertia-website.com",                           // url
+            InertiaVersion::Resolver(Box::new(|| "gen_the_version")),       // (assets) version
+            "/resources/view/template.hbs",                     // template path
             &resolver_wrapper,                                              // the template resolver,
-            &()                                                             // template resolver data
+            &()                                           // template resolver data
         );
 
         let mut props: HashMap<String, InertiaProp> = HashMap::<String, InertiaProp>::new();

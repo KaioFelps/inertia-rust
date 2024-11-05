@@ -22,19 +22,19 @@ use crate::req_type::InertiaRequestType;
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct Component(pub String);
 
-/// InertiaResponder trait defines methods that every crate feature
-/// should implement. For instance, T may be a sort of actix-web Responder,
+/// InertiaResponder trait defines methods that every provider
+/// must implement. For instance, T may be a sort of actix-web Responder,
 /// if "actix" feature is passed with the --feature flag or with the
 /// feature field in the cargo toml.
 #[async_trait(?Send)] // it's `?Send` because some frameworks like Actix won't require requests to be thread-safe
-pub trait InertiaResponder<T, THttpReq> {
+pub trait InertiaResponder<TResponder, THttpRequest> {
     /// Renders an Inertia Page as an HTTP response.
     ///
     /// # Arguments
     /// * `req`         -   The HTTP request.
     /// * `component`   -   The page javascript component name to be rendered by the
     ///                     client-side adapter.
-    async fn render(&self, req: &THttpReq, component: Component) -> Result<T, InertiaError>;
+    async fn render(&self, req: &THttpRequest, component: Component) -> Result<TResponder, InertiaError>;
 
     /// Renders an Inertia Page with props as an HTTP response.
     ///
@@ -49,9 +49,13 @@ pub trait InertiaResponder<T, THttpReq> {
     /// or any of its fields don't implement [`Serialize`] trait.
     ///
     /// [`Serialize`]: serde::Serialize
-    async fn render_with_props(&self, req: &THttpReq, component: Component, props: InertiaProps) -> Result<T, InertiaError>;
+    async fn render_with_props(&self, req: &THttpRequest, component: Component, props: InertiaProps) -> Result<TResponder, InertiaError>;
 
-    fn redirect(&self, location: String) -> T;
+    fn redirect(&self, location: String) -> TResponder;
+}
+
+pub trait InertiaErrMapper<TResponder, THttpResponse> {
+    fn map_inertia_err(self) -> TResponder;
 }
 
 /// Defines some helper methods to be implemented to HttpRequests from the
@@ -137,7 +141,7 @@ pub struct Inertia<T> where T : 'static {
     /// * `view_data`   -   A [`ViewData`] struct,
     ///
     /// # Errors
-    /// Returns an [`InertiaError::SsrError`] if it fails to render the html.
+    /// Returns an [`InertiaError::RenderError`] if it fails to render the html.
     ///
     /// # Return
     /// The return must be the template rendered to HTML. It will be sent as response to full
@@ -316,7 +320,7 @@ impl<T> Inertia<T> where T : 'static {
     /// 
     ///     let inertia = Inertia::new_with_ssr(
     ///         "https://www.my-web-app.com".into(),
-    ///         InertiaVersion::Literal("my-assets-version".into()),
+    ///         InertiaVersion::Literal("my-assets-version"),
     ///         "www/index.html",
     ///         &resolver,
     ///         &(),

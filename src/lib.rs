@@ -22,6 +22,8 @@ pub use props::InertiaProp;
 pub use inertia::TemplateResolverOutput;
 pub use inertia::SsrClient;
 
+pub use inertia::InertiaErrMapper;
+
 #[cfg(feature = "actix")]
 pub use providers::actix::facade::{render, render_with_props};
 
