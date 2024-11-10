@@ -1,52 +1,46 @@
 # Requirements of an Inertia.js adapter
 
 ## Responses and routing
-- [x] Return a rendered Inertia Page as Http Response;
-
-render a page; <br/>
-pass props to the front-end
+- [x] Render an Inertia Page (with or without props);
 
 ```rust
 #[derive(Serialize, Deserialize)]
-struct User { ... }
+use std::collections::HashMap;
+use serde_json::json;
+use some_framework::{SomeHttpRequest, SomeHttpResponse, Redirect};
+use serde::{Serialize, Deserialize};
+use vite_rust::Vite;
+use inertia_rust::Component;
 
-let mut props = HashMap::new();
-props.insert("user".into(), serde_json::to_value(user).unwrap());
-props.insert("title".into(), format!("Editing {}", user.name);
+#[derive(Serialize, Deserialize)]
+struct User {
+  name: String
+}
 
-// return inertia_rust::render<T>(&req, "User"); // render without props
-return inertia_rust::render_with_props::<T>(&req, Component("Users/Index".into()), props)
-        .await
-        .unwrap_or(HttpResponse::InternalServerError().finish());
+async fn some_handler(req: SomeHttpRequest) -> SomeHttpResponse {
+  let user = User {
+    name: "John Doe"
+  };
+  
+  let mut props = HashMap::new();
+  props.insert("user".into(), serde_json::to_value(&user).unwrap());
+  props.insert("title".into(), format!("Editing {}", user.name));
+
+  // return inertia_rust::render::<Vite>(&req, Component("Users/Index".into()))
+  // or
+  return inertia_rust::render_with_props::<Vite>(&req, Component("Users/Index".into()), props)
+    .await
+    .map_inertia_err();
+}
 ```
 
 ---
 
-- [ ] Render response with `view data`;
+- [x] ~~Render response with `view data`~~;
 
-View Data are data that will be passed for the root template (e.g. handlebars)
-```rust
-struct EventProps {
-   event: Event   
-}
-
-struct RootProps {
-    meta: MetaDataInfos
-}
-
-let props = EventProps {
-    event,
-}
-
-// this data will only be accessible to the root template
-let rootData = RootProps {
-    meta,
-}
-
-Inertia::render("Event", props).with_view_data(rootProps)
-```
-
----
+View Data are data that will be passed for the root template (e.g. handlebars).
+Inertia's `ViewData` struct accepts an optional HashMap with custom values inside it. The resolver
+can be used to consume this hashmap and insert props.
 
 - [ ] Shorthand renderer for routes without handlers;
 
@@ -69,93 +63,48 @@ async fn main() -> std::io::Result<()> {
 
 - [ ] Render / Redirect with errors.
 
-To render a inertia page with errors, call the method `Inertia::render(...).with_errors()` or render the page with a
-custom props struct that contains an `error` field.
+Some ways of rendering with errors are:
+- [x] Render the errors as props;
+- [ ] Redirect back to the previous URL with the errors as flash messages (and
+  let the Inertia Middleware merge them into the props by itself).
 ```rust
-struct ErrorsStruct {
-    name: Option<SomeValidationError>,
-    age: Option<SomeValidationError>
+use std::collections::hash_map::HashMap;
+use serde_json::json;
+use inertia_rust::Component;
+use vite_rust::Vite;
+use some_framework::{SomeHttpRequest, SomeHttpResponse, Redirect};
+
+async fn some_handler(req: SomeHttpRequest) -> SomeHttpResponse {
+  let mut props = HashMap::<String, serde_json::Value>::new();
+  props.insert("errors", json!{
+      "age": serde_json::to_value("Invalid age, for some reason".to_string()).unwrap(),
+  });
+  
+  return inertia_rust::render_with_props::<Vite>(&req, Component("Contact".into()), props)
+      .await
+      .map_inertia_err();
 }
 
-let errors = ErrorsStruct {
-    name: None,
-    age: Some(SomeValidationError::from("Invalid age, for some reason".to_string()))
-};
-
-// return Inertia::render("Index").with_errors(errors); // renders a page with errors
-return Inertia::redirect("/").with_errors(errors); // redirects to a page with errors
-
-// ===
-// or with custom props struct
-// ===
-
-#[derive(Serialize, Deserialize)]
-struct CustomPropsStruct {
-    AnyOtherProperty: String,
-    
-    #[serde(rename = "errors")] // note that field name must always be lowercase. Inertia's requirement...
-    Errors: Option<ErrorsStruct>
-}
-
-let props = CustomPropsStruct {
-    AnyOtherProperty: "Foo".into(),
-    Errors: Some(errors)
-};
-
-return Inertia::redirect("/", props);
-```
-
-## Title & Meta
-
-- [ ] Inject the inertia's Head component content inside a markup at the root template with a
-middleware or some preprocessor
-
-## Shared Data
-- [ ] Middleware that merges global shared data with page shared data.
-```rust
-use actix_web::App;
-use serde_json::{Map, Value};
-use serde::{Deserialize, Serialize};
-
-// server setup...
-App::new()
-    // returns a middleware that shares these values globally.
-    // PageProps field holds the props available for the rendered page only.
-    .wrap(Inertia::SharedPropsMiddleware::share(|props: &mut Map<String, Value>| {
-        #[derive(Serialize)]
-        struct User {
-            nickname: String,
-            active: bool
-        }
-        
-        let user = User {
-            nickname: "John".into(),
-            active: true,
-        };
-        
-        let mut auth_map = Map::new();
-        auth_map.insert("user".into(), serde_json::to_value(user).unwrap());
-        
-        props.insert("foo".into(), Value::String("this is a global value!".into()));
-        props.insert("bar".into(), 255.into());
-        props.insert("auth".into(), auth_map.into());
+async fn another_handler(req: SomeHttpRequest) -> SomeHttpResponse {
+  // A framework built-in redirect to the previous URL.
+  // The error should be stored in a session (also provided by the framework)
+  // and further injected in the props by the Inertia Middleware on the
+  // subsequent request.
+  return Redirect::back()
+    .add_session("errors".to_string(), json!({
+        "age": serde_json::to_value("Invalid age, for some reason".to_string()).unwrap(),
     }))
-```
-This would output something like:
-```rust
-{
-    "auth": Object {
-        "user": Object {
-            "active": Bool(true),
-            "nickname": String("John"),
-        },
-    },
-    "bar": Number(255),
-    "foo": String("this is a global value!"),
-    // page props, had been already set to `props` map
-    "event": Object {
-        "max": Number(8),
-        "cancelled": Bool(false),
-    },
+    .finish();
 }
 ```
+
+## Assets Versioning
+When the assets versions mismatch, the rendering method should return an
+`Inertia::location` redirect that causes a full-reload.
+
+- [ ] Forward the session to be retrieved by the request triggered by the reload.
+
+## Inertia Middleware
+- [ ] Allow to **share props** globally;
+- [ ] Convert Redirect requests;
+- [ ] Merge error and flash messages from Session into the page props.
