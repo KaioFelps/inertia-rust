@@ -4,7 +4,6 @@
 - [x] Render an Inertia Page (with or without props);
 
 ```rust
-#[derive(Serialize, Deserialize)]
 use std::collections::HashMap;
 use serde_json::json;
 use some_framework::{SomeHttpRequest, SomeHttpResponse, Redirect};
@@ -34,14 +33,6 @@ async fn some_handler(req: SomeHttpRequest) -> SomeHttpResponse {
 }
 ```
 
----
-
-- [x] ~~Render response with `view data`~~;
-
-View Data are data that will be passed for the root template (e.g. handlebars).
-Inertia's `ViewData` struct accepts an optional HashMap with custom values inside it. The resolver
-can be used to consume this hashmap and insert props.
-
 - [ ] Shorthand renderer for routes without handlers;
 
 ```rust
@@ -61,7 +52,18 @@ async fn main() -> std::io::Result<()> {
 }
 ```
 
-- [ ] Render / Redirect with errors.
+---
+
+## Rendering response with `view data`
+
+ViewData holds data that will be passed for the root template.
+Inertia's `ViewData` struct accepts an optional HashMap with custom values inside it.
+The resolver must be responsible by allowing the template to consume this
+hashmap values.
+
+---
+
+## Render / Redirect with errors.
 
 Some ways of rendering with errors are:
 - [x] Render the errors as props;
