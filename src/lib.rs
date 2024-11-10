@@ -25,7 +25,10 @@ pub use inertia::SsrClient;
 pub use inertia::InertiaErrMapper;
 
 #[cfg(feature = "actix")]
-pub use providers::actix::facade::{render, render_with_props};
+pub use providers::actix::{
+    InertiaHeader,
+    facade::{render, render_with_props}
+};
 
 #[cfg(feature = "basic-vite-resolver")]
 pub use features::template_resolvers;
