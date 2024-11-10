@@ -51,7 +51,12 @@ pub trait InertiaResponder<TResponder, THttpRequest> {
     /// [`Serialize`]: serde::Serialize
     async fn render_with_props(&self, req: &THttpRequest, component: Component, props: InertiaProps) -> Result<TResponder, InertiaError>;
 
-    fn redirect(&self, location: String) -> TResponder;
+    /// Provokes a client-side redirect to an extern URL.
+    ///
+    /// # Arguments
+    /// * `req`     - A reference to the HTTP request.
+    /// * `url`     - The URL to be redirected to.
+    fn location(req: &THttpRequest, url: &str) -> TResponder;
 }
 
 pub trait InertiaErrMapper<TResponder, THttpResponse> {
@@ -64,6 +69,8 @@ pub(crate) trait InertiaHttpRequest {
     fn is_inertia_request(&self) -> bool;
 
     fn get_request_type(&self) -> Result<InertiaRequestType, InertiaError>;
+
+    fn check_inertia_version(&self, current_version: &str) -> bool;
 }
 
 pub enum InertiaVersion<T> where  T: ToString {
