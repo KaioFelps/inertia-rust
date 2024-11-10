@@ -71,11 +71,29 @@ async fn generate_actix_app() -> App<impl ServiceFactory<
 
 
 #[tokio::test]
+async fn test_assets_version_redirect() {
+    let app =
+        actix_web::test::init_service(generate_actix_app().await).await;
+
+    let req = actix_web::test::TestRequest::get()
+        .uri("/")
+        .insert_header(inertia_rust::InertiaHeader::Inertia.convert())
+        .to_request();
+    let resp = actix_web::test::call_service(&app, req).await;
+
+    assert_eq!(409u16, resp.status().as_u16());
+    assert_eq!("/", resp.headers().get("x-inertia-location").unwrap());
+}
+
+#[tokio::test]
 async fn test_render() {
     let app =
         actix_web::test::init_service(generate_actix_app().await).await;
 
-    let req = actix_web::test::TestRequest::get().uri("/").to_request();
+    let req = actix_web::test::TestRequest::get()
+        .uri("/")
+        .insert_header(inertia_rust::InertiaHeader::Version("v1.0.0").convert())
+        .to_request();
     let resp = actix_web::test::call_service(&app, req).await;
     
     assert_eq!(200u16, resp.status().as_u16());
@@ -92,7 +110,10 @@ async fn test_render_with_props() {
     let app =
         actix_web::test::init_service(generate_actix_app().await).await;
 
-    let req = actix_web::test::TestRequest::get().uri("/withprops").to_request();
+    let req = actix_web::test::TestRequest::get()
+        .uri("/withprops")
+        .append_header(inertia_rust::InertiaHeader::Version("v1.0.0").convert())
+        .to_request();
     let resp = actix_web::test::call_service(&app, req).await;
 
     assert_eq!(200u16, resp.status().as_u16());

@@ -25,23 +25,25 @@ mod header_names {
     #[allow(unused)] pub const X_INERTIA_PARTIAL_EXCEPT: HeaderName = HeaderName::from_static(inertia::X_INERTIA_PARTIAL_EXCEPT);
 }
 
-pub enum InertiaHeader {
+pub enum InertiaHeader<'a> {
     Inertia,
-    InertiaLocation(String),
-    InertiaPartialData(Vec<String>)
+    InertiaLocation(&'a str),
+    InertiaPartialData(Vec<&'a str>),
+    Version(&'a str)
 }
 
-impl InertiaHeader {
+impl<'a> InertiaHeader<'a> {
     pub fn convert(&self) -> (HeaderName, HeaderValue) {
         match self {
             Self::Inertia => (header_names::X_INERTIA, HeaderValue::from_str("true").unwrap()),
-            Self::InertiaLocation(path) => (header_names::X_INERTIA_LOCATION, HeaderValue::from_str(path.as_str()).unwrap()),
+            Self::Version(version) => (header_names::X_INERTIA_VERSION, HeaderValue::from_str(version).unwrap()),
+            Self::InertiaLocation(path) => (header_names::X_INERTIA_LOCATION, HeaderValue::from_str(path).unwrap()),
             Self::InertiaPartialData(partials) => {
                 if partials.len() < 1 {
                     return (header_names::X_INERTIA_PARTIAL_DATA, HeaderValue::from_str("").unwrap());
                 }
 
-                let mut str_partials: String = String::from(&partials[0]);
+                let mut str_partials = String::from(partials[0]);
 
                 for part in partials[1..].iter() {
                     str_partials.push_str(&",");
@@ -59,16 +61,16 @@ impl Responder for InertiaPage {
 
     #[inline]
     fn respond_to(self, _req: &HttpRequest) -> HttpResponse<Self::Body> {
-        let mut builder = HttpResponseBuilder::new(StatusCode::OK);
-        builder.append_header(InertiaHeader::Inertia.convert());
-
-        let builder = builder.body(BoxBody::new(convert_struct_to_stringified_json(self).unwrap()));
-        builder
+        HttpResponseBuilder::new(StatusCode::OK)
+        .append_header(InertiaHeader::Inertia.convert())
+        .body(BoxBody::new(convert_struct_to_stringified_json(self).unwrap()))
     }
 }
 
 #[async_trait(?Send)]
-impl<T> InertiaResponder<HttpResponse, HttpRequest> for Inertia<T> where T : 'static {
+impl<T> InertiaResponder<HttpResponse, HttpRequest> for Inertia<T>
+    where   T : 'static
+{
     #[inline]
     async fn render(&self, req: &HttpRequest, component: Component) -> Result<HttpResponse, InertiaError> {
         self.render_with_props(&req, component, HashMap::new()).await
@@ -92,9 +94,13 @@ impl<T> InertiaResponder<HttpResponse, HttpRequest> for Inertia<T> where T : 'st
             props,
         );
 
+        if !req.check_inertia_version(self.version) {
+            return Ok(Self::location(req, &page.url));
+        }
+
         // if it's an inertia request, returns an InertiaPage object
         if req.is_inertia_request() {
-            return Ok(page.respond_to(&req));
+            return Ok(page.respond_to(req));
         }
 
         let mut ssr_page = None;
@@ -137,10 +143,16 @@ impl<T> InertiaResponder<HttpResponse, HttpRequest> for Inertia<T> where T : 'st
     }
 
     #[inline]
-    fn redirect(&self, location: String) -> HttpResponse {
-        let mut builder = HttpResponseBuilder::new(StatusCode::CONFLICT);
-        builder.append_header(InertiaHeader::InertiaLocation(location).convert());
-        return builder.finish();
+    fn location(req: &HttpRequest, url: &str) -> HttpResponse {
+        if !req.is_inertia_request() {
+            return HttpResponse::Found()
+                .append_header((actix_web::http::header::LOCATION, url))
+                .finish();
+        }
+
+        return HttpResponseBuilder::new(StatusCode::CONFLICT)
+            .append_header(InertiaHeader::InertiaLocation(url.into()).convert())
+            .finish();
     }
 }
 
@@ -193,6 +205,22 @@ impl InertiaHttpRequest for HttpRequest {
         };
 
         return Ok(InertiaRequestType::Partial(partials));
+    }
+
+    fn check_inertia_version(&self, current_version: &str) -> bool {
+        let version_header = self.headers().get(header_names::X_INERTIA_VERSION);
+        let is_current_version = match version_header {
+            None => false,
+            Some(version) => {
+                if let Ok(version) = version.to_str() {
+                    version == current_version
+                } else {
+                    false
+                }
+            }
+        };
+
+        return is_current_version;
     }
 }
 
@@ -341,11 +369,12 @@ mod test {
 
         let props_clone = props.clone();
 
-        let fake_req = test::TestRequest::get();
-        let fake_req = fake_req.insert_header(InertiaHeader::Inertia.convert());
-        let fake_req = fake_req.uri("/users");
-        let fake_req = fake_req.append_header((actix_web::http::header::HOST, "https://my-inertia-website.com".to_string()));
-        let fake_req = fake_req.to_http_request();
+        let fake_req = test::TestRequest::get()
+            .insert_header(InertiaHeader::Inertia.convert())
+            .insert_header(InertiaHeader::Version("gen_the_version").convert())
+            .uri("/users")
+            .append_header((actix_web::http::header::HOST, "https://my-inertia-website.com".to_string()))
+            .to_http_request();
 
         // this is usually called by the Inertia rendering methods, so you are not allowed to access
         // the url and version! Let's mock it for this example, then!
