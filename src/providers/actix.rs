@@ -207,10 +207,13 @@ impl InertiaHttpRequest for HttpRequest {
         return Ok(InertiaRequestType::Partial(partials));
     }
 
+    /// Checks if application assets version matches.
+    /// If the request contains the inertia version header, it will be checked.
+    /// Otherwise, it means it does not have outdated assets and can also pass.
     fn check_inertia_version(&self, current_version: &str) -> bool {
         let version_header = self.headers().get(header_names::X_INERTIA_VERSION);
         let is_current_version = match version_header {
-            None => false,
+            None => true,
             Some(version) => {
                 if let Ok(version) = version.to_str() {
                     version == current_version
@@ -308,6 +311,7 @@ pub mod facade {
 
 #[cfg(test)]
 mod test {
+    use crate::config::InertiaConfig;
     use crate::providers::actix::header_names::{
         X_INERTIA_PARTIAL_COMPONENT,
         X_INERTIA_PARTIAL_DATA,
@@ -315,15 +319,15 @@ mod test {
     };
     use std::collections::HashMap;
     use std::str::from_utf8;
-    use actix_web::test;
     use actix_web::body::MessageBody;
+    use actix_web::test;
     use serde_json::json;
     use crate::{Component, Inertia, InertiaError, InertiaPage, InertiaVersion, TemplateResolverOutput};
     use crate::providers::actix::InertiaHeader;
     use crate::inertia::{InertiaHttpRequest, InertiaResponder, ViewData};
     use crate::props::InertiaProp;
     use crate::req_type::PartialComponent;
-
+    
     #[test]
     async fn test_get_partials_requirements() {
         let mut request = test::TestRequest::default();
@@ -356,12 +360,14 @@ mod test {
         }
 
         let inertia = Inertia::new(
-            "https://my-inertia-website.com",                           // url
-            InertiaVersion::Resolver(Box::new(|| "gen_the_version")),       // (assets) version
-            "/resources/view/template.hbs",                     // template path
-            &resolver_wrapper,                                              // the template resolver,
-            &()                                           // template resolver data
-        );
+            InertiaConfig::builder()
+                .set_url("https://my-inertia-website.com")
+                .set_version(InertiaVersion::Resolver(Box::new(|| "gen_the_version")))
+                .set_template_path("/resources/view/template.hbs")
+                .set_template_resolver(&resolver_wrapper)
+                .set_template_resolver_data(&())
+                .build()
+        ).unwrap();
 
         let mut props: HashMap<String, InertiaProp> = HashMap::<String, InertiaProp>::new();
         props.insert("title".into(), InertiaProp::Data("My website's cool title!".into()));
@@ -385,8 +391,11 @@ mod test {
             InertiaProp::resolve_props(props_clone, fake_req.get_request_type().unwrap())
         );
 
-        let rendered_resp = inertia.render_with_props(&fake_req, Component("/Users/Index".into()), props);
-        let body = rendered_resp.await.unwrap().into_body();
+        let body = inertia
+            .render_with_props(&fake_req, Component("/Users/Index".into()), props)
+            .await
+            .unwrap()
+            .into_body();
 
         assert_eq!(
             from_utf8(&body.try_into_bytes().unwrap()[..]).unwrap(),
