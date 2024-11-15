@@ -7,6 +7,7 @@ mod req_type;
 mod props;
 mod providers;
 mod features;
+mod config;
 
 pub mod node_process;
 
@@ -21,14 +22,17 @@ pub use props::InertiaProps;
 pub use props::InertiaProp;
 pub use inertia::TemplateResolverOutput;
 pub use inertia::SsrClient;
+pub use config::{InertiaConfig, InertiaConfigBuilder};
 
 pub use inertia::InertiaErrMapper;
 
 #[cfg(feature = "actix")]
-pub use providers::actix::{
-    InertiaHeader,
-    facade::{render, render_with_props}
-};
+pub mod actix {
+    pub use super::providers::actix::InertiaHeader;
+    pub use super::providers::actix::facade::{render, render_with_props};
+}
 
 #[cfg(feature = "basic-vite-resolver")]
-pub use features::template_resolvers;
+pub mod resolvers {
+    pub use super::features::template_resolvers::basic_vite_resolver;
+}
