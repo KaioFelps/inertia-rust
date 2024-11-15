@@ -79,7 +79,8 @@ Inside your `main.rs`, you'll have to:
 ```rust
 use std::sync::OnceLock;
 use vite_rust::{Vite, ViteConfig};
-use inertia_rust::{Inertia, InertiaVersion};
+use inertia_rust::{Inertia, InertiaVersion, InertiaConfig};
+use inertia_rust::resolvers::basic_vite_resolver;
 
 static VITE: OnceLock<Vite> = OnceLock::new();
 
@@ -91,15 +92,18 @@ fn main() -> std::io::Result<()> {
         Err(err) => panic!("{}", err)
     };
     
-    // initializes Inertia store
-    let inertia = Inertia::new(
-        "http://localhost:8080",
+    // configs Inertia with mandatory fields
+    let inertia_config = InertiaConfig::builder()
+        .set_url("http://localhost:8080")
         // InertiaVersion::Literal(vite.get_hash()), or
-        InertiaVersion::Resolver(Box::new(|| vite.get_hash())),
-        "path/to/your/template.html",
-        &inertia_rust::template_resolvers::basic_vite_resolver,
-        vite
-    );
+        .set_version(InertiaVersion::Resolver(Box::new(|| vite.get_hash())))
+        .set_template_path("path/to/your/template.html")
+        .set_template_resolver(&basic_vite_resolver)
+        .set_template_resolver_data(vite)
+        .build()
+
+    // initializes Inertia struct
+    let inertia = Inertia::new(inertia_config);
     
     // stores Inertia as an AppData in a way that is not cloned
     let inertia = Data::new(inertia);
@@ -121,6 +125,7 @@ If you have Node.js available in the machine your Rust application is running at
 use std::sync::OnceLock;
 use vite_rust::{utils::resolve_path, Vite, ViteConfig};
 use inertia_rust::{Inertia, InertiaVersion, SsrClient};
+use inertia_rust::resolvers::basic_vite_resolver;
 
 static VITE: OnceLock<Vite> = OnceLock::new();
 
@@ -132,15 +137,20 @@ fn main() -> std::io::Result<()> {
         Err(err) => panic!("{}", err)
     };
 
-    // initializes Inertia store
-    let inertia: Inertia<Vite> = Inertia::new_with_ssr(
-        "http://localhost:8080", // url of 
-        InertiaVersion::Literal(vite.get_hash().to_string()),
-        "path/to/your/template.html",
-        &inertia_rust::template_resolvers::basic_vite_resolver,
-        vite,
-        Some(SsrClient::new("127.0.0.1", 1000))
-    ).await?;
+    let inertia_config = InertiaConfig::builder()
+        .set_url("http://localhost:8080")
+        // InertiaVersion::Literal(vite.get_hash()), or
+        .set_version(InertiaVersion::Literal(vite.get_hash().to_string()))
+        .set_template_path("path/to/your/template.html")
+        .set_template_resolver(&basic_vite_resolver)
+        .set_template_resolver_data(vite)
+        .enable_ssr()
+        // `set_ssr_client` is optional and indeed defaults to SsrClient::new("127.0.0.1", 1000)
+        .set_ssr_client(SsrClient::new("127.0.0.1", 1000))
+        .build()
+
+    // initializes Inertia struct
+    let inertia = Inertia::new_with_ssr(inertia_config).await?;
 
     // stores Inertia as an AppData in a way that is not cloned
     let inertia = Data::new(inertia);
