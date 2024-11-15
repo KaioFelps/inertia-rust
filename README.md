@@ -100,7 +100,7 @@ fn main() -> std::io::Result<()> {
         .set_template_path("path/to/your/template.html")
         .set_template_resolver(&basic_vite_resolver)
         .set_template_resolver_data(vite)
-        .build()
+        .build();
 
     // initializes Inertia struct
     let inertia = Inertia::new(inertia_config);
@@ -145,9 +145,9 @@ fn main() -> std::io::Result<()> {
         .set_template_resolver(&basic_vite_resolver)
         .set_template_resolver_data(vite)
         .enable_ssr()
-        // `set_ssr_client` is optional and indeed defaults to SsrClient::new("127.0.0.1", 1000)
+        // `set_ssr_client` is optional. If not set, `SsrClient::default()` will be used.
         .set_ssr_client(SsrClient::new("127.0.0.1", 1000))
-        .build()
+        .build();
 
     // initializes Inertia struct
     let inertia = Inertia::new_with_ssr(inertia_config).await?;
