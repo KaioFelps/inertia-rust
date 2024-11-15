@@ -27,7 +27,7 @@ dependencies = [
  "actix-web",
  "dotenvy",
  "env_logger",
- "inertia_rust",
+ "inertia-rust",
  "regex",
  "serde",
  "serde_json",
@@ -988,7 +988,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "inertia_rust"
+name = "inertia-rust"
 version = "0.1.0"
 dependencies = [
  "actix-web",

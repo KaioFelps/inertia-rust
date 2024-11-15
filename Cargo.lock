@@ -854,7 +854,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "inertia_rust"
+name = "inertia-rust"
 version = "0.1.0"
 dependencies = [
  "actix-web",

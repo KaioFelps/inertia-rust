@@ -1,5 +1,5 @@
 [package]
-name = "inertia_rust"
+name = "inertia-rust"
 description = "A Rust server-adapter for building modern MVC web apps with Inertia."
 repository = "https://github.com/KaioFelps/inertia-rust"
 keywords = ["inertia", "mvc", "react"]
