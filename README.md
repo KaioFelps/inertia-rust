@@ -229,8 +229,8 @@ async fn main() -> std::io::Result<()> {
 }
 ```
 
-However, it is not possible to render pages with props using `inertia_route` method yet. It indeed
-needs to be done with a handler function using `render_with_props`:
+However, it is not possible to render pages with props using `inertia_route` method. It must
+be done with an ordinary handler function and with `render_with_props` helper:
 
 ```rust
 use actix_web::{get, App, HttpRequest, HttpServer, Responder};
