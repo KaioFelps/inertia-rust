@@ -23,7 +23,9 @@ impl InertiaError {
     pub fn get_cause(&self) -> String {
         match self {
             InertiaError::HeaderError(err) => err.clone(),
-            InertiaError::NodeJsError(node_err) => format!("{} ({})", node_err.get_cause(), node_err.get_description()),
+            InertiaError::NodeJsError(node_err) => {
+                format!("{} ({})", node_err.get_cause(), node_err.get_description())
+            }
             InertiaError::SerializationError(err) => err.clone(),
             InertiaError::SsrError(err) => err.clone(),
             InertiaError::RenderError(err) => err.clone(),

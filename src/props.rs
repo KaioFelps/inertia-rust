@@ -1,6 +1,6 @@
-use std::collections::HashMap;
-use serde_json::{Map, Value};
 use crate::req_type::{InertiaRequestType, PartialComponent};
+use serde_json::{Map, Value};
+use std::collections::HashMap;
 
 #[derive(Clone)]
 pub enum InertiaProp {
@@ -24,7 +24,10 @@ pub enum InertiaProp {
 
 impl InertiaProp {
     #[inline]
-    pub(crate) fn resolve_props(raw_props: InertiaProps, req_type: InertiaRequestType) -> Map<String, Value> {
+    pub(crate) fn resolve_props(
+        raw_props: InertiaProps,
+        req_type: InertiaRequestType,
+    ) -> Map<String, Value> {
         let mut props = Map::new();
 
         if req_type.is_standard() {
@@ -43,17 +46,19 @@ impl InertiaProp {
 
         for (key, value) in raw_props.into_iter() {
             match value {
-                InertiaProp::Always(value) => { props.insert(key, value); },
+                InertiaProp::Always(value) => {
+                    props.insert(key, value);
+                }
                 InertiaProp::Data(value) => {
                     if Self::should_be_pushed(&key, &partials) {
                         props.insert(key, value);
                     }
-                },
+                }
                 InertiaProp::Lazy(resolver) => {
                     if Self::should_be_pushed(&key, &partials) {
                         props.insert(key, resolver());
                     }
-                },
+                }
                 InertiaProp::Demand(resolver) => {
                     if Self::should_be_pushed(&key, &partials) {
                         props.insert(key, resolver());

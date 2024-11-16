@@ -2,22 +2,28 @@ use std::future::Future;
 use std::io;
 use std::pin::Pin;
 
+use crate::config::InertiaConfig;
+use crate::node_process::NodeJsProc;
+use crate::props::InertiaProps;
+use crate::req_type::InertiaRequestType;
+use crate::{InertiaError, InertiaPage, InertiaSSRPage};
 use async_trait::async_trait;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use crate::config::InertiaConfig;
-use crate::{InertiaError, InertiaPage, InertiaSSRPage};
-use crate::node_process::NodeJsProc;
-use crate::props::InertiaProps;
-use crate::req_type::InertiaRequestType;
 
-#[allow(unused)] pub const X_INERTIA: &str = "x-inertia";
-#[allow(unused)] pub const X_INERTIA_LOCATION: &str = "x-inertia-location";
-#[allow(unused)] pub const X_INERTIA_VERSION: &str = "x-inertia-version";
-#[allow(unused)] pub const X_INERTIA_PARTIAL_COMPONENT: &str = "x-inertia-partial-component";
-#[allow(unused)] pub const X_INERTIA_PARTIAL_DATA: &str = "x-inertia-partial-data";
-#[allow(unused)] pub const X_INERTIA_PARTIAL_EXCEPT: &str = "x-inertia-partial-except";
+#[allow(unused)]
+pub const X_INERTIA: &str = "x-inertia";
+#[allow(unused)]
+pub const X_INERTIA_LOCATION: &str = "x-inertia-location";
+#[allow(unused)]
+pub const X_INERTIA_VERSION: &str = "x-inertia-version";
+#[allow(unused)]
+pub const X_INERTIA_PARTIAL_COMPONENT: &str = "x-inertia-partial-component";
+#[allow(unused)]
+pub const X_INERTIA_PARTIAL_DATA: &str = "x-inertia-partial-data";
+#[allow(unused)]
+pub const X_INERTIA_PARTIAL_EXCEPT: &str = "x-inertia-partial-except";
 
 /// The javascript component name.
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -35,7 +41,11 @@ pub trait InertiaResponder<TResponder, THttpRequest> {
     /// * `req`         -   The HTTP request.
     /// * `component`   -   The page javascript component name to be rendered by the
     ///                     client-side adapter.
-    async fn render(&self, req: &THttpRequest, component: Component) -> Result<TResponder, InertiaError>;
+    async fn render(
+        &self,
+        req: &THttpRequest,
+        component: Component,
+    ) -> Result<TResponder, InertiaError>;
 
     /// Renders an Inertia Page with props as an HTTP response.
     ///
@@ -50,7 +60,12 @@ pub trait InertiaResponder<TResponder, THttpRequest> {
     /// or any of its fields don't implement [`Serialize`] trait.
     ///
     /// [`Serialize`]: serde::Serialize
-    async fn render_with_props(&self, req: &THttpRequest, component: Component, props: InertiaProps) -> Result<TResponder, InertiaError>;
+    async fn render_with_props(
+        &self,
+        req: &THttpRequest,
+        component: Component,
+        props: InertiaProps,
+    ) -> Result<TResponder, InertiaError>;
 
     /// Provokes a client-side redirect to an extern URL.
     ///
@@ -74,12 +89,18 @@ pub(crate) trait InertiaHttpRequest {
     fn check_inertia_version(&self, current_version: &str) -> bool;
 }
 
-pub enum InertiaVersion<T> where  T: ToString {
+pub enum InertiaVersion<T>
+where
+    T: ToString,
+{
     Literal(T),
-    Resolver(Box<dyn FnOnce() -> T>)
+    Resolver(Box<dyn FnOnce() -> T>),
 }
 
-impl<T> InertiaVersion<T> where T: ToString {
+impl<T> InertiaVersion<T>
+where
+    T: ToString,
+{
     pub fn resolve(self) -> &'static str {
         match self {
             InertiaVersion::Literal(v) => v.to_string().leak(),
@@ -92,11 +113,15 @@ impl<T> InertiaVersion<T> where T: ToString {
 pub struct ViewData {
     pub page: InertiaPage,
     pub ssr_page: Option<InertiaSSRPage>,
-    pub custom_props: Map<String, Value>
+    pub custom_props: Map<String, Value>,
 }
 
-pub type TemplateResolverOutput = Pin<Box<dyn Future<Output = Result<String, InertiaError>> + Send + Sync + 'static>>;
-pub(crate) type TemplateResolver<T> = &'static (dyn Fn(&'static str, ViewData, &'static T) -> TemplateResolverOutput + Send + Sync + 'static);
+pub type TemplateResolverOutput =
+    Pin<Box<dyn Future<Output = Result<String, InertiaError>> + Send + Sync + 'static>>;
+pub(crate) type TemplateResolver<T> = &'static (dyn Fn(&'static str, ViewData, &'static T) -> TemplateResolverOutput
+              + Send
+              + Sync
+              + 'static);
 
 #[derive(PartialEq, Debug)]
 pub struct SsrClient {
@@ -120,7 +145,7 @@ impl Default for SsrClient {
     fn default() -> Self {
         Self {
             host: "127.0.0.1",
-            port: 13714
+            port: 13714,
         }
     }
 }
@@ -129,7 +154,10 @@ impl Default for SsrClient {
 /// It is supposed to last during the whole application runtime.
 ///
 /// Extra details of how to initialize and keep it is specific to the feature-opted http library.
-pub struct Inertia<T> where T : 'static {
+pub struct Inertia<T>
+where
+    T: 'static,
+{
     /// URL used between redirects and responses generation, i.g. "https://myapp.com".
     #[allow(unused)]
     pub(crate) url: &'static str,
@@ -162,10 +190,13 @@ pub struct Inertia<T> where T : 'static {
     /// Address of Inertia local render server. Will be used by Inertia to perform ssr.
     pub(crate) ssr_url: Option<Url>,
     /// Extra data to be passed to the root template.
-    pub(crate) custom_view_data: Map<String, Value>
+    pub(crate) custom_view_data: Map<String, Value>,
 }
 
-impl<T> Inertia<T> where T : 'static {
+impl<T> Inertia<T>
+where
+    T: 'static,
+{
     /// Initializes an instance of [`Inertia`] struct.
     ///
     /// # Arguments
@@ -183,7 +214,8 @@ impl<T> Inertia<T> where T : 'static {
     ///  # Errors
     /// Returns an [`InertiaError::SsrError`] if it fails to connect to the server.
     pub fn new<V>(config: InertiaConfig<T, V>) -> Result<Self, io::Error>
-        where V: ToString
+    where
+        V: ToString,
     {
         let version = config.version.resolve();
         let ssr_url = match config.with_ssr {
@@ -199,9 +231,12 @@ impl<T> Inertia<T> where T : 'static {
 
                 match Url::parse(&ssr_url) {
                     Err(err) => {
-                        let inertia_err = InertiaError::SsrError(format!("Failed to parse Inertia Server url: {}", err));
+                        let inertia_err = InertiaError::SsrError(format!(
+                            "Failed to parse Inertia Server url: {}",
+                            err
+                        ));
                         return Err(inertia_err.to_io_error());
-                    },
+                    }
                     Ok(url) => Some(url),
                 }
             }
@@ -269,7 +304,7 @@ impl<T> Inertia<T> where T : 'static {
     ///     ) -> TemplateResolverOutput {
     ///         Box::pin(_resolver(path, view_data, _data))
     ///     }
-    /// 
+    ///
     ///     let inertia = Inertia::new(
     ///         InertiaConfig::builder()
     ///             .set_url("https://www.my-web-app.com")
@@ -297,14 +332,16 @@ impl<T> Inertia<T> where T : 'static {
     /// ```
     pub fn start_node_server(&self, server_file_path: String) -> Result<NodeJsProc, io::Error> {
         if self.ssr_url.is_none() {
-            let inertia_err: InertiaError = InertiaError::SsrError("Ssr is not enabled and, hence, a ssr server cannot be raised.".into());
+            let inertia_err: InertiaError = InertiaError::SsrError(
+                "Ssr is not enabled and, hence, a ssr server cannot be raised.".into(),
+            );
             return Err(inertia_err.to_io_error());
         }
 
         let node = NodeJsProc::start(server_file_path, self.ssr_url.as_ref().unwrap());
         match node {
             Err(err) => Err(InertiaError::NodeJsError(err).to_io_error()),
-            Ok(process) => Ok(process)
+            Ok(process) => Ok(process),
         }
     }
 }

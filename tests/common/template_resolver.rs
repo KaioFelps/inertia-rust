@@ -1,6 +1,5 @@
-use std::path::Path;
 use inertia_rust::{InertiaError, TemplateResolverOutput, ViewData};
-
+use std::path::Path;
 
 pub const EXPECTED_RENDER: &str = r#"
 <!doctype html>
@@ -31,8 +30,10 @@ pub const EXPECTED_RENDER_W_PROPS: &str = "
 </body>
 </html>";
 
-
-async fn _mocked_resolver(template_path: &str, view_data: ViewData) -> Result<String, InertiaError> {
+async fn _mocked_resolver(
+    template_path: &str,
+    view_data: ViewData,
+) -> Result<String, InertiaError> {
     let path = Path::new(template_path);
 
     let read_file = tokio::fs::read(&path).await;
@@ -48,7 +49,11 @@ async fn _mocked_resolver(template_path: &str, view_data: ViewData) -> Result<St
     let data = read_file.unwrap();
 
     let mut html = match String::from_utf8(data) {
-        Err(err) => return Err(InertiaError::SsrError(format!("Failed to read file contents: {err:?}"))),
+        Err(err) => {
+            return Err(InertiaError::SsrError(format!(
+                "Failed to read file contents: {err:?}"
+            )))
+        }
         Ok(html) => html,
     };
 
@@ -56,17 +61,21 @@ async fn _mocked_resolver(template_path: &str, view_data: ViewData) -> Result<St
         Some(ssr) => {
             html = html.replace("%-inertia_body-%", ssr.get_body());
             html = html.replace("%-inertia_head-%", &ssr.get_head());
-        },
+        }
         None => {
-            let stringified_page: Result<String, serde_json::Error> = serde_json::to_string(&view_data.page);
+            let stringified_page: Result<String, serde_json::Error> =
+                serde_json::to_string(&view_data.page);
 
             if stringified_page.is_err() {
-                return Err(InertiaError::SerializationError(format!("Failed to serialize view_data.page: {:?}", &view_data.page)));
+                return Err(InertiaError::SerializationError(format!(
+                    "Failed to serialize view_data.page: {:?}",
+                    &view_data.page
+                )));
             }
 
             let stringified_page = stringified_page.unwrap();
 
-            let container = format!("<div id=\"app\" data-page={stringified_page}></div>", );
+            let container = format!("<div id=\"app\" data-page={stringified_page}></div>",);
             html = html.replace("%-inertia_body-%", &container);
             html = html.replace("%-inertia_head-%", "");
         }
@@ -75,6 +84,10 @@ async fn _mocked_resolver(template_path: &str, view_data: ViewData) -> Result<St
     Ok(html)
 }
 
-pub fn mocked_resolver(template_path: &'static str, view_data: ViewData, _data: &()) -> TemplateResolverOutput {
+pub fn mocked_resolver(
+    template_path: &'static str,
+    view_data: ViewData,
+    _data: &(),
+) -> TemplateResolverOutput {
     Box::pin(_mocked_resolver(template_path, view_data))
 }

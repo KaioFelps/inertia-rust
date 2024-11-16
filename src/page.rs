@@ -1,6 +1,6 @@
+use crate::inertia::Component;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use crate::inertia::Component;
 
 /// Inertia Full Page response to be rendered inside the root template
 /// on the first request or on a full visit request.
@@ -25,16 +25,17 @@ impl InertiaSSRPage {
     ///             in the layout.
     ///
     /// [template_path]: crate::inertia::Inertia
-    /// 
+    ///
     pub fn new(head: Vec<String>, body: String) -> Self {
-        InertiaSSRPage {
-            head,
-            body,
-        }
+        InertiaSSRPage { head, body }
     }
 
-    pub fn get_head(&self) -> String { self.head.join("\n") }
-    pub fn get_body(&self) -> &String { &self.body }
+    pub fn get_head(&self) -> String {
+        self.head.join("\n")
+    }
+    pub fn get_body(&self) -> &String {
+        &self.body
+    }
 }
 
 /// Response containing a valid Inertia Payload that will be used
@@ -82,37 +83,48 @@ impl InertiaPage {
             component,
             url,
             props,
-            version
+            version,
         }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use std::collections::HashMap;
-    use crate::{InertiaPage, Component};
+    use crate::props::InertiaProp;
+    use crate::req_type::{InertiaRequestType, PartialComponent};
+    use crate::{Component, InertiaPage};
     use actix_web::test;
     use serde::Serialize;
     use serde_json::json;
-    use crate::props::InertiaProp;
-    use crate::req_type::{InertiaRequestType, PartialComponent};
+    use std::collections::HashMap;
 
     #[test]
     async fn test_inertia_partials_visit_page() {
         #[derive(Serialize)]
         struct Events {
             id: u16,
-            title: String
+            title: String,
         }
 
-        let event = Events { id: 1, title: "Baile".into() };
+        let event = Events {
+            id: 1,
+            title: "Baile".into(),
+        };
 
         let mut props = HashMap::<String, InertiaProp>::new();
-        props.insert("auth".into(), InertiaProp::Data(json!({"name": "John Doe"})));
-        props.insert("categories".into(), InertiaProp::Data(vec!["foo".to_string(), "bar".to_string()].into()));
+        props.insert(
+            "auth".into(),
+            InertiaProp::Data(json!({"name": "John Doe"})),
+        );
+        props.insert(
+            "categories".into(),
+            InertiaProp::Data(vec!["foo".to_string(), "bar".to_string()].into()),
+        );
         props.insert(
             "events".into(),
-            InertiaProp::Data(serde_json::to_value(vec![serde_json::to_value(event).unwrap()]).unwrap())
+            InertiaProp::Data(
+                serde_json::to_value(vec![serde_json::to_value(event).unwrap()]).unwrap(),
+            ),
         );
 
         // Request headers
@@ -130,7 +142,7 @@ mod test {
             Component("Events".into()),
             "/events/80".to_string(),
             Some("generated_version".into()),
-            InertiaProp::resolve_props(props, req_type)
+            InertiaProp::resolve_props(props, req_type),
         );
 
         let json_page_example = json!({
@@ -153,8 +165,14 @@ mod test {
     #[test]
     async fn test_inertia_standard_visit_page() {
         let mut props = HashMap::<String, InertiaProp>::new();
-        props.insert("radioStatus".into(), InertiaProp::Demand(|| json!({"announcer": "John Doe"})));
-        props.insert("categories".into(), InertiaProp::Data(vec!["foo".to_string(), "bar".to_string()].into()));
+        props.insert(
+            "radioStatus".into(),
+            InertiaProp::Demand(|| json!({"announcer": "John Doe"})),
+        );
+        props.insert(
+            "categories".into(),
+            InertiaProp::Data(vec!["foo".to_string(), "bar".to_string()].into()),
+        );
 
         // Request headers
         // X-Inertia: true
@@ -165,7 +183,7 @@ mod test {
             Component("Categories".into()),
             "/categories".to_string(),
             Some("generated_version".into()),
-            InertiaProp::resolve_props(props, req_type)
+            InertiaProp::resolve_props(props, req_type),
         );
 
         let json_page_example = json!({

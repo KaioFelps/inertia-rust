@@ -1,12 +1,12 @@
-use serde_json::{Map, Value};
 use crate::{inertia::TemplateResolver, InertiaVersion, SsrClient};
+use serde_json::{Map, Value};
 
 /// A configuration struct for initializing Inertia. You can directly fill the struct or use
 /// the builder fluent syntax by calling `InertiaConfig::builder()`, and finally `InertiaConfig::build()`.
-/// 
+///
 /// Note that, even with builder, most of fields are mandatory and trying to build without filling them
 /// will cause your application to `panic!`
-/// 
+///
 /// * `url`                     -   A valid [href](https://developer.mozilla.org/en-US/docs/Web/API/Location)
 ///                                 of the currentapplication
 /// * `version`                 -   The current asset version of the application.
@@ -25,12 +25,12 @@ use crate::{inertia::TemplateResolver, InertiaVersion, SsrClient};
 ///                                 be used.
 /// * `view_data`               -   Optional view data to be passed to the root template. It must be
 ///                                 handled by the provided `template_resolver`.
-/// 
+///
 /// [`Inertia::template_resolver`]: crate::inertia::Inertia
 pub struct InertiaConfig<T, V>
 where
-    T : 'static,
-    V: ToString
+    T: 'static,
+    V: ToString,
 {
     pub url: &'static str,
     pub version: InertiaVersion<V>,
@@ -44,11 +44,11 @@ where
 
 impl<T, V> InertiaConfig<T, V>
 where
-    T : 'static,
-    V: ToString
+    T: 'static,
+    V: ToString,
 {
     /// Instatiates a new InertiaConfigBuilder instance. It must be configured using a fluent syntax.
-    /// 
+    ///
     /// # Examples
     /// ```rust
     /// use inertia_rust::{InertiaVersion, InertiaConfig};
@@ -76,8 +76,8 @@ where
 
 pub struct InertiaConfigBuilder<T, V>
 where
-    T : 'static,
-    V: ToString
+    T: 'static,
+    V: ToString,
 {
     pub url: Option<&'static str>,
     pub version: Option<InertiaVersion<V>>,
@@ -91,9 +91,9 @@ where
 
 impl<T, V> Default for InertiaConfigBuilder<T, V>
 where
-    T : 'static,
-    V: ToString
- {
+    T: 'static,
+    V: ToString,
+{
     fn default() -> Self {
         Self::new()
     }
@@ -101,15 +101,15 @@ where
 
 impl<T, V> InertiaConfigBuilder<T, V>
 where
-    T : 'static,
-    V: ToString
+    T: 'static,
+    V: ToString,
 {
     /// Instatiates a new InertiaConfigBuilder instance. It must be configured using a fluent syntax.
-    /// 
+    ///
     /// # Examples
     /// ```rust
     /// use inertia_rust::{InertiaConfigBuilder, InertiaVersion};
-    /// 
+    ///
     /// # use inertia_rust::{TemplateResolverOutput, ViewData, InertiaError};
     /// # async fn _your_template_resolver(_template_path: &str, _view_data: ViewData) -> Result<String, InertiaError> {
     /// #     return Ok("".to_string());
@@ -180,7 +180,7 @@ where
     }
 
     /// Compile the current `InertiaConfigBuilder` into a valid `InertiaConfig` struct.
-    /// 
+    ///
     /// # Panics
     /// Panics if any of the following fields equal [`None`]:
     /// * `url`
@@ -189,23 +189,28 @@ where
     /// * `template_resolver_data`
     /// * `version`
     pub fn build(self) -> InertiaConfig<T, V> {
-        if self.url.is_none() { panic!(
+        if self.url.is_none() {
+            panic!(
             "[InertiaConfigBuilder] 'url' is a mandatory field and InertiaConfigBuilder cannot build without it.");
         }
 
-        if self.template_path.is_none() { panic!(
+        if self.template_path.is_none() {
+            panic!(
             "[InertiaConfigBuilder] 'template_path' is a mandatory field and InertiaConfigBuilder cannot build without it.");
         }
 
-        if self.template_resolver.is_none() { panic!(
+        if self.template_resolver.is_none() {
+            panic!(
             "[InertiaConfigBuilder] 'template_resolver' is a mandatory field and InertiaConfigBuilder cannot build without it.");
         }
 
-        if self.template_resolver_data.is_none() { panic!(
+        if self.template_resolver_data.is_none() {
+            panic!(
             "[InertiaConfigBuilder] 'template_resolver_data' is a mandatory field and InertiaConfigBuilder cannot build without it.");
         }
 
-        if self.version.is_none() { panic!(
+        if self.version.is_none() {
+            panic!(
             "[InertiaConfigBuilder] 'version' is a mandatory field and InertiaConfigBuilder cannot build without it.");
         }
 
@@ -224,85 +229,92 @@ where
 
 #[cfg(test)]
 mod test {
-    use std::panic;
     use crate::{InertiaError, InertiaVersion, TemplateResolverOutput, ViewData};
+    use std::panic;
 
     use super::{InertiaConfig, InertiaConfigBuilder};
 
     // region: --- Mocks
 
-    async fn _mocked_resolver(_template_path: &str, _view_data: ViewData) -> Result<String, InertiaError> {
+    async fn _mocked_resolver(
+        _template_path: &str,
+        _view_data: ViewData,
+    ) -> Result<String, InertiaError> {
         Ok("".to_string())
     }
-    
-    pub fn mocked_resolver(template_path: &'static str, view_data: ViewData, _data: &()) -> TemplateResolverOutput {
+
+    pub fn mocked_resolver(
+        template_path: &'static str,
+        view_data: ViewData,
+        _data: &(),
+    ) -> TemplateResolverOutput {
         Box::pin(_mocked_resolver(template_path, view_data))
     }
 
     // endregion: --- Mocks
 
     // region: --- Tests
-    
+
     #[test]
     fn builder_panics_if_critical_fields_are_unset() {
         // region: --- builders
         let build_totally_empty = panic::catch_unwind(move || {
-                InertiaConfigBuilder::<(), &str>::new().build();
+            InertiaConfigBuilder::<(), &str>::new().build();
         });
 
         let build_without_url = panic::catch_unwind(move || {
-                InertiaConfigBuilder::<(), &str>::new()
-                    .set_template_resolver(&mocked_resolver)
-                    .set_template_path("path")
-                    .set_template_resolver_data(&())
-                    .set_version(InertiaVersion::Literal("v1"))
-                    .build()
+            InertiaConfigBuilder::<(), &str>::new()
+                .set_template_resolver(&mocked_resolver)
+                .set_template_path("path")
+                .set_template_resolver_data(&())
+                .set_version(InertiaVersion::Literal("v1"))
+                .build()
         });
 
         let build_without_template_resolver = panic::catch_unwind(move || {
-                InertiaConfigBuilder::<(), &str>::new()
-                    .set_url("foo")
-                    .set_template_path("path")
-                    .set_template_resolver_data(&())
-                    .set_version(InertiaVersion::Literal("v1"))
-                    .build()
+            InertiaConfigBuilder::<(), &str>::new()
+                .set_url("foo")
+                .set_template_path("path")
+                .set_template_resolver_data(&())
+                .set_version(InertiaVersion::Literal("v1"))
+                .build()
         });
 
         let build_without_template_path = panic::catch_unwind(move || {
-                InertiaConfigBuilder::<(), &str>::new()
-                    .set_url("foo")
-                    .set_template_resolver(&mocked_resolver)
-                    .set_template_resolver_data(&())
-                    .set_version(InertiaVersion::Literal("v1"))
-                    .build()
+            InertiaConfigBuilder::<(), &str>::new()
+                .set_url("foo")
+                .set_template_resolver(&mocked_resolver)
+                .set_template_resolver_data(&())
+                .set_version(InertiaVersion::Literal("v1"))
+                .build()
         });
 
         let build_without_template_data = panic::catch_unwind(move || {
-                InertiaConfigBuilder::<(), &str>::new()
-                    .set_url("foo")
-                    .set_template_resolver(&mocked_resolver)
-                    .set_template_path("path")
-                    .set_version(InertiaVersion::Literal("v1"))
-                    .build()
+            InertiaConfigBuilder::<(), &str>::new()
+                .set_url("foo")
+                .set_template_resolver(&mocked_resolver)
+                .set_template_path("path")
+                .set_version(InertiaVersion::Literal("v1"))
+                .build()
         });
 
         let build_without_version = panic::catch_unwind(move || {
-                InertiaConfigBuilder::<(), &str>::new()
-                    .set_url("foo")
-                    .set_template_resolver(&mocked_resolver)
-                    .set_template_path("path")
-                    .set_template_resolver_data(&())
-                    .build()
+            InertiaConfigBuilder::<(), &str>::new()
+                .set_url("foo")
+                .set_template_resolver(&mocked_resolver)
+                .set_template_path("path")
+                .set_template_resolver_data(&())
+                .build()
         });
 
         let build_with_critical_fields_filled = panic::catch_unwind(move || {
-                InertiaConfigBuilder::<(), &str>::new()
-                    .set_url("foo")
-                    .set_template_resolver(&mocked_resolver)
-                    .set_template_path("path")
-                    .set_template_resolver_data(&())
-                    .set_version(InertiaVersion::Literal("v1"))
-                    .build()
+            InertiaConfigBuilder::<(), &str>::new()
+                .set_url("foo")
+                .set_template_resolver(&mocked_resolver)
+                .set_template_path("path")
+                .set_template_resolver_data(&())
+                .set_version(InertiaVersion::Literal("v1"))
+                .build()
         });
         // endregion: --- builders
 
@@ -337,12 +349,24 @@ mod test {
         };
 
         assert_eq!(&with_builder.url, &directly_initialized.url);
-        assert_eq!(&with_builder.template_path, &directly_initialized.template_path);
-        assert_eq!(&with_builder.template_resolver_data, &directly_initialized.template_resolver_data);
-        assert_eq!(&with_builder.version.resolve(), &directly_initialized.version.resolve());
+        assert_eq!(
+            &with_builder.template_path,
+            &directly_initialized.template_path
+        );
+        assert_eq!(
+            &with_builder.template_resolver_data,
+            &directly_initialized.template_resolver_data
+        );
+        assert_eq!(
+            &with_builder.version.resolve(),
+            &directly_initialized.version.resolve()
+        );
         assert_eq!(&with_builder.view_data, &directly_initialized.view_data);
         assert_eq!(&with_builder.with_ssr, &directly_initialized.with_ssr);
-        assert_eq!(&with_builder.custom_ssr_client, &directly_initialized.custom_ssr_client);
+        assert_eq!(
+            &with_builder.custom_ssr_client,
+            &directly_initialized.custom_ssr_client
+        );
     }
 
     // endregion: --- Tests

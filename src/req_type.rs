@@ -9,24 +9,28 @@ pub(crate) struct PartialComponent {
 
 pub(crate) enum InertiaRequestType {
     Standard,
-    Partial(PartialComponent)
+    Partial(PartialComponent),
 }
 
 impl InertiaRequestType {
     #[inline]
     #[allow(unused)]
-    pub fn is_standard(&self) -> bool { matches!(*self, InertiaRequestType::Standard) }
+    pub fn is_standard(&self) -> bool {
+        matches!(*self, InertiaRequestType::Standard)
+    }
 
     #[inline]
     #[allow(unused)]
-    pub fn is_partial(&self) -> bool { !self.is_standard() }
+    pub fn is_partial(&self) -> bool {
+        !self.is_standard()
+    }
 
     #[inline]
     pub fn unwrap_partial(self) -> PartialComponent {
         match self {
             InertiaRequestType::Standard => {
                 panic!("called `InertiaRequestType::unwrap_partial()` on an `Standard` request type value.");
-            },
+            }
             InertiaRequestType::Partial(reqs) => reqs,
         }
     }

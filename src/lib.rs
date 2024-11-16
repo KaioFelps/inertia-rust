@@ -1,35 +1,35 @@
+mod config;
+mod error;
+mod features;
 mod http_method;
 mod inertia;
-mod utils;
 mod page;
-mod error;
-mod req_type;
 mod props;
 mod providers;
-mod features;
-mod config;
+mod req_type;
+mod utils;
 
 pub mod node_process;
 
-pub use inertia::Inertia as Inertia;
-pub use inertia::Component;
-pub use inertia::InertiaVersion;
+pub use config::{InertiaConfig, InertiaConfigBuilder};
 pub use error::InertiaError;
+pub use inertia::Component;
+pub use inertia::Inertia;
+pub use inertia::InertiaVersion;
+pub use inertia::SsrClient;
+pub use inertia::TemplateResolverOutput;
+pub use inertia::ViewData;
 pub use page::InertiaPage;
 pub use page::InertiaSSRPage;
-pub use inertia::ViewData;
-pub use props::InertiaProps;
 pub use props::InertiaProp;
-pub use inertia::TemplateResolverOutput;
-pub use inertia::SsrClient;
-pub use config::{InertiaConfig, InertiaConfigBuilder};
+pub use props::InertiaProps;
 
 pub use inertia::InertiaErrMapper;
 
 #[cfg(feature = "actix")]
 pub mod actix {
-    pub use super::providers::actix::InertiaHeader;
     pub use super::providers::actix::facade::{render, render_with_props};
+    pub use super::providers::actix::InertiaHeader;
 }
 
 #[cfg(feature = "basic-vite-resolver")]

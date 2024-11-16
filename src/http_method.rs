@@ -2,14 +2,14 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub(crate) enum HttpMethod {
-    #[serde(rename="get")]
+    #[serde(rename = "get")]
     Get,
-    #[serde(rename="post")]
+    #[serde(rename = "post")]
     Post,
-    #[serde(rename="put")]
+    #[serde(rename = "put")]
     Put,
-    #[serde(rename="patch")]
+    #[serde(rename = "patch")]
     Patch,
-    #[serde(rename="delete")]
-    Delete
+    #[serde(rename = "delete")]
+    Delete,
 }

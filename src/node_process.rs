@@ -13,10 +13,7 @@ pub struct NodeJsError {
 
 impl NodeJsError {
     pub fn new(cause: String, description: String) -> Self {
-        NodeJsError {
-            cause,
-            description,
-        }
+        NodeJsError { cause, description }
     }
 
     pub fn get_cause(&self) -> String {
@@ -30,7 +27,11 @@ impl NodeJsError {
 
 impl fmt::Display for NodeJsError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "cause: {};\ndescription: {}", self.cause, self.description)
+        write!(
+            f,
+            "cause: {};\ndescription: {}",
+            self.cause, self.description
+        )
     }
 }
 
@@ -43,7 +44,7 @@ impl Error for NodeJsError {
 #[derive(Debug)]
 pub struct NodeJsProc {
     child: Child,
-    server: String
+    server: String,
 }
 
 impl NodeJsProc {
@@ -73,7 +74,7 @@ impl NodeJsProc {
     ///         Ok(url) => url,
     ///         Err(err) => panic!("Failed to parse url: {}", err),
     ///     };
-    /// 
+    ///
     ///     let node = NodeJsProc::start("dist/server/ssr.js".into(), &local_url);
     ///
     ///     if node.is_err() {
@@ -92,11 +93,19 @@ impl NodeJsProc {
         let path = Path::new(&server_path);
 
         if !path.exists() {
-            return Err(NodeJsError::new("Invalid path".into(), format!("Server javascript file not found in {}.", &server_path)))
+            return Err(NodeJsError::new(
+                "Invalid path".into(),
+                format!("Server javascript file not found in {}.", &server_path),
+            ));
         }
 
         let string_path = match path.to_str() {
-            None => return Err(NodeJsError::new("Invalid path".into(), "The given path contains invalid UTF-8 characters.".into())),
+            None => {
+                return Err(NodeJsError::new(
+                    "Invalid path".into(),
+                    "The given path contains invalid UTF-8 characters.".into(),
+                ))
+            }
             Some(path) => path,
         };
 
@@ -104,17 +113,20 @@ impl NodeJsProc {
             .arg(string_path)
             .arg("--port")
             .arg(server_url.port().unwrap_or(10000).to_string())
-            .spawn() {
-            Err(err) => return Err(NodeJsError::new(
-                "Process error".into(),
-                format!("Something went wrong on invoking a node server: {}", err)
-            )),
-            Ok(child) => child
+            .spawn()
+        {
+            Err(err) => {
+                return Err(NodeJsError::new(
+                    "Process error".into(),
+                    format!("Something went wrong on invoking a node server: {}", err),
+                ))
+            }
+            Ok(child) => child,
         };
 
         Ok(NodeJsProc {
             child,
-            server: server_url.to_string()
+            server: server_url.to_string(),
         })
     }
 
