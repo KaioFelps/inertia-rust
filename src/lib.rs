@@ -7,6 +7,7 @@ mod page;
 mod props;
 mod providers;
 mod req_type;
+mod temporary_messages;
 mod utils;
 
 pub mod node_process;
@@ -29,7 +30,7 @@ pub use inertia::InertiaErrMapper;
 #[cfg(feature = "actix")]
 pub mod actix {
     pub use super::providers::actix::facade::{render, render_with_props};
-    pub use super::providers::actix::InertiaHeader;
+    pub use super::providers::actix::headers::InertiaHeader;
 }
 
 #[cfg(feature = "basic-vite-resolver")]
