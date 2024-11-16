@@ -181,9 +181,9 @@ where
                 .finish();
         }
 
-        return HttpResponseBuilder::new(StatusCode::CONFLICT)
+        HttpResponseBuilder::new(StatusCode::CONFLICT)
             .append_header(InertiaHeader::InertiaLocation(url).convert())
-            .finish();
+            .finish()
     }
 }
 
@@ -201,10 +201,10 @@ impl InertiaErrMapper<HttpResponse, HttpRequest> for Result<HttpResponse, Inerti
 
 impl InertiaHttpRequest for HttpRequest {
     fn is_inertia_request(&self) -> bool {
-        return match self.headers().get(header_names::X_INERTIA) {
+        match self.headers().get(header_names::X_INERTIA) {
             None => false,
             Some(v) => !v.is_empty(),
-        };
+        }
     }
 
     fn get_request_type(&self) -> Result<InertiaRequestType, InertiaError> {
@@ -265,20 +265,15 @@ fn extract_partials_headers_content(
 ) -> Result<Vec<String>, InertiaError> {
     let partials = match req.headers().get(header_name) {
         None => Vec::new(),
-        Some(value) => {
-            let value = value.to_str();
-
-            if value.is_err() {
+        Some(value) => match value.to_str() {
+            Ok(value) => value.split(",").map(|v| v.to_string()).collect(),
+            Err(_err) => {
                 return Err(InertiaError::HeaderError(format!(
                     "Header {}'s value must contain only printable ASCII characters.",
                     header_name,
-                )));
-            };
-
-            let value = value.unwrap().split(",").map(|v| v.to_string()).collect();
-
-            value
-        }
+                )))
+            }
+        },
     };
 
     Ok(partials)
