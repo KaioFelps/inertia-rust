@@ -1,7 +1,11 @@
 use inertia_rust::{InertiaError, TemplateResolverOutput, ViewData};
 use std::path::Path;
 
-pub const EXPECTED_RENDER: &str = r#"
+use crate::super_trim;
+
+pub fn get_dynamic_csr_expect(url: &str, props: &str, component: &str, version: &str) -> String {
+    super_trim(format!(
+        r#"
 <!doctype html>
 <html lang="en">
 <head>
@@ -11,24 +15,12 @@ pub const EXPECTED_RENDER: &str = r#"
     
 </head>
 <body>
-    <div id="app" data-page={"component":"Index","props":{},"url":"/","version":"v1.0.0"}></div>
+    <div id="app" data-page={{"component":"{}","props":{},"url":"{}","version":"{}"}}></div>
 </body>
-</html>
-"#;
-
-pub const EXPECTED_RENDER_W_PROPS: &str = "
-<!doctype html>
-<html lang=\"en\">
-<head>
-    <meta charset=\"UTF-8\">
-    <meta name=\"viewport\" content=\"width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0\">
-    <meta http-equiv=\"X-UA-Compatible\" content=\"ie=edge\">
-    \t\t
-</head>
-<body>
-    <div id=\"app\" data-page={\"component\":\"Index\",\"props\":{\"user\":\"John Doe\"},\"url\":\"/withprops\",\"version\":\"v1.0.0\"}></div>
-</body>
-</html>";
+</html>"#,
+        component, props, url, version
+    ))
+}
 
 async fn _mocked_resolver(
     template_path: &str,

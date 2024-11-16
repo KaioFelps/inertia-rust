@@ -7,12 +7,13 @@ use actix_web::{
     web::Data,
     App, HttpRequest, HttpResponse,
 };
-use common::template_resolver::{mocked_resolver, EXPECTED_RENDER, EXPECTED_RENDER_W_PROPS};
+use common::template_resolver::{get_dynamic_csr_expect, mocked_resolver};
 use inertia_rust::{
     actix::{render, render_with_props, InertiaHeader, InertiaMiddleware},
-    InertiaPage,
+    InertiaPage, InertiaService,
 };
 use inertia_rust::{Component, Inertia, InertiaConfig, InertiaProp, InertiaProps, InertiaVersion};
+use serde_json::json;
 use std::{collections::HashMap, sync::Arc};
 
 const TEST_INERTIA_VERSION: &str = "v1.0.0";
@@ -78,6 +79,7 @@ async fn generate_actix_app() -> App<
         .app_data(Data::new(inertia))
         .service(home)
         .service(with_props)
+        .inertia_route::<()>("/withservice", "Index")
 }
 
 // endregion: --- Service
@@ -134,7 +136,10 @@ async fn test_render() {
     let body_bytes = actix_web::body::to_bytes(body).await.unwrap();
     let html_body = String::from_utf8(body_bytes.to_vec()).unwrap();
 
-    assert_eq!(super_trim(EXPECTED_RENDER.into()), super_trim(html_body));
+    assert_eq!(
+        get_dynamic_csr_expect("/", "{}", "Index", TEST_INERTIA_VERSION),
+        super_trim(html_body)
+    );
 }
 
 #[tokio::test]
@@ -154,7 +159,12 @@ async fn test_render_with_props() {
     let html_body = String::from_utf8(body_bytes.to_vec()).unwrap();
 
     assert_eq!(
-        super_trim(EXPECTED_RENDER_W_PROPS.into()),
+        get_dynamic_csr_expect(
+            "/withprops",
+            &json!({"user": "John Doe"}).to_string(),
+            "Index",
+            TEST_INERTIA_VERSION
+        ),
         super_trim(html_body)
     );
 }
@@ -195,6 +205,26 @@ async fn test_shared_props() {
     assert_eq!(
         test_shared_property_value,
         json_body.get_props().get(test_shared_property_key).unwrap()
+    );
+}
+
+#[tokio::test]
+async fn test_inertia_route_service() {
+    let app = actix_web::test::init_service(generate_actix_app().await).await;
+
+    let req = actix_web::test::TestRequest::get()
+        .uri("/withservice")
+        .to_request();
+
+    let resp = actix_web::test::call_service(&app, req).await;
+
+    assert_eq!(200u16, resp.status().as_u16());
+
+    let body = String::from_utf8(resp.into_body().try_into_bytes().unwrap().to_vec()).unwrap();
+
+    assert_eq!(
+        get_dynamic_csr_expect("/withservice", "{}", "Index", TEST_INERTIA_VERSION),
+        super_trim(body)
     );
 }
 

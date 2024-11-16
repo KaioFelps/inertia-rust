@@ -48,7 +48,7 @@ pub trait InertiaService {
     /// * `component`   -   The component to be rendered.
     ///
     /// # Examples
-    /// ```no_run
+    /// ```ignore
     /// use some_framework::App;
     ///
     /// App::new().inertia_route("/", "Index");
