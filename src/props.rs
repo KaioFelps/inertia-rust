@@ -1,6 +1,6 @@
 use crate::req_type::{InertiaRequestType, PartialComponent};
 use serde_json::{Map, Value};
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Clone)]
 pub enum InertiaProp {
@@ -11,7 +11,7 @@ pub enum InertiaProp {
     /// - ALWAYS included on standard visits
     /// - OPTIONALLY included on partial reloads
     /// - ONLY evaluated when included
-    Lazy(fn() -> Value),
+    Lazy(Arc<dyn Fn() -> Value + Send + Sync>),
     /// - ALWAYS included on standard visits
     /// - ALWAYS included on partial reloads (even if not requested or excepted)
     /// - ALWAYS evaluated
@@ -19,13 +19,13 @@ pub enum InertiaProp {
     /// - NEVER included on standard visits
     /// - OPTIONALLY included on partial reloads
     /// - ONLY evaluated when needed
-    Demand(fn() -> Value),
+    Demand(Arc<dyn Fn() -> Value + Send + Sync>),
 }
 
 impl InertiaProp {
     #[inline]
     pub(crate) fn resolve_props(
-        raw_props: InertiaProps,
+        raw_props: &InertiaProps,
         req_type: InertiaRequestType,
     ) -> Map<String, Value> {
         let mut props = Map::new();
@@ -36,7 +36,7 @@ impl InertiaProp {
                     continue;
                 }
 
-                props.insert(key, value.resolve_prop_unconditionally());
+                props.insert(key.clone(), value.clone().resolve_prop_unconditionally());
             }
 
             return props;
@@ -47,21 +47,21 @@ impl InertiaProp {
         for (key, value) in raw_props.into_iter() {
             match value {
                 InertiaProp::Always(value) => {
-                    props.insert(key, value);
+                    props.insert(key.clone(), value.clone());
                 }
                 InertiaProp::Data(value) => {
                     if Self::should_be_pushed(&key, &partials) {
-                        props.insert(key, value);
+                        props.insert(key.clone(), value.clone());
                     }
                 }
                 InertiaProp::Lazy(resolver) => {
                     if Self::should_be_pushed(&key, &partials) {
-                        props.insert(key, resolver());
+                        props.insert(key.clone(), resolver());
                     }
                 }
                 InertiaProp::Demand(resolver) => {
                     if Self::should_be_pushed(&key, &partials) {
-                        props.insert(key, resolver());
+                        props.insert(key.clone(), resolver());
                     }
                 }
             };
