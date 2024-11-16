@@ -1,11 +1,9 @@
-use actix_web::body::BoxBody;
-use actix_web::http::header::HeaderName;
-use actix_web::http::StatusCode;
-use actix_web::{HttpMessage, HttpRequest, HttpResponse, HttpResponseBuilder, Responder};
-use async_trait::async_trait;
-use std::collections::HashMap;
+use super::headers;
+use super::middleware::SharedProps;
 
-use crate::inertia::{Inertia, InertiaErrMapper, InertiaHttpRequest, InertiaResponder, ViewData};
+use crate::inertia::{
+    Inertia, InertiaErrMapper, InertiaHttpRequest, InertiaResponder, InertiaService, ViewData,
+};
 use crate::props::InertiaProp;
 use crate::props::InertiaProps;
 use crate::req_type::{InertiaRequestType, PartialComponent};
@@ -13,8 +11,13 @@ use crate::utils::convert_struct_to_stringified_json;
 use crate::utils::{inertia_err_msg, request_page_render};
 use crate::{Component, InertiaError, InertiaPage};
 
-use super::headers;
-use super::middleware::SharedProps;
+use actix_web::body::BoxBody;
+use actix_web::dev::{ServiceFactory, ServiceRequest};
+use actix_web::http::header::HeaderName;
+use actix_web::http::StatusCode;
+use actix_web::{web, App, HttpMessage, HttpRequest, HttpResponse, HttpResponseBuilder, Responder};
+use async_trait::async_trait;
+use std::collections::HashMap;
 
 impl Responder for InertiaPage {
     type Body = BoxBody;
@@ -79,9 +82,8 @@ where
                     log::warn!(
                         "{}",
                         inertia_err_msg(format!(
-                            "Error on rendering page {}. {}",
-                            page.component.0,
-                            err.get_cause()
+                            "Error on server-side rendering page {}. {}",
+                            page.component.0, err
                         ))
                     );
                 }
@@ -138,6 +140,43 @@ impl InertiaErrMapper<HttpResponse, HttpRequest> for Result<HttpResponse, Inerti
                 .body(error.get_cause())
                 .map_into_boxed_body(),
         }
+    }
+}
+
+// impl<T> InertiaService<Route> for Inertia<T>
+// where
+//     T: 'static,
+// {
+//     fn route(path: &str, component: &'static str) -> Route {
+//         web::route().to(move |req: HttpRequest| async move {
+//             crate::actix::render::<T>(&req, component.into())
+//                 .await
+//                 .map_inertia_err()
+//         })
+//     }
+// }
+
+impl<TApp> InertiaService for App<TApp>
+where
+    TApp: ServiceFactory<
+        ServiceRequest,
+        Config = (),
+        Error = actix_web::error::Error,
+        InitError = (),
+    >,
+{
+    fn inertia_route<T>(self, path: &str, component: &'static str) -> Self
+    where
+        T: 'static,
+    {
+        self.route(
+            path,
+            web::get().to(move |req: HttpRequest| async move {
+                crate::actix::render::<T>(&req, component.into())
+                    .await
+                    .map_inertia_err()
+            }),
+        )
     }
 }
 

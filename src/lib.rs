@@ -16,6 +16,8 @@ pub use config::{InertiaConfig, InertiaConfigBuilder};
 pub use error::InertiaError;
 pub use inertia::Component;
 pub use inertia::Inertia;
+pub use inertia::InertiaErrMapper;
+pub use inertia::InertiaService;
 pub use inertia::InertiaVersion;
 pub use inertia::SsrClient;
 pub use inertia::TemplateResolverOutput;
@@ -24,8 +26,6 @@ pub use page::InertiaPage;
 pub use page::InertiaSSRPage;
 pub use props::InertiaProp;
 pub use props::InertiaProps;
-
-pub use inertia::InertiaErrMapper;
 
 #[cfg(feature = "actix")]
 pub mod actix {

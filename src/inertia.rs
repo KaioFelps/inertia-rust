@@ -29,6 +29,35 @@ pub const X_INERTIA_PARTIAL_EXCEPT: &str = "x-inertia-partial-except";
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct Component(pub String);
 
+impl<T> From<T> for Component
+where
+    T: ToString,
+{
+    fn from(value: T) -> Self {
+        Component(value.to_string())
+    }
+}
+
+/// InertiaService trait define a method to be implemented to Inertia struct that allows
+/// to generate simple routes directly, without needing to create a handler function.
+pub trait InertiaService {
+    /// Renders an Inertia component directly, without defining a specific handler function for it.
+    ///
+    /// # Arguments
+    /// * `path`        -   The router path.
+    /// * `component`   -   The component to be rendered.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use some_framework::App;
+    ///
+    /// App::new().inertia_route("/", "Index");
+    /// ```
+    fn inertia_route<T>(self, path: &str, component: &'static str) -> Self
+    where
+        T: 'static;
+}
+
 /// InertiaResponder trait defines methods that every provider
 /// must implement. For instance, T may be a sort of actix-web Responder,
 /// if "actix" feature is passed with the --feature flag or with the

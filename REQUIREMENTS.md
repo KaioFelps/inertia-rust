@@ -33,17 +33,14 @@ async fn some_handler(req: SomeHttpRequest) -> SomeHttpResponse {
 }
 ```
 
-- [ ] Shorthand renderer for routes without handlers;
+- [x] Shorthand renderer for routes without handlers;
 
 ```rust
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
   HttpServer::new(|| {
     App::new()
-            
-    .route("/", Inertia::route("Home"))
-    // or using actix_web inertia extension
-    .inertia("/", "Home")
+      .inertia_route("/", "Home")
     
   })
   .bind(("127.0.0.1", 8080))?
