@@ -34,6 +34,7 @@ mod header_names {
         HeaderName::from_static(inertia::X_INERTIA_PARTIAL_EXCEPT);
 }
 
+#[allow(clippy::needless_lifetimes)]
 pub enum InertiaHeader<'a> {
     Inertia,
     InertiaLocation(&'a str),
