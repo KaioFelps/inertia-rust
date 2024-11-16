@@ -164,19 +164,17 @@ async fn test_shared_props() {
     let test_shared_property_key = "sharedProperty";
     let test_shared_property_value = "Some amazing value!";
 
-    let mut shared_props = HashMap::new();
-    shared_props.insert(
-        test_shared_property_key.to_string(),
-        InertiaProp::Always(test_shared_property_value.into()),
-    );
+    let app = actix_web::test::init_service(generate_actix_app().await.wrap(
+        InertiaMiddleware::new().with_shared_props(Arc::new(|_req| {
+            let mut shared_props = HashMap::new();
+            shared_props.insert(
+                test_shared_property_key.to_string(),
+                InertiaProp::Always(test_shared_property_value.into()),
+            );
 
-    let shared_props = Arc::new(shared_props);
-
-    let app = actix_web::test::init_service(
-        generate_actix_app()
-            .await
-            .wrap(InertiaMiddleware::new().with_shared_props(shared_props)),
-    )
+            shared_props
+        })),
+    ))
     .await;
 
     let req = actix_web::test::TestRequest::get()

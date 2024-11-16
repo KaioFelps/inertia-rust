@@ -25,7 +25,7 @@ impl Default for InertiaMiddleware {
 impl InertiaMiddleware {
     pub fn new() -> Self {
         Self {
-            shared_props_cb: Arc::new(|_req| { HashMap::new() }),
+            shared_props_cb: Arc::new(|_req| HashMap::new()),
         }
     }
 

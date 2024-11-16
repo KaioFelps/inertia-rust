@@ -70,7 +70,6 @@ async fn main() -> std::io::Result<()> {
             let mut shared_props = HashMap::new();
             shared_props.insert("version".into(), InertiaProp::Always("0.1.0".into()));
             shared_props.insert("assetsVersion".into(), InertiaProp::Lazy(Arc::new(|| {
-                println!("Chamou o lazily!!");
                 serde_json::to_value(vite.get_hash().to_string()).unwrap()
             })));
 
