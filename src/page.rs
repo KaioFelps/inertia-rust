@@ -97,6 +97,7 @@ mod test {
     use serde::Serialize;
     use serde_json::json;
     use std::collections::HashMap;
+    use std::sync::Arc;
 
     #[test]
     async fn test_inertia_partials_visit_page() {
@@ -142,7 +143,7 @@ mod test {
             Component("Events".into()),
             "/events/80".to_string(),
             Some("generated_version".into()),
-            InertiaProp::resolve_props(props, req_type),
+            InertiaProp::resolve_props(&props, req_type),
         );
 
         let json_page_example = json!({
@@ -167,7 +168,7 @@ mod test {
         let mut props = HashMap::<String, InertiaProp>::new();
         props.insert(
             "radioStatus".into(),
-            InertiaProp::Demand(|| json!({"announcer": "John Doe"})),
+            InertiaProp::Demand(Arc::new(|| json!({"announcer": "John Doe"}))),
         );
         props.insert(
             "categories".into(),
@@ -183,7 +184,7 @@ mod test {
             Component("Categories".into()),
             "/categories".to_string(),
             Some("generated_version".into()),
-            InertiaProp::resolve_props(props, req_type),
+            InertiaProp::resolve_props(&props, req_type),
         );
 
         let json_page_example = json!({

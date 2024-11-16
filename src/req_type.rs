@@ -1,12 +1,13 @@
 use crate::Component;
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub(crate) struct PartialComponent {
     pub component: Component,
     pub only: Vec<String>,
     pub except: Vec<String>,
 }
 
+#[derive(Clone)]
 pub(crate) enum InertiaRequestType {
     Standard,
     Partial(PartialComponent),
