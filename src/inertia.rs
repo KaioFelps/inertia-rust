@@ -131,6 +131,7 @@ impl Default for SsrClient {
 /// Extra details of how to initialize and keep it is specific to the feature-opted http library.
 pub struct Inertia<T> where T : 'static {
     /// URL used between redirects and responses generation, i.g. "https://myapp.com".
+    #[allow(unused)]
     pub(crate) url: &'static str,
     /// The path to find the root html template to render everything in.
     pub(crate) template_path: &'static str,

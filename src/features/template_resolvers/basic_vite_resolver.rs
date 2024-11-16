@@ -48,7 +48,7 @@ async fn _resolver(path: &str, view_data: ViewData, vite: &Vite) -> Result<Strin
         }
     }
 
-    return Ok(html);
+    Ok(html)
 }
 
 // A wrapper for the async resolver

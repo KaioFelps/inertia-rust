@@ -32,6 +32,7 @@ impl InertiaRequestType {
     }
 
     #[inline]
+    #[allow(unused)]
     pub fn partials(&self) -> Option<&PartialComponent> {
         match self {
             InertiaRequestType::Partial(reqs) => Some(reqs),

@@ -158,16 +158,13 @@ impl<T> InertiaResponder<HttpResponse, HttpRequest> for Inertia<T>
 
 impl InertiaErrMapper<HttpResponse, HttpRequest> for Result<HttpResponse, InertiaError> {
     fn map_inertia_err(self) -> HttpResponse {
-        if self.is_ok() {
-            return self.unwrap();
+        match self {
+            Ok(response) => response,
+            Err(error) => HttpResponseBuilder::new(StatusCode::INTERNAL_SERVER_ERROR)
+                .insert_header(actix_web::http::header::ContentType::json())
+                .body(error.get_cause())
+                .map_into_boxed_body()
         }
-
-        let inertia_err = self.unwrap_err().get_cause();
-
-        return HttpResponseBuilder::new(StatusCode::INTERNAL_SERVER_ERROR)
-            .insert_header(actix_web::http::header::ContentType::json())
-            .body(inertia_err)
-            .map_into_boxed_body();
     }
 }
 

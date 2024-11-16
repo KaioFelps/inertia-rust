@@ -18,13 +18,13 @@ fn super_trim(text: String) -> String {
 #[get("/")]
 async fn home(req: HttpRequest) -> HttpResponse {
     let response = render::<()>(&req, Component("Index".into())).await;
-    if response.is_ok() {
-        return response.unwrap();
+    match response {
+        Ok(response) => response,
+        Err(error) => {
+            log::error!("{:#?}", error);
+            HttpResponse::InternalServerError().finish()
+        }
     }
-
-    let err = response.unwrap_err();
-    log::error!("{:#?}", err);
-    HttpResponse::InternalServerError().finish()
 }
 
 #[get("/withprops")]
@@ -37,11 +37,14 @@ async fn with_props(req: HttpRequest) -> HttpResponse {
         Component("Index".into()),
         props,
     ).await;
-    if response.is_ok() { return response.unwrap(); }
 
-    let err = response.unwrap_err();
-    log::error!("{:#?}", err);
-    HttpResponse::InternalServerError().finish()
+    match response {
+        Ok(response) => response,
+        Err(error) => {
+            log::error!("{:#?}", error);
+            HttpResponse::InternalServerError().finish()
+        }
+    }
 }
 
 async fn generate_actix_app() -> App<impl ServiceFactory<
