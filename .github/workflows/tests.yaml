@@ -10,7 +10,7 @@ env:
 
 jobs:
   build_and_test:
-    name: inertia-rust@latest
+    name: "run crate tests"
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -21,5 +21,4 @@ jobs:
       - uses: actions/checkout@v4
       - run: rustup update ${{ matrix.toolchain }}
       - run: rustup default ${{ matrix.toolchain }}
-      - run: cargo build --verbose
-      - run: cargo test --verbose --features basic_directives
+      - run: cargo test --verbose --all-features
