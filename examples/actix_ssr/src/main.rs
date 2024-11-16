@@ -61,21 +61,21 @@ async fn main() -> std::io::Result<()> {
             .build()
     )?;
 
-    let mut shared_props = HashMap::new();
-    shared_props.insert("version".into(), InertiaProp::Always("0.1.0".into()));
-    shared_props.insert("assetsVersion".into(), InertiaProp::Lazy(Arc::new(|| {
-        println!("Chamou o lazily!!");
-        serde_json::to_value(vite.get_hash().to_string()).unwrap()
-    })));
-
-    let shared_props = Arc::new(shared_props);
-
     let inertia_data = Data::new(inertia);
     let inertia_data_to_move = Data::clone(&inertia_data);
     let server = HttpServer::new(move || {
         App::new()
         .app_data(inertia_data_to_move.clone())
-        .wrap(InertiaMiddleware::new().with_shared_props(Arc::clone(&shared_props)))
+        .wrap(InertiaMiddleware::new().with_shared_props(Arc::new(move |_req| {
+            let mut shared_props = HashMap::new();
+            shared_props.insert("version".into(), InertiaProp::Always("0.1.0".into()));
+            shared_props.insert("assetsVersion".into(), InertiaProp::Lazy(Arc::new(|| {
+                println!("Chamou o lazily!!");
+                serde_json::to_value(vite.get_hash().to_string()).unwrap()
+            })));
+
+            shared_props
+        })))
         .service(home)
         .service(contact)
         // serves vite assets from /assets path

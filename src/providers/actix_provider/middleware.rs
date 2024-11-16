@@ -10,8 +10,10 @@ use std::sync::Arc;
 use crate::temporary_messages::InertiaTemporarySession;
 use crate::{InertiaProp, InertiaProps};
 
+type SharedPropsCallback = dyn Fn(&ServiceRequest) -> InertiaProps;
+
 pub struct InertiaMiddleware {
-    shared_props: Arc<InertiaProps>,
+    shared_props_cb: Arc<SharedPropsCallback>,
 }
 
 impl Default for InertiaMiddleware {
@@ -23,12 +25,12 @@ impl Default for InertiaMiddleware {
 impl InertiaMiddleware {
     pub fn new() -> Self {
         Self {
-            shared_props: Arc::new(HashMap::new()),
+            shared_props_cb: Arc::new(|_req| { HashMap::new() }),
         }
     }
 
-    pub fn with_shared_props(mut self, props: Arc<InertiaProps>) -> Self {
-        self.shared_props = props;
+    pub fn with_shared_props(mut self, props: Arc<SharedPropsCallback>) -> Self {
+        self.shared_props_cb = props;
         self
     }
 }
@@ -49,16 +51,17 @@ where
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
+        let shpcb = self.shared_props_cb.clone();
         ready(Ok(InertiaMiddlewareService {
             service,
-            shared_props: self.shared_props.clone(),
+            shared_props: shpcb,
         }))
     }
 }
 
 pub struct InertiaMiddlewareService<S> {
     service: S,
-    shared_props: Arc<InertiaProps>,
+    shared_props: Arc<SharedPropsCallback>,
 }
 
 pub(crate) struct SharedProps(pub InertiaProps);
@@ -76,7 +79,7 @@ where
     forward_ready!(service);
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        let mut shared_props = (*self.shared_props).clone();
+        let mut shared_props = (self.shared_props)(&req);
 
         if let Some(request_props) = req.extensions().get::<InertiaTemporarySession>() {
             let errors = to_value(&request_props.errors).unwrap();
