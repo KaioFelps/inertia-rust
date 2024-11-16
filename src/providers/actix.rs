@@ -34,7 +34,6 @@ mod header_names {
         HeaderName::from_static(inertia::X_INERTIA_PARTIAL_EXCEPT);
 }
 
-#[allow(clippy::needless_lifetimes)]
 pub enum InertiaHeader<'a> {
     Inertia,
     InertiaLocation(&'a str),
@@ -42,7 +41,7 @@ pub enum InertiaHeader<'a> {
     Version(&'a str),
 }
 
-impl<'a> InertiaHeader<'a> {
+impl InertiaHeader<'_> {
     pub fn convert(&self) -> (HeaderName, HeaderValue) {
         match self {
             Self::Inertia => (
