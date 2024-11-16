@@ -31,6 +31,7 @@ pub use inertia::InertiaErrMapper;
 pub mod actix {
     pub use super::providers::actix::facade::{render, render_with_props};
     pub use super::providers::actix::headers::InertiaHeader;
+    pub use super::providers::actix::middleware::InertiaMiddleware;
 }
 
 #[cfg(feature = "basic-vite-resolver")]

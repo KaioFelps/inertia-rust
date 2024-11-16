@@ -1,7 +1,7 @@
 use actix_web::body::BoxBody;
 use actix_web::http::header::HeaderName;
 use actix_web::http::StatusCode;
-use actix_web::{HttpRequest, HttpResponse, HttpResponseBuilder, Responder};
+use actix_web::{HttpMessage, HttpRequest, HttpResponse, HttpResponseBuilder, Responder};
 use async_trait::async_trait;
 use std::collections::HashMap;
 
@@ -14,6 +14,7 @@ use crate::utils::{inertia_err_msg, request_page_render};
 use crate::{Component, InertiaError, InertiaPage};
 
 use super::headers;
+use super::middleware::SharedProps;
 
 impl Responder for InertiaPage {
     type Body = BoxBody;
@@ -52,7 +53,12 @@ where
         let url = req.uri().to_string();
         let req_type: InertiaRequestType = req.get_request_type()?;
 
-        let props = InertiaProp::resolve_props(&props, req_type.clone());
+        let mut props = InertiaProp::resolve_props(&props, req_type.clone());
+
+        if let Some(SharedProps(shared_props)) = req.extensions().get::<SharedProps>() {
+            let shared_props = InertiaProp::resolve_props(shared_props, req_type);
+            props.extend(shared_props);
+        }
 
         let page = InertiaPage::new(component, url, Some(self.version.to_string()), props);
 
