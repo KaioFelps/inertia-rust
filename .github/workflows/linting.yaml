@@ -1,0 +1,25 @@
+name: Cargo Clippy
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_LOG: warn
+
+jobs:
+  check_linting:
+  name: "assert code are linted and following rust code patterns"
+  runs-on: ubuntu-latest
+  strategy:
+    matrix:
+      toolchain:
+        - stable
+        - beta
+  steps:
+    - uses: actions/checkout@v4
+    - run: rustup update ${{ matrix.toolchain }}
+    - run: rustup default ${{ matrix.toolchain }}
+    - run: rustup component add clippy
+    - run: cargo clippy --all-targets --all-features -- -D warnings
