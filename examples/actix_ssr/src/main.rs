@@ -1,14 +1,14 @@
+use std::sync::Arc;
 use std::{collections::HashMap, sync::OnceLock};
 use actix_web::{get, web::Data, App, HttpRequest, HttpServer, Responder};
 use inertia_rust::{Component, Inertia, InertiaConfig, InertiaErrMapper, InertiaProp, InertiaVersion, SsrClient};
-use inertia_rust::actix::render_with_props;
+use inertia_rust::actix::{render_with_props, InertiaMiddleware};
 use serde_json::json;
 use vite_rust::{utils::resolve_path, Vite, ViteConfig};
 
 #[get("/")]
 async fn home(req: HttpRequest) -> impl Responder {
     let mut props = HashMap::new();
-    props.insert("version".into(), InertiaProp::Always("0.1.0".into()));
     props.insert("auth".into(), InertiaProp::Always(json!({
         "user": "Inertia-Rust"
     })));
@@ -61,11 +61,21 @@ async fn main() -> std::io::Result<()> {
             .build()
     )?;
 
+    let mut shared_props = HashMap::new();
+    shared_props.insert("version".into(), InertiaProp::Always("0.1.0".into()));
+    shared_props.insert("assetsVersion".into(), InertiaProp::Lazy(Arc::new(|| {
+        println!("Chamou o lazily!!");
+        serde_json::to_value(vite.get_hash().to_string()).unwrap()
+    })));
+
+    let shared_props = Arc::new(shared_props);
+
     let inertia_data = Data::new(inertia);
     let inertia_data_to_move = Data::clone(&inertia_data);
     let server = HttpServer::new(move || {
         App::new()
         .app_data(inertia_data_to_move.clone())
+        .wrap(InertiaMiddleware::new().with_shared_props(Arc::clone(&shared_props)))
         .service(home)
         .service(contact)
         // serves vite assets from /assets path

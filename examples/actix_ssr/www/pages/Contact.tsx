@@ -6,9 +6,10 @@ type Props = {
         name: string,
         email: string,
     }
+    assetsVersion: string,
 }
 
-export default function Contact({user}: Props) {
+export default function Contact({ user, assetsVersion }: Props) {
     return (
         <>
             <Head title={"My name is " + user.name + "!"} />
@@ -27,6 +28,10 @@ export default function Contact({user}: Props) {
                     <span className="transition-all relative left-0 group-hover:-left-1"><ArrowLeft size={24} weight="bold" /></span>
                     Back to home!
                 </Link>
+
+                <span className="flex w-fit px-5 py-2 rounded-lg bg-purple-50/10 mt-8 text-purple-50">
+                    Assets version: {assetsVersion}
+                </span>
             </main>
         </>
     )

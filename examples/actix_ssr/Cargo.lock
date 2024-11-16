@@ -994,6 +994,7 @@ dependencies = [
  "actix-web",
  "async-trait",
  "futures",
+ "futures-util",
  "log",
  "reqwest",
  "serde",
