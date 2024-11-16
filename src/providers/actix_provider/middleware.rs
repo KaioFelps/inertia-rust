@@ -63,11 +63,11 @@ pub struct InertiaMiddlewareService<S> {
 
 pub(crate) struct SharedProps(pub InertiaProps);
 
-impl<'a, S, B> Service<ServiceRequest> for InertiaMiddlewareService<S>
+impl<S, B> Service<ServiceRequest> for InertiaMiddlewareService<S>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
-    S::Future: 'a + 'static,
-    B: 'a + 'static,
+    S::Future: 'static,
+    B: 'static,
 {
     type Response = ServiceResponse<B>;
     type Error = Error;
