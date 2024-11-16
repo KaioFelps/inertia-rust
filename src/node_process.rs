@@ -20,11 +20,11 @@ impl NodeJsError {
     }
 
     pub fn get_cause(&self) -> String {
-        return self.cause.clone();
+        self.cause.clone()
     }
 
     pub fn get_description(&self) -> String {
-        return self.description.clone();
+        self.description.clone()
     }
 }
 
@@ -107,7 +107,7 @@ impl NodeJsProc {
             .spawn() {
             Err(err) => return Err(NodeJsError::new(
                 "Process error".into(),
-                format!("Something went wrong on invoking a node server: {}", err.to_string())
+                format!("Something went wrong on invoking a node server: {}", err)
             )),
             Ok(child) => child
         };

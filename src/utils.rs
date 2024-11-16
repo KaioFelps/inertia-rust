@@ -20,21 +20,21 @@ where T: Serialize
     let value_as_map = match serde_json::from_value(struct_as_value) {
         Ok(value) => value,
         Err(err) => {
-            return Err(InertiaError::SerializationError(format!("Failed to serialize struct as map: {}", err.to_string())));
+            return Err(InertiaError::SerializationError(format!("Failed to serialize struct as map: {}", err)));
         }
     };
 
-    return Ok(value_as_map);
+    Ok(value_as_map)
 }
 
 pub(crate) fn convert_struct_to_stringified_json<T>(s: T) -> Result<String, InertiaError>
 where T: Serialize
 {
     let map = convert_struct_to_map(s)?;
-    return match serde_json::to_string(&map) {
+    match serde_json::to_string(&map) {
         Ok(json) => Ok(json),
-        Err(err) => Err(InertiaError::SerializationError(format!("Failed to serialize HashMap: {}", err.to_string()))),
-    };
+        Err(err) => Err(InertiaError::SerializationError(format!("Failed to serialize HashMap: {}", err))),
+    }
 }
 
 pub(crate) async fn request_page_render(

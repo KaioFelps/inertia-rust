@@ -12,12 +12,12 @@ use crate::node_process::NodeJsProc;
 use crate::props::InertiaProps;
 use crate::req_type::InertiaRequestType;
 
-#[allow(unused)] pub const X_INERTIA: &'static str = "x-inertia";
-#[allow(unused)] pub const X_INERTIA_LOCATION: &'static str = "x-inertia-location";
-#[allow(unused)] pub const X_INERTIA_VERSION: &'static str = "x-inertia-version";
-#[allow(unused)] pub const X_INERTIA_PARTIAL_COMPONENT: &'static str = "x-inertia-partial-component";
-#[allow(unused)] pub const X_INERTIA_PARTIAL_DATA: &'static str = "x-inertia-partial-data";
-#[allow(unused)] pub const X_INERTIA_PARTIAL_EXCEPT: &'static str = "x-inertia-partial-except";
+#[allow(unused)] pub const X_INERTIA: &str = "x-inertia";
+#[allow(unused)] pub const X_INERTIA_LOCATION: &str = "x-inertia-location";
+#[allow(unused)] pub const X_INERTIA_VERSION: &str = "x-inertia-version";
+#[allow(unused)] pub const X_INERTIA_PARTIAL_COMPONENT: &str = "x-inertia-partial-component";
+#[allow(unused)] pub const X_INERTIA_PARTIAL_DATA: &str = "x-inertia-partial-data";
+#[allow(unused)] pub const X_INERTIA_PARTIAL_EXCEPT: &str = "x-inertia-partial-except";
 
 /// The javascript component name.
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -188,7 +188,7 @@ impl<T> Inertia<T> where T : 'static {
         let ssr_url = match config.with_ssr {
             false => None,
             true => {
-                let client: SsrClient = config.custom_ssr_client.unwrap_or_else(|| SsrClient::default());
+                let client: SsrClient = config.custom_ssr_client.unwrap_or_default();
 
                 let ssr_url = if client.host.contains("://") {
                     format!("{}:{}", client.host, client.port)
@@ -213,7 +213,7 @@ impl<T> Inertia<T> where T : 'static {
             template_resolver: config.template_resolver,
             template_resolver_data: config.template_resolver_data,
             ssr_url,
-            custom_view_data: config.view_data.unwrap_or(Map::new()),
+            custom_view_data: config.view_data.unwrap_or_default(),
         })
     }
 
@@ -296,7 +296,7 @@ impl<T> Inertia<T> where T : 'static {
     /// ```
     pub fn start_node_server(&self, server_file_path: String) -> Result<NodeJsProc, io::Error> {
         if self.ssr_url.is_none() {
-            let inertia_err = InertiaError::SsrError("Ssr is not enabled and, hence, a ssr server cannot be raised.".into());
+            let inertia_err: InertiaError = InertiaError::SsrError("Ssr is not enabled and, hence, a ssr server cannot be raised.".into());
             return Err(inertia_err.to_io_error());
         }
 

@@ -39,18 +39,18 @@ impl<'a> InertiaHeader<'a> {
             Self::Version(version) => (header_names::X_INERTIA_VERSION, HeaderValue::from_str(version).unwrap()),
             Self::InertiaLocation(path) => (header_names::X_INERTIA_LOCATION, HeaderValue::from_str(path).unwrap()),
             Self::InertiaPartialData(partials) => {
-                if partials.len() < 1 {
+                if partials.is_empty() {
                     return (header_names::X_INERTIA_PARTIAL_DATA, HeaderValue::from_str("").unwrap());
                 }
 
                 let mut str_partials = String::from(partials[0]);
 
                 for part in partials[1..].iter() {
-                    str_partials.push_str(&",");
+                    str_partials.push(',');
                     str_partials.push_str(part);
                 }
 
-                (header_names::X_INERTIA_PARTIAL_DATA, HeaderValue::from_str(&str_partials.as_str()).unwrap())
+                (header_names::X_INERTIA_PARTIAL_DATA, HeaderValue::from_str(str_partials.as_str()).unwrap())
             }
         }
     }
@@ -73,7 +73,7 @@ impl<T> InertiaResponder<HttpResponse, HttpRequest> for Inertia<T>
 {
     #[inline]
     async fn render(&self, req: &HttpRequest, component: Component) -> Result<HttpResponse, InertiaError> {
-        self.render_with_props(&req, component, HashMap::new()).await
+        self.render_with_props(req, component, HashMap::new()).await
     }
 
     #[inline]
@@ -106,7 +106,7 @@ impl<T> InertiaResponder<HttpResponse, HttpRequest> for Inertia<T>
         let mut ssr_page = None;
 
         if self.ssr_url.is_some() {
-            match request_page_render(&self.ssr_url.as_ref().unwrap(), page.clone()).await {
+            match request_page_render(self.ssr_url.as_ref().unwrap(), page.clone()).await {
                 Err(err) => {
                     log::warn!("{}", inertia_err_msg(format!(
                         "Error on rendering page {}. {}",
@@ -151,7 +151,7 @@ impl<T> InertiaResponder<HttpResponse, HttpRequest> for Inertia<T>
         }
 
         return HttpResponseBuilder::new(StatusCode::CONFLICT)
-            .append_header(InertiaHeader::InertiaLocation(url.into()).convert())
+            .append_header(InertiaHeader::InertiaLocation(url).convert())
             .finish();
     }
 }
@@ -190,7 +190,7 @@ impl InertiaHttpRequest for HttpRequest {
 
         if partial_comp.is_err() {
             return Err(InertiaError::SerializationError(
-                format!("Failed to serialize header {}", header_names::X_INERTIA_PARTIAL_COMPONENT.to_string())
+                format!("Failed to serialize header {}", header_names::X_INERTIA_PARTIAL_COMPONENT)
             ));
         }
 
@@ -204,7 +204,7 @@ impl InertiaHttpRequest for HttpRequest {
             except
         };
 
-        return Ok(InertiaRequestType::Partial(partials));
+        Ok(InertiaRequestType::Partial(partials))
     }
 
     /// Checks if application assets version matches.
@@ -223,7 +223,7 @@ impl InertiaHttpRequest for HttpRequest {
             }
         };
 
-        return is_current_version;
+        is_current_version
     }
 }
 
@@ -238,7 +238,7 @@ fn extract_partials_headers_content(req: &HttpRequest, header_name: &HeaderName)
                 return Err(InertiaError::HeaderError(
                     format!(
                         "Header {}'s value must contain only printable ASCII characters.",
-                        header_name.to_string(),
+                        header_name,
                     )
                 ))
             };
@@ -252,7 +252,7 @@ fn extract_partials_headers_content(req: &HttpRequest, header_name: &HeaderName)
         }
     };
 
-    return Ok(partials);
+    Ok(partials)
 }
 
 pub mod facade {
@@ -278,7 +278,7 @@ pub mod facade {
         where T: 'static
     {
         let inertia = extract_inertia::<T>(req);
-        inertia.render(&req, component).await
+        inertia.render(req, component).await
     }
 
     /// Short for calling `render_with_props` from the `Inertia` instance configured and added to the request
@@ -298,7 +298,7 @@ pub mod facade {
         where T: 'static
     {
         let inertia: &Inertia<T> = extract_inertia(req);
-        inertia.render_with_props(&req, component, props).await
+        inertia.render_with_props(req, component, props).await
     }
 
     fn extract_inertia<T>(req: &HttpRequest) -> &Inertia<T> where T: 'static {

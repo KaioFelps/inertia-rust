@@ -89,6 +89,16 @@ where
     pub view_data: Option<Map<String, Value>>,
 }
 
+impl<T, V> Default for InertiaConfigBuilder<T, V>
+where
+    T : 'static,
+    V: ToString
+ {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T, V> InertiaConfigBuilder<T, V>
 where
     T : 'static,
@@ -131,42 +141,42 @@ where
 
     pub fn set_ssr_client(mut self, ssr_client: SsrClient) -> Self {
         self.custom_ssr_client = Some(ssr_client);
-        return self;
+        self
     }
 
     pub fn set_url(mut self, url: &'static str) -> Self {
         self.url = Some(url);
-        return self;
+        self
     }
 
     pub fn set_version(mut self, version: InertiaVersion<V>) -> Self {
         self.version = Some(version);
-        return self;
+        self
     }
 
     pub fn set_template_path(mut self, template_path: &'static str) -> Self {
         self.template_path = Some(template_path);
-        return self;
+        self
     }
 
     pub fn set_template_resolver(mut self, template_resolver: TemplateResolver<T>) -> Self {
         self.template_resolver = Some(template_resolver);
-        return self;
+        self
     }
 
     pub fn set_template_resolver_data(mut self, data: &'static T) -> Self {
         self.template_resolver_data = Some(data);
-        return self;
+        self
     }
 
     pub fn set_view_data(mut self, view_data: Map<String, Value>) -> Self {
         self.view_data = Some(view_data);
-        return self;
+        self
     }
 
     pub fn enable_ssr(mut self) -> Self {
         self.with_ssr = true;
-        return self;
+        self
     }
 
     /// Compile the current `InertiaConfigBuilder` into a valid `InertiaConfig` struct.
@@ -222,7 +232,7 @@ mod test {
     // region: --- Mocks
 
     async fn _mocked_resolver(_template_path: &str, _view_data: ViewData) -> Result<String, InertiaError> {
-        return Ok("".to_string());
+        Ok("".to_string())
     }
     
     pub fn mocked_resolver(template_path: &'static str, view_data: ViewData, _data: &()) -> TemplateResolverOutput {

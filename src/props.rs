@@ -67,17 +67,17 @@ impl InertiaProp {
 
     #[inline]
     fn resolve_prop_unconditionally(self) -> Value {
-        return match self {
+        match self {
             InertiaProp::Always(value) => value,
             InertiaProp::Data(value) => value,
             InertiaProp::Demand(resolver) => resolver(),
             InertiaProp::Lazy(resolver) => resolver(),
-        };
+        }
     }
 
     #[inline]
     fn should_be_pushed(key: &String, partial: &PartialComponent) -> bool {
-        partial.only.contains(&key) || partial.only.is_empty() && !partial.except.contains(&key)
+        partial.only.contains(key) || partial.only.is_empty() && !partial.except.contains(key)
     }
 }
 

@@ -24,7 +24,7 @@ async fn home(req: HttpRequest) -> HttpResponse {
 
     let err = response.unwrap_err();
     log::error!("{:#?}", err);
-    return HttpResponse::InternalServerError().finish();
+    HttpResponse::InternalServerError().finish()
 }
 
 #[get("/withprops")]
@@ -41,7 +41,7 @@ async fn with_props(req: HttpRequest) -> HttpResponse {
 
     let err = response.unwrap_err();
     log::error!("{:#?}", err);
-    return HttpResponse::InternalServerError().finish();
+    HttpResponse::InternalServerError().finish()
 }
 
 async fn generate_actix_app() -> App<impl ServiceFactory<

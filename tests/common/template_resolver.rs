@@ -2,7 +2,7 @@ use std::path::Path;
 use inertia_rust::{InertiaError, TemplateResolverOutput, ViewData};
 
 
-pub const EXPECTED_RENDER: &'static str = r#"
+pub const EXPECTED_RENDER: &str = r#"
 <!doctype html>
 <html lang="en">
 <head>
@@ -17,7 +17,7 @@ pub const EXPECTED_RENDER: &'static str = r#"
 </html>
 "#;
 
-pub const EXPECTED_RENDER_W_PROPS: &'static str = "
+pub const EXPECTED_RENDER_W_PROPS: &str = "
 <!doctype html>
 <html lang=\"en\">
 <head>
@@ -72,7 +72,7 @@ async fn _mocked_resolver(template_path: &str, view_data: ViewData) -> Result<St
         }
     }
 
-    return Ok(html);
+    Ok(html)
 }
 
 pub fn mocked_resolver(template_path: &'static str, view_data: ViewData, _data: &()) -> TemplateResolverOutput {
