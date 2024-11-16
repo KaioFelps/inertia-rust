@@ -26,6 +26,7 @@ pub use page::InertiaPage;
 pub use page::InertiaSSRPage;
 pub use props::InertiaProp;
 pub use props::InertiaProps;
+pub use temporary_messages::InertiaTemporarySession;
 
 #[cfg(feature = "actix")]
 pub mod actix {
