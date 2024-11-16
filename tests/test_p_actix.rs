@@ -1,10 +1,17 @@
 mod common;
 
 use actix_web::{
-    body::MessageBody, dev::{ServiceFactory, ServiceRequest, ServiceResponse}, get, web::Data, App, HttpRequest, HttpResponse
+    body::MessageBody,
+    dev::{ServiceFactory, ServiceRequest, ServiceResponse},
+    get,
+    web::Data,
+    App, HttpRequest, HttpResponse,
 };
 use common::template_resolver::{mocked_resolver, EXPECTED_RENDER, EXPECTED_RENDER_W_PROPS};
-use inertia_rust::{actix::{render, render_with_props, InertiaHeader, InertiaMiddleware}, InertiaPage};
+use inertia_rust::{
+    actix::{render, render_with_props, InertiaHeader, InertiaMiddleware},
+    InertiaPage,
+};
 use inertia_rust::{Component, Inertia, InertiaConfig, InertiaProp, InertiaProps, InertiaVersion};
 use std::{collections::HashMap, sync::Arc};
 
@@ -158,15 +165,19 @@ async fn test_shared_props() {
     let test_shared_property_value = "Some amazing value!";
 
     let mut shared_props = HashMap::new();
-    shared_props.insert(test_shared_property_key.to_string(), InertiaProp::Always(test_shared_property_value.into()));
+    shared_props.insert(
+        test_shared_property_key.to_string(),
+        InertiaProp::Always(test_shared_property_value.into()),
+    );
 
     let shared_props = Arc::new(shared_props);
 
     let app = actix_web::test::init_service(
         generate_actix_app()
-        .await
-        .wrap(InertiaMiddleware::new().with_shared_props(shared_props))
-    ).await;
+            .await
+            .wrap(InertiaMiddleware::new().with_shared_props(shared_props)),
+    )
+    .await;
 
     let req = actix_web::test::TestRequest::get()
         .uri("/")
@@ -182,7 +193,11 @@ async fn test_shared_props() {
         .to_vec();
 
     let json_body: InertiaPage = serde_json::from_slice(&body[..]).unwrap();
-    assert_eq!(test_shared_property_value, json_body.get_props().get(test_shared_property_key).unwrap());
+
+    assert_eq!(
+        test_shared_property_value,
+        json_body.get_props().get(test_shared_property_key).unwrap()
+    );
 }
 
 // endregion: --- Tests

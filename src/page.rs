@@ -55,10 +55,21 @@ pub struct InertiaPage {
 }
 
 impl InertiaPage {
-    pub fn get_props(&self) -> &Map<String, Value> { &self.props }
-    pub fn get_component(&self) -> &Component { &self.component }
-    pub fn get_url(&self) -> &str { &self.url }
-    pub fn get_version(&self) -> &Option<String> { &self.version }
+    pub fn get_props(&self) -> &Map<String, Value> {
+        &self.props
+    }
+
+    pub fn get_component(&self) -> &Component {
+        &self.component
+    }
+
+    pub fn get_url(&self) -> &str {
+        &self.url
+    }
+
+    pub fn get_version(&self) -> &Option<String> {
+        &self.version
+    }
 }
 
 impl InertiaPage {

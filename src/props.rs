@@ -31,7 +31,7 @@ impl InertiaProp {
         let mut props = Map::new();
 
         if req_type.is_standard() {
-            for (key, value) in raw_props.into_iter() {
+            for (key, value) in raw_props.iter() {
                 if let InertiaProp::Demand(_) = value {
                     continue;
                 }
@@ -44,23 +44,23 @@ impl InertiaProp {
 
         let partials = req_type.unwrap_partial();
 
-        for (key, value) in raw_props.into_iter() {
+        for (key, value) in raw_props.iter() {
             match value {
                 InertiaProp::Always(value) => {
                     props.insert(key.clone(), value.clone());
                 }
                 InertiaProp::Data(value) => {
-                    if Self::should_be_pushed(&key, &partials) {
+                    if Self::should_be_pushed(key, &partials) {
                         props.insert(key.clone(), value.clone());
                     }
                 }
                 InertiaProp::Lazy(resolver) => {
-                    if Self::should_be_pushed(&key, &partials) {
+                    if Self::should_be_pushed(key, &partials) {
                         props.insert(key.clone(), resolver());
                     }
                 }
                 InertiaProp::Demand(resolver) => {
-                    if Self::should_be_pushed(&key, &partials) {
+                    if Self::should_be_pushed(key, &partials) {
                         props.insert(key.clone(), resolver());
                     }
                 }
