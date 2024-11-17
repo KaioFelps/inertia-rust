@@ -64,36 +64,35 @@ hashmap values.
 
 Some ways of rendering with errors are:
 - [x] Render the errors as props;
-- [ ] Redirect back to the previous URL with the errors as flash messages (and
+- [x] Redirect back to the previous URL with the errors as flash messages (and
   let the Inertia Middleware merge them into the props by itself).
+  - Must be partially implemented by the dev using inertia-rust.
+
 ```rust
 use std::collections::hash_map::HashMap;
 use serde_json::json;
-use inertia_rust::Component;
+use inertia_rust::InertiaTemporarySession;
 use vite_rust::Vite;
 use some_framework::{SomeHttpRequest, SomeHttpResponse, Redirect};
 
 async fn some_handler(req: SomeHttpRequest) -> SomeHttpResponse {
   let mut props = HashMap::<String, serde_json::Value>::new();
-  props.insert("errors", json!{
-      "age": serde_json::to_value("Invalid age, for some reason".to_string()).unwrap(),
-  });
+  props.insert(
+    "errors",
+    json!({ "age": "Invalid age, for some reason." })
+  );
   
-  return inertia_rust::render_with_props::<Vite>(&req, Component("Contact".into()), props)
+  return inertia_rust::render_with_props::<Vite>(&req, "Contact".into(), props)
       .await
       .map_inertia_err();
 }
 
-async fn another_handler(req: SomeHttpRequest) -> SomeHttpResponse {
+async fn another_handler(req: SomeHttpRequest, inertia_session: InertiaTemporarySession) -> SomeHttpResponse {
   // A framework built-in redirect to the previous URL.
-  // The error should be stored in a session (also provided by the framework)
-  // and further injected in the props by the Inertia Middleware on the
-  // subsequent request.
-  return Redirect::back()
-    .add_session("errors".to_string(), json!({
-        "age": serde_json::to_value("Invalid age, for some reason".to_string()).unwrap(),
-    }))
-    .finish();
+  // The error should be stored in a session (also provided by the framework).
+  // It will be merged with the next response props by Inertia Middleware.
+  req.add_to_session("errors", json!({"age": "Invalid age, for some reason."}));
+  Redirect::to(inertia_session.prev_req_url).with_status(303)
 }
 ```
 
@@ -104,6 +103,6 @@ When the assets versions mismatch, the rendering method should return an
 - [ ] Forward the session to be retrieved by the request triggered by the reload.
 
 ## Inertia Middleware
-- [ ] Allow to **share props** globally;
-- [ ] Convert Redirect requests;
-- [ ] Merge error and flash messages from Session into the page props.
+- [x] Allow to **share props** globally;
+- [x] Convert Redirect requests;
+- [x] Merge error from Session into the page props.
