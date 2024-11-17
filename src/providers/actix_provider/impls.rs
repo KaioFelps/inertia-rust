@@ -259,7 +259,7 @@ fn extract_partials_headers_content(
     Ok(partials)
 }
 
-impl<'a> FromRequest for InertiaTemporarySession<'a> {
+impl FromRequest for InertiaTemporarySession<'_> {
     type Error = actix_web::Error;
     type Future = std::future::Ready<Result<Self, Self::Error>>;
 
