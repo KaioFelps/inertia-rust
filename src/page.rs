@@ -55,6 +55,24 @@ pub struct InertiaPage {
 }
 
 impl InertiaPage {
+    pub fn get_props(&self) -> &Map<String, Value> {
+        &self.props
+    }
+
+    pub fn get_component(&self) -> &Component {
+        &self.component
+    }
+
+    pub fn get_url(&self) -> &str {
+        &self.url
+    }
+
+    pub fn get_version(&self) -> &Option<String> {
+        &self.version
+    }
+}
+
+impl InertiaPage {
     /// Instantiates an Inertia Page object to sent as http response,
     /// according to [Inertia Protocol].
     ///
@@ -97,6 +115,7 @@ mod test {
     use serde::Serialize;
     use serde_json::json;
     use std::collections::HashMap;
+    use std::sync::Arc;
 
     #[test]
     async fn test_inertia_partials_visit_page() {
@@ -142,7 +161,7 @@ mod test {
             Component("Events".into()),
             "/events/80".to_string(),
             Some("generated_version".into()),
-            InertiaProp::resolve_props(props, req_type),
+            InertiaProp::resolve_props(&props, req_type),
         );
 
         let json_page_example = json!({
@@ -167,7 +186,7 @@ mod test {
         let mut props = HashMap::<String, InertiaProp>::new();
         props.insert(
             "radioStatus".into(),
-            InertiaProp::Demand(|| json!({"announcer": "John Doe"})),
+            InertiaProp::Demand(Arc::new(|| json!({"announcer": "John Doe"}))),
         );
         props.insert(
             "categories".into(),
@@ -183,7 +202,7 @@ mod test {
             Component("Categories".into()),
             "/categories".to_string(),
             Some("generated_version".into()),
-            InertiaProp::resolve_props(props, req_type),
+            InertiaProp::resolve_props(&props, req_type),
         );
 
         let json_page_example = json!({

@@ -2,9 +2,12 @@ import ReactDOMServer from 'react-dom/server'
 import { createInertiaApp } from '@inertiajs/react'
 import server from "@inertiajs/core/server";
 
+const appName = 'Inertia Test'
+
 function render(page: any) {
     return createInertiaApp({
         page,
+        title: (title) => (title ? `${appName} - ${title}` : title),
         render: ReactDOMServer.renderToString,
         resolve: (name: string) => {
             const pages = import.meta.glob('./pages/**/*.tsx', { eager: true })

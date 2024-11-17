@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::error::InertiaError;
 use crate::{InertiaPage, InertiaSSRPage};
 use serde::Serialize;
@@ -59,6 +61,7 @@ pub(crate) async fn request_page_render(
         .header("Content-Type", "application/json")
         .header("Accept", "application/json")
         .json(&page)
+        .timeout(Duration::from_secs(5))
         .send()
         .await;
 

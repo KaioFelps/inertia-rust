@@ -1,84 +1,25 @@
-use actix_web::body::BoxBody;
-use actix_web::http::header::{HeaderName, HeaderValue};
-use actix_web::http::StatusCode;
-use actix_web::{HttpRequest, HttpResponse, HttpResponseBuilder, Responder};
-use async_trait::async_trait;
-use std::collections::HashMap;
+use super::headers;
+use super::middleware::SharedProps;
 
-use crate::inertia::{Inertia, InertiaErrMapper, InertiaHttpRequest, InertiaResponder, ViewData};
+use crate::inertia::{
+    Inertia, InertiaErrMapper, InertiaHttpRequest, InertiaResponder, InertiaService, ViewData,
+};
 use crate::props::InertiaProp;
 use crate::props::InertiaProps;
 use crate::req_type::{InertiaRequestType, PartialComponent};
 use crate::utils::convert_struct_to_stringified_json;
 use crate::utils::{inertia_err_msg, request_page_render};
-use crate::{Component, InertiaError, InertiaPage};
+use crate::{Component, InertiaError, InertiaPage, InertiaTemporarySession};
 
-mod header_names {
-    use crate::inertia;
-    use actix_web::http::header::HeaderName;
-
-    #[allow(unused)]
-    pub const X_INERTIA: HeaderName = HeaderName::from_static(inertia::X_INERTIA);
-    #[allow(unused)]
-    pub const X_INERTIA_LOCATION: HeaderName = HeaderName::from_static(inertia::X_INERTIA_LOCATION);
-    #[allow(unused)]
-    pub const X_INERTIA_VERSION: HeaderName = HeaderName::from_static(inertia::X_INERTIA_VERSION);
-    #[allow(unused)]
-    pub const X_INERTIA_PARTIAL_COMPONENT: HeaderName =
-        HeaderName::from_static(inertia::X_INERTIA_PARTIAL_COMPONENT);
-    #[allow(unused)]
-    pub const X_INERTIA_PARTIAL_DATA: HeaderName =
-        HeaderName::from_static(inertia::X_INERTIA_PARTIAL_DATA);
-    #[allow(unused)]
-    pub const X_INERTIA_PARTIAL_EXCEPT: HeaderName =
-        HeaderName::from_static(inertia::X_INERTIA_PARTIAL_EXCEPT);
-}
-
-pub enum InertiaHeader<'a> {
-    Inertia,
-    InertiaLocation(&'a str),
-    InertiaPartialData(Vec<&'a str>),
-    Version(&'a str),
-}
-
-impl InertiaHeader<'_> {
-    pub fn convert(&self) -> (HeaderName, HeaderValue) {
-        match self {
-            Self::Inertia => (
-                header_names::X_INERTIA,
-                HeaderValue::from_str("true").unwrap(),
-            ),
-            Self::Version(version) => (
-                header_names::X_INERTIA_VERSION,
-                HeaderValue::from_str(version).unwrap(),
-            ),
-            Self::InertiaLocation(path) => (
-                header_names::X_INERTIA_LOCATION,
-                HeaderValue::from_str(path).unwrap(),
-            ),
-            Self::InertiaPartialData(partials) => {
-                if partials.is_empty() {
-                    return (
-                        header_names::X_INERTIA_PARTIAL_DATA,
-                        HeaderValue::from_str("").unwrap(),
-                    );
-                }
-
-                let mut str_partials = String::from(partials[0]);
-
-                for part in partials[1..].iter() {
-                    str_partials.push(',');
-                    str_partials.push_str(part);
-                }
-
-                (
-                    header_names::X_INERTIA_PARTIAL_DATA,
-                    HeaderValue::from_str(str_partials.as_str()).unwrap(),
-                )
-            }
-        }
-    }
-}
+use actix_web::body::BoxBody;
+use actix_web::dev::{ServiceFactory, ServiceRequest};
+use actix_web::http::header::HeaderName;
+use actix_web::http::StatusCode;
+use actix_web::{
+    web, App, FromRequest, HttpMessage, HttpRequest, HttpResponse, HttpResponseBuilder, Responder,
+};
+use async_trait::async_trait;
+use std::collections::HashMap;
 
 impl Responder for InertiaPage {
     type Body = BoxBody;
@@ -86,7 +27,7 @@ impl Responder for InertiaPage {
     #[inline]
     fn respond_to(self, _req: &HttpRequest) -> HttpResponse<Self::Body> {
         HttpResponseBuilder::new(StatusCode::OK)
-            .append_header(InertiaHeader::Inertia.convert())
+            .append_header(headers::InertiaHeader::Inertia.convert())
             .body(BoxBody::new(
                 convert_struct_to_stringified_json(self).unwrap(),
             ))
@@ -116,13 +57,19 @@ where
     ) -> Result<HttpResponse, InertiaError> {
         let url = req.uri().to_string();
         let req_type: InertiaRequestType = req.get_request_type()?;
-        let props = InertiaProp::resolve_props(props, req_type);
-
-        let page = InertiaPage::new(component, url, Some(self.version.to_string()), props);
 
         if !req.check_inertia_version(self.version) {
-            return Ok(Self::location(req, &page.url));
+            return Ok(Self::location(req, &url));
         }
+
+        let mut props = InertiaProp::resolve_props(&props, req_type.clone());
+
+        if let Some(SharedProps(shared_props)) = req.extensions().get::<SharedProps>() {
+            let shared_props = InertiaProp::resolve_props(shared_props, req_type);
+            props.extend(shared_props);
+        }
+
+        let page = InertiaPage::new(component, url, Some(self.version.to_string()), props);
 
         // if it's an inertia request, returns an InertiaPage object
         if req.is_inertia_request() {
@@ -137,9 +84,8 @@ where
                     log::warn!(
                         "{}",
                         inertia_err_msg(format!(
-                            "Error on rendering page {}. {}",
-                            page.component.0,
-                            err.get_cause()
+                            "Error on server-side rendering page {}. {}",
+                            page.component.0, err
                         ))
                     );
                 }
@@ -167,7 +113,7 @@ where
         };
 
         return Ok(HttpResponseBuilder::new(StatusCode::OK)
-            .insert_header(InertiaHeader::Inertia.convert())
+            .insert_header(headers::InertiaHeader::Inertia.convert())
             .insert_header(actix_web::http::header::ContentType::html())
             .body(html)
             .respond_to(req));
@@ -182,7 +128,7 @@ where
         }
 
         HttpResponseBuilder::new(StatusCode::CONFLICT)
-            .append_header(InertiaHeader::InertiaLocation(url).convert())
+            .append_header(headers::InertiaHeader::InertiaLocation(url).convert())
             .finish()
     }
 }
@@ -199,18 +145,53 @@ impl InertiaErrMapper<HttpResponse, HttpRequest> for Result<HttpResponse, Inerti
     }
 }
 
+// impl<T> InertiaService<Route> for Inertia<T>
+// where
+//     T: 'static,
+// {
+//     fn route(path: &str, component: &'static str) -> Route {
+//         web::route().to(move |req: HttpRequest| async move {
+//             crate::actix::render::<T>(&req, component.into())
+//                 .await
+//                 .map_inertia_err()
+//         })
+//     }
+// }
+
+impl<TApp> InertiaService for App<TApp>
+where
+    TApp: ServiceFactory<
+        ServiceRequest,
+        Config = (),
+        Error = actix_web::error::Error,
+        InitError = (),
+    >,
+{
+    fn inertia_route<T>(self, path: &str, component: &'static str) -> Self
+    where
+        T: 'static,
+    {
+        self.route(
+            path,
+            web::get().to(move |req: HttpRequest| async move {
+                crate::actix::render::<T>(&req, component.into())
+                    .await
+                    .map_inertia_err()
+            }),
+        )
+    }
+}
+
 impl InertiaHttpRequest for HttpRequest {
     fn is_inertia_request(&self) -> bool {
-        match self.headers().get(header_names::X_INERTIA) {
+        match self.headers().get(headers::X_INERTIA) {
             None => false,
             Some(v) => !v.is_empty(),
         }
     }
 
     fn get_request_type(&self) -> Result<InertiaRequestType, InertiaError> {
-        let partial_comp = self
-            .headers()
-            .get(header_names::X_INERTIA_PARTIAL_COMPONENT);
+        let partial_comp = self.headers().get(headers::X_INERTIA_PARTIAL_COMPONENT);
 
         if partial_comp.is_none() {
             return Ok(InertiaRequestType::Standard);
@@ -221,14 +202,13 @@ impl InertiaHttpRequest for HttpRequest {
         if partial_comp.is_err() {
             return Err(InertiaError::SerializationError(format!(
                 "Failed to serialize header {}",
-                header_names::X_INERTIA_PARTIAL_COMPONENT
+                headers::X_INERTIA_PARTIAL_COMPONENT
             )));
         }
 
         let component = Component(partial_comp.unwrap().into());
-        let only = extract_partials_headers_content(self, &header_names::X_INERTIA_PARTIAL_DATA)?;
-        let except =
-            extract_partials_headers_content(self, &header_names::X_INERTIA_PARTIAL_EXCEPT)?;
+        let only = extract_partials_headers_content(self, &headers::X_INERTIA_PARTIAL_DATA)?;
+        let except = extract_partials_headers_content(self, &headers::X_INERTIA_PARTIAL_EXCEPT)?;
 
         let partials = PartialComponent {
             component,
@@ -243,7 +223,7 @@ impl InertiaHttpRequest for HttpRequest {
     /// If the request contains the inertia version header, it will be checked.
     /// Otherwise, it means it does not have outdated assets and can also pass.
     fn check_inertia_version(&self, current_version: &str) -> bool {
-        let version_header = self.headers().get(header_names::X_INERTIA_VERSION);
+        let version_header = self.headers().get(headers::X_INERTIA_VERSION);
         let is_current_version = match version_header {
             None => true,
             Some(version) => {
@@ -279,62 +259,18 @@ fn extract_partials_headers_content(
     Ok(partials)
 }
 
-pub mod facade {
-    use crate::inertia::InertiaResponder;
-    use crate::utils::inertia_err_msg;
-    use crate::{Component, Inertia, InertiaError, InertiaProps};
-    use actix_web::web::Data;
-    use actix_web::{HttpRequest, HttpResponse};
+impl FromRequest for InertiaTemporarySession<'_> {
+    type Error = actix_web::Error;
+    type Future = std::future::Ready<Result<Self, Self::Error>>;
 
-    /// Short for calling `render` from the `Inertia` instance configured and added to the request
-    /// AppData.
-    ///
-    /// # Arguments
-    /// * `req`         -   A reference to the HttpRequest.
-    /// * `component`   -   The name of the page javascript component.
-    ///
-    /// # Panic
-    /// Panics if Inertia instance hasn't been configured (set to AppData).
-    pub async fn render<T>(
-        req: &HttpRequest,
-        component: Component,
-    ) -> Result<HttpResponse, InertiaError>
-    where
-        T: 'static,
-    {
-        let inertia = extract_inertia::<T>(req);
-        inertia.render(req, component).await
-    }
+    fn from_request(req: &HttpRequest, _: &mut actix_web::dev::Payload) -> Self::Future {
+        let temporary_session = req
+            .extensions()
+            .get::<InertiaTemporarySession>()
+            .cloned()
+            .unwrap_or_default();
 
-    /// Short for calling `render_with_props` from the `Inertia` instance configured and added to the request
-    /// AppData.
-    ///
-    /// # Arguments
-    /// * `req`         -   A reference to the HttpRequest.
-    /// * `component`   -   The name of the page javascript component.
-    ///
-    /// # Panic
-    /// Panics if Inertia instance hasn't been configured (set to AppData).
-    pub async fn render_with_props<T>(
-        req: &HttpRequest,
-        component: Component,
-        props: InertiaProps,
-    ) -> Result<HttpResponse, InertiaError>
-    where
-        T: 'static,
-    {
-        let inertia: &Inertia<T> = extract_inertia(req);
-        inertia.render_with_props(req, component, props).await
-    }
-
-    fn extract_inertia<T>(req: &HttpRequest) -> &Inertia<T>
-    where
-        T: 'static,
-    {
-        match req.app_data::<Data<Inertia<T>>>() {
-            None => panic!("{}", &inertia_err_msg("There is no Inertia struct in AppData. Please, assure you have correctly configured Inertia.".into())),
-            Some(inertia) => inertia
-        }
+        std::future::ready(Ok(temporary_session))
     }
 }
 
@@ -343,10 +279,10 @@ mod test {
     use crate::config::InertiaConfig;
     use crate::inertia::{InertiaHttpRequest, InertiaResponder, ViewData};
     use crate::props::InertiaProp;
-    use crate::providers::actix::header_names::{
-        X_INERTIA_PARTIAL_COMPONENT, X_INERTIA_PARTIAL_DATA, X_INERTIA_PARTIAL_EXCEPT,
+    use crate::providers::actix::headers::{
+        InertiaHeader, X_INERTIA_PARTIAL_COMPONENT, X_INERTIA_PARTIAL_DATA,
+        X_INERTIA_PARTIAL_EXCEPT,
     };
-    use crate::providers::actix::InertiaHeader;
     use crate::req_type::PartialComponent;
     use crate::{
         Component, Inertia, InertiaError, InertiaPage, InertiaVersion, TemplateResolverOutput,
@@ -422,8 +358,6 @@ mod test {
             InertiaProp::Data("Such a nice content, isn't it?".into()),
         );
 
-        let props_clone = props.clone();
-
         let fake_req = test::TestRequest::get()
             .insert_header(InertiaHeader::Inertia.convert())
             .insert_header(InertiaHeader::Version("gen_the_version").convert())
@@ -440,7 +374,7 @@ mod test {
             Component("/Users/Index".into()),
             "/users".to_string(),
             Some("gen_the_version".to_string()),
-            InertiaProp::resolve_props(props_clone, fake_req.get_request_type().unwrap()),
+            InertiaProp::resolve_props(&props, fake_req.get_request_type().unwrap()),
         );
 
         let body = inertia
