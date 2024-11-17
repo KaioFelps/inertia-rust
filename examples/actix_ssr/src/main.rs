@@ -1,7 +1,8 @@
 use actix_web::{get, web::Data, App, HttpRequest, HttpServer, Responder};
-use inertia_rust::actix::{render_with_props, InertiaMiddleware, InertiaService};
+use inertia_rust::actix::{render_with_props, InertiaMiddleware};
 use inertia_rust::{
-    Inertia, InertiaConfig, InertiaErrMapper, InertiaProp, InertiaVersion, SsrClient,
+    Inertia, InertiaConfig, InertiaErrMapper, InertiaProp, InertiaService, InertiaVersion,
+    SsrClient,
 };
 use serde_json::json;
 use std::sync::Arc;
@@ -73,10 +74,10 @@ async fn main() -> std::io::Result<()> {
     )?;
 
     let inertia_data = Data::new(inertia);
-    let inertia_data_to_move = Data::clone(&inertia_data);
+    let inertia_clone = Data::clone(&inertia_data);
     let server = HttpServer::new(move || {
         App::new()
-            .app_data(inertia_data_to_move.clone())
+            .app_data(inertia_clone.clone())
             .wrap(
                 InertiaMiddleware::new().with_shared_props(Arc::new(move |_req| {
                     let mut shared_props = HashMap::new();
