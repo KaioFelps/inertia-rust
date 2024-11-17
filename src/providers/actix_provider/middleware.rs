@@ -1,4 +1,5 @@
 use actix_web::dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform};
+use actix_web::http::{Method, StatusCode};
 use actix_web::Error;
 use actix_web::HttpMessage;
 use futures_util::future::LocalBoxFuture;
@@ -91,7 +92,18 @@ where
         let fut: <S as Service<ServiceRequest>>::Future = self.service.call(req);
 
         Box::pin(async move {
-            let res: ServiceResponse<B> = fut.await?;
+            let mut res: ServiceResponse<B> = fut.await?;
+
+            let req_method = res.request().method();
+            let res_status = res.status();
+
+            if [Method::PATCH, Method::PUT, Method::DELETE].contains(req_method)
+                && (res_status == StatusCode::MOVED_PERMANENTLY || res_status == StatusCode::FOUND)
+            {
+                let res = res.response_mut();
+                *res.status_mut() = StatusCode::SEE_OTHER;
+            }
+
             Ok(res)
         })
     }

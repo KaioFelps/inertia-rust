@@ -258,9 +258,15 @@ A hash map of InertiaProp elements is an `InertiaProps` set, and it's resolved d
 the needed props are evaluated).
 
 ## Inertia Middleware and Shared Props
-The Inertia Middleware comes from your opted provider. It has few responsibilities. With it, you can
-enable **shared props**. `with_shared_props` method requires a callback (inside an Arc pointer) that
-receives the current request. You can use it to extract any information you might want to share.
+
+The Inertia Middleware comes from your opted provider. It has few responsibilities:
+- allow you to **share props**, via `with_shared_props` method;
+- ensure that redirects for PUT, PATCH and DELETE requests always use a 303 status code;
+- merge shared props with errors flash messages.
+
+The middleware's `with_shared_props` method requires a callback, wrapped in an `Arc`, that
+receives a reference to the current request. You can use it to extract any information you might want
+to share.
 
 ```rust
 use actix_web::{App, HttpServer};

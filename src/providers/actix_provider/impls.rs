@@ -56,6 +56,10 @@ where
         let url = req.uri().to_string();
         let req_type: InertiaRequestType = req.get_request_type()?;
 
+        if !req.check_inertia_version(self.version) {
+            return Ok(Self::location(req, &url));
+        }
+
         let mut props = InertiaProp::resolve_props(&props, req_type.clone());
 
         if let Some(SharedProps(shared_props)) = req.extensions().get::<SharedProps>() {
@@ -64,10 +68,6 @@ where
         }
 
         let page = InertiaPage::new(component, url, Some(self.version.to_string()), props);
-
-        if !req.check_inertia_version(self.version) {
-            return Ok(Self::location(req, &page.url));
-        }
 
         // if it's an inertia request, returns an InertiaPage object
         if req.is_inertia_request() {

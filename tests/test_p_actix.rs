@@ -2,10 +2,13 @@ mod common;
 
 use actix_web::{
     body::MessageBody,
+    delete,
     dev::{ServiceFactory, ServiceRequest, ServiceResponse},
     get,
-    web::Data,
-    App, HttpRequest, HttpResponse,
+    http::StatusCode,
+    post, put,
+    web::{Data, Redirect},
+    App, HttpRequest, HttpResponse, Responder,
 };
 use common::template_resolver::{get_dynamic_csr_expect, mocked_resolver};
 use inertia_rust::{
@@ -28,7 +31,7 @@ fn super_trim(text: String) -> String {
 // region: --- Service
 
 #[get("/")]
-async fn home(req: HttpRequest) -> HttpResponse {
+async fn home(req: HttpRequest) -> impl Responder {
     let response = render::<()>(&req, Component("Index".into())).await;
     match response {
         Ok(response) => response,
@@ -40,7 +43,7 @@ async fn home(req: HttpRequest) -> HttpResponse {
 }
 
 #[get("/withprops")]
-async fn with_props(req: HttpRequest) -> HttpResponse {
+async fn with_props(req: HttpRequest) -> impl Responder {
     let mut props: InertiaProps = HashMap::new();
     props.insert("user".to_string(), InertiaProp::Always("John Doe".into()));
 
@@ -53,6 +56,21 @@ async fn with_props(req: HttpRequest) -> HttpResponse {
             HttpResponse::InternalServerError().finish()
         }
     }
+}
+
+#[put("/redirect")]
+async fn put_redirect() -> impl Responder {
+    Redirect::to("/").using_status_code(StatusCode::MOVED_PERMANENTLY)
+}
+
+#[post("/redirect")]
+async fn post_redirect() -> impl Responder {
+    Redirect::to("/").see_other()
+}
+
+#[delete("redirect")]
+async fn delete_redirect() -> impl Responder {
+    Redirect::to("/").using_status_code(StatusCode::FOUND)
 }
 
 async fn generate_actix_app() -> App<
@@ -79,6 +97,9 @@ async fn generate_actix_app() -> App<
         .app_data(Data::new(inertia))
         .service(home)
         .service(with_props)
+        .service(put_redirect)
+        .service(post_redirect)
+        .service(delete_redirect)
         .inertia_route::<()>("/withservice", "Index")
 }
 
@@ -226,6 +247,33 @@ async fn test_inertia_route_service() {
         get_dynamic_csr_expect("/withservice", "{}", "Index", TEST_INERTIA_VERSION),
         super_trim(body)
     );
+}
+
+#[tokio::test]
+async fn test_inertia_middleware() {
+    let app =
+        actix_web::test::init_service(generate_actix_app().await.wrap(InertiaMiddleware::new()))
+            .await;
+
+    let req_put = actix_web::test::TestRequest::put()
+        .uri("/redirect")
+        .to_request();
+
+    let req_post = actix_web::test::TestRequest::post()
+        .uri("/redirect")
+        .to_request();
+
+    let req_delete = actix_web::test::TestRequest::delete()
+        .uri("/redirect")
+        .to_request();
+
+    let resp_put = actix_web::test::call_service(&app, req_put).await;
+    let resp_post = actix_web::test::call_service(&app, req_post).await;
+    let resp_delete = actix_web::test::call_service(&app, req_delete).await;
+
+    assert_eq!(303u16, resp_put.status().as_u16());
+    assert_eq!(303u16, resp_post.status().as_u16());
+    assert_eq!(303u16, resp_delete.status().as_u16());
 }
 
 // endregion: --- Tests
