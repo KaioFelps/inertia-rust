@@ -1,9 +1,7 @@
 use super::headers;
 use super::middleware::SharedProps;
 
-use crate::inertia::{
-    Inertia, InertiaErrMapper, InertiaHttpRequest, InertiaResponder, InertiaService, ViewData,
-};
+use crate::inertia::{Inertia, InertiaHttpRequest, InertiaResponder, InertiaService, ViewData};
 use crate::props::InertiaProp;
 use crate::props::InertiaProps;
 use crate::req_type::{InertiaRequestType, PartialComponent};
@@ -17,6 +15,7 @@ use actix_web::http::header::HeaderName;
 use actix_web::http::StatusCode;
 use actix_web::{
     web, App, FromRequest, HttpMessage, HttpRequest, HttpResponse, HttpResponseBuilder, Responder,
+    ResponseError,
 };
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -133,15 +132,15 @@ where
     }
 }
 
-impl InertiaErrMapper<HttpResponse, HttpRequest> for Result<HttpResponse, InertiaError> {
-    fn map_inertia_err(self) -> HttpResponse {
-        match self {
-            Ok(response) => response,
-            Err(error) => HttpResponseBuilder::new(StatusCode::INTERNAL_SERVER_ERROR)
-                .insert_header(actix_web::http::header::ContentType::json())
-                .body(error.get_cause())
-                .map_into_boxed_body(),
-        }
+impl ResponseError for InertiaError {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::INTERNAL_SERVER_ERROR
+    }
+
+    fn error_response(&self) -> HttpResponse<BoxBody> {
+        HttpResponseBuilder::new(StatusCode::INTERNAL_SERVER_ERROR)
+            .insert_header(actix_web::http::header::ContentType::json())
+            .body(self.get_cause())
     }
 }
 
@@ -174,9 +173,7 @@ where
         self.route(
             path,
             web::get().to(move |req: HttpRequest| async move {
-                crate::actix::render::<T>(&req, component.into())
-                    .await
-                    .map_inertia_err()
+                crate::actix::render::<T>(&req, component.into()).await
             }),
         )
     }

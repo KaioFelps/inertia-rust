@@ -104,10 +104,6 @@ pub trait InertiaResponder<TResponder, THttpRequest> {
     fn location(req: &THttpRequest, url: &str) -> TResponder;
 }
 
-pub trait InertiaErrMapper<TResponder, THttpResponse> {
-    fn map_inertia_err(self) -> TResponder;
-}
-
 /// Defines some helper methods to be implemented to HttpRequests from the
 /// library opted by the cargo feature.
 pub(crate) trait InertiaHttpRequest {
