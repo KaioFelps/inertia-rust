@@ -7,7 +7,16 @@ use serde_json::{Map, Value};
 /// You must inject it by yourself by a second middleware, which gets these information from
 /// your framework sessions manager.
 #[derive(Clone, Serialize)]
-pub struct InertiaTemporarySession {
+pub struct InertiaTemporarySession<'a> {
     pub errors: Option<Map<String, Value>>,
-    pub prev_req_url: String,
+    pub prev_req_url: &'a str,
+}
+
+impl Default for InertiaTemporarySession<'_> {
+    fn default() -> Self {
+        InertiaTemporarySession {
+            errors: None,
+            prev_req_url: "/",
+        }
+    }
 }

@@ -9,13 +9,15 @@ use crate::props::InertiaProps;
 use crate::req_type::{InertiaRequestType, PartialComponent};
 use crate::utils::convert_struct_to_stringified_json;
 use crate::utils::{inertia_err_msg, request_page_render};
-use crate::{Component, InertiaError, InertiaPage};
+use crate::{Component, InertiaError, InertiaPage, InertiaTemporarySession};
 
 use actix_web::body::BoxBody;
 use actix_web::dev::{ServiceFactory, ServiceRequest};
 use actix_web::http::header::HeaderName;
 use actix_web::http::StatusCode;
-use actix_web::{web, App, HttpMessage, HttpRequest, HttpResponse, HttpResponseBuilder, Responder};
+use actix_web::{
+    web, App, FromRequest, HttpMessage, HttpRequest, HttpResponse, HttpResponseBuilder, Responder,
+};
 use async_trait::async_trait;
 use std::collections::HashMap;
 
@@ -255,6 +257,21 @@ fn extract_partials_headers_content(
     };
 
     Ok(partials)
+}
+
+impl<'a> FromRequest for InertiaTemporarySession<'a> {
+    type Error = actix_web::Error;
+    type Future = std::future::Ready<Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, _: &mut actix_web::dev::Payload) -> Self::Future {
+        let temporary_session = req
+            .extensions()
+            .get::<InertiaTemporarySession>()
+            .cloned()
+            .unwrap_or_default();
+
+        std::future::ready(Ok(temporary_session))
+    }
 }
 
 #[cfg(test)]
