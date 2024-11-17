@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::future::{ready, Ready};
 use std::sync::Arc;
 
-use crate::temporary_messages::InertiaTemporarySession;
+use crate::temporary_session::InertiaTemporarySession;
 use crate::{InertiaProp, InertiaProps};
 
 type SharedPropsCallback = dyn Fn(&ServiceRequest) -> InertiaProps;

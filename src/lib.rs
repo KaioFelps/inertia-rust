@@ -7,7 +7,7 @@ mod page;
 mod props;
 mod providers;
 mod req_type;
-mod temporary_messages;
+mod temporary_session;
 mod utils;
 
 pub mod node_process;
@@ -26,7 +26,7 @@ pub use page::InertiaPage;
 pub use page::InertiaSSRPage;
 pub use props::InertiaProp;
 pub use props::InertiaProps;
-pub use temporary_messages::InertiaTemporarySession;
+pub use temporary_session::InertiaTemporarySession;
 
 #[cfg(feature = "actix")]
 pub mod actix {
