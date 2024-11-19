@@ -16,7 +16,6 @@ pub use config::{InertiaConfig, InertiaConfigBuilder};
 pub use error::InertiaError;
 pub use inertia::Component;
 pub use inertia::Inertia;
-pub use inertia::InertiaErrMapper;
 pub use inertia::InertiaService;
 pub use inertia::InertiaVersion;
 pub use inertia::SsrClient;

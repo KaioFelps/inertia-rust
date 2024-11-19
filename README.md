@@ -189,9 +189,7 @@ use inertia_rust::{actix::render, InertiaErrMapper};
 
 #[get("/")]
 async fn index(req: HttpRequest) -> impl Responder {
-    render::<Vite>(&req, "Index".into())
-        .await
-        .map_inertia_err()
+    render::<Vite>(&req, "Index".into()).await
 }
 
 #[actix_web::main]
@@ -245,9 +243,7 @@ async fn index(req: HttpRequest) -> impl Responder {
         InertiaProp::Always("Hello world!".into()),
     );
 
-    render_with_props::<Vite>(&req, "Index".into(), props)
-        .await
-        .map_inertia_err()
+    render_with_props::<Vite>(&req, "Index".into(), props).await
 }
 
 // ...
