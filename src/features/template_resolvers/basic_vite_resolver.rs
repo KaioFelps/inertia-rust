@@ -30,7 +30,10 @@ pub fn template_resolver(
             Ok(html) => html,
         };
 
-        vite.vite_directive(&mut html);
+        if let Err(err) = vite.vite_directive(&mut html) {
+            log::warn!("Failed to resolve vite directive: {}", err);
+        };
+
         vite.assets_url_directive(&mut html);
         vite.hmr_directive(&mut html);
         vite.react_directive(&mut html);
