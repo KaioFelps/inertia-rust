@@ -1942,9 +1942,9 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "vite-rust"
-version = "0.1.3"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4cab6c04c14fb18d9328f47402cd0893c88221a33b9bc961e86ee0607b3cb5d8"
+checksum = "72043c9d6e04acfd179bbe9868b2b9d715de59a1fad7f4fd93c5d8619a640a4f"
 dependencies = [
  "hex",
  "log",

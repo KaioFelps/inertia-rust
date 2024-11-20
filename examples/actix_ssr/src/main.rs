@@ -4,9 +4,9 @@ use inertia_rust::{
     Inertia, InertiaConfig, InertiaProp, InertiaService, InertiaVersion, SsrClient,
 };
 use serde_json::json;
+use std::collections::HashMap;
 use std::sync::Arc;
-use std::{collections::HashMap, sync::OnceLock};
-use vite_rust::{utils::resolve_path, Vite, ViteConfig};
+use vite_rust::{Vite, ViteConfig};
 
 #[get("/")]
 async fn home(req: HttpRequest) -> impl Responder {
@@ -39,27 +39,25 @@ async fn contact(req: HttpRequest) -> impl Responder {
     render_with_props::<Vite>(&req, "Contact".into(), props).await
 }
 
-static VITE: OnceLock<Vite> = OnceLock::new();
-
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenvy::dotenv().ok();
     env_logger::init();
 
-    let manifest_path = resolve_path(file!(), "../public/bundle/manifest.json");
-    let vite_config = ViteConfig::new_with_defaults(&manifest_path);
-    let vite = match Vite::new(vite_config).await {
-        Ok(vite) => vite,
+    // let manifest_path = resolve_path(file!(), "../public/bundle/manifest.json");
+    let vite_config = ViteConfig::default().set_manifest_path("public/bundle/manifest.json");
+    let vite: &Vite = match Vite::new(vite_config).await {
+        Ok(vite) => Box::leak(Box::new(vite)),
         Err(err) => panic!("{}", err),
     };
 
-    let vite = VITE.get_or_init(move || vite);
-
     // Starts a Inertia manager instance with SSR enabled.
-    let inertia: Inertia<Vite> = Inertia::new(
+    let inertia = Inertia::new(
         InertiaConfig::builder()
             .set_url("http://localhost:8080")
-            .set_version(InertiaVersion::Resolver(Box::new(|| vite.get_hash())))
+            .set_version(InertiaVersion::Resolver(Box::new(|| {
+                vite.get_hash().unwrap()
+            })))
             .set_template_path("www/root.html")
             .set_template_resolver(&inertia_rust::resolvers::basic_vite_resolver)
             .set_template_resolver_data(vite)
@@ -79,8 +77,8 @@ async fn main() -> std::io::Result<()> {
                     shared_props.insert("version".into(), InertiaProp::Always("0.1.0".into()));
                     shared_props.insert(
                         "assetsVersion".into(),
-                        InertiaProp::Lazy(Arc::new(|| {
-                            serde_json::to_value(vite.get_hash().to_string()).unwrap()
+                        InertiaProp::Lazy(Arc::new(move || {
+                            serde_json::to_value(vite.get_hash().unwrap().to_string()).unwrap()
                         })),
                     );
 

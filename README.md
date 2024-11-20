@@ -12,7 +12,7 @@ this document carefully to ensure that your Inertia application works correctly.
 [dependencies]
 inertia_rust = { version = "0.1", features = ["default", "basic-vite-resolver"] }
 actix-web = "4"
-vite-rust = { version = "0.1", features = ["basic_directives"] }
+vite-rust = { version = "0.2", features = ["basic-directives"] }
 ```
 
 To get Inertia working, you'll need to ensure some peer dependencies are installed.
