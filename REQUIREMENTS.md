@@ -100,7 +100,11 @@ async fn another_handler(req: SomeHttpRequest, inertia_session: InertiaTemporary
 When the assets versions mismatch, the rendering method should return an
 `Inertia::location` redirect that causes a full-reload.
 
-- [ ] Forward the session to be retrieved by the request triggered by the reload.
+**Solution**
+> Inertia requires you to pass callback during Inertia configuration
+> that is responsible for reflashing the inertia temporary session.
+
+- [x] Forward the session to be retrieved by the request triggered by the reload.
 
 ## Inertia Middleware
 - [x] Allow to **share props** globally;

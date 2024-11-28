@@ -57,9 +57,9 @@ where
         let url = req.uri().to_string();
         let req_type: InertiaRequestType = req.get_request_type()?;
 
-        if !req.check_inertia_version(self.version) {
-            return Ok(Self::location(req, &url));
-        }
+        if let Err(forced_refresh) = self.check_and_handle_version_mismatch(req) {
+            return Ok(forced_refresh);
+        };
 
         let mut props = InertiaProp::resolve_props(&props, req_type.clone());
 
@@ -144,19 +144,6 @@ impl ResponseError for InertiaError {
     }
 }
 
-// impl<T> InertiaService<Route> for Inertia<T>
-// where
-//     T: 'static,
-// {
-//     fn route(path: &str, component: &'static str) -> Route {
-//         web::route().to(move |req: HttpRequest| async move {
-//             crate::actix::render::<T>(&req, component.into())
-//                 .await
-//                 .map_inertia_err()
-//         })
-//     }
-// }
-
 impl<TApp> InertiaService for App<TApp>
 where
     TApp: ServiceFactory<
@@ -220,19 +207,13 @@ impl InertiaHttpRequest for HttpRequest {
     /// If the request contains the inertia version header, it will be checked.
     /// Otherwise, it means it does not have outdated assets and can also pass.
     fn check_inertia_version(&self, current_version: &str) -> bool {
-        let version_header = self.headers().get(headers::X_INERTIA_VERSION);
-        let is_current_version = match version_header {
-            None => true,
-            Some(version) => {
-                if let Ok(version) = version.to_str() {
-                    version == current_version
-                } else {
-                    false
-                }
-            }
-        };
-
-        is_current_version
+        self.headers()
+            .get(headers::X_INERTIA_VERSION)
+            .map_or(true, |version| {
+                version
+                    .to_str()
+                    .map_or(false, |version| version == current_version)
+            })
     }
 }
 
@@ -256,7 +237,36 @@ fn extract_partials_headers_content(
     Ok(partials)
 }
 
-impl FromRequest for InertiaTemporarySession<'_> {
+pub trait InertiaActixHelpers {
+    fn check_and_handle_version_mismatch(&self, req: &HttpRequest) -> Result<(), HttpResponse>;
+}
+
+impl<T> InertiaActixHelpers for Inertia<T>
+where
+    T: 'static,
+{
+    fn check_and_handle_version_mismatch(&self, req: &HttpRequest) -> Result<(), HttpResponse> {
+        if req.is_inertia_request() && !req.check_inertia_version(self.version) {
+            // tries to reflash Inertia session
+            let inertia_session = req.extensions_mut().remove::<InertiaTemporarySession>();
+            if let Err(err) = (self.reflash_inertia_session)(inertia_session) {
+                log::warn!(
+                    "{}",
+                    inertia_err_msg(format!(
+                        "Failed to reflesh Inertia Temporary Session. {}",
+                        err.get_cause()
+                    ))
+                );
+            };
+
+            return Err(Self::location(req, &req.uri().to_string()));
+        }
+
+        Ok(())
+    }
+}
+
+impl FromRequest for InertiaTemporarySession {
     type Error = actix_web::Error;
     type Future = std::future::Ready<Result<Self, Self::Error>>;
 
