@@ -212,7 +212,7 @@ impl InertiaHttpRequest for HttpRequest {
             .map_or(true, |version| {
                 version
                     .to_str()
-                    .map_or(false, |version| version == current_version)
+                    .is_ok_and(|version| version == current_version)
             })
     }
 }
