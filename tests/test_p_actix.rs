@@ -8,18 +8,22 @@ use actix_web::{
     http::StatusCode,
     post, put,
     web::{Data, Redirect},
-    App, HttpRequest, HttpResponse, Responder,
+    App, HttpMessage, HttpRequest, HttpResponse, Responder,
 };
 use common::template_resolver::{get_dynamic_csr_expect, mocked_resolver};
 use inertia_rust::{
     actix::{render, render_with_props, InertiaHeader, InertiaMiddleware},
-    InertiaPage, InertiaService,
+    InertiaPage, InertiaService, InertiaTemporarySession,
 };
 use inertia_rust::{Component, Inertia, InertiaConfig, InertiaProp, InertiaProps, InertiaVersion};
-use serde_json::json;
-use std::{collections::HashMap, sync::Arc};
+use serde_json::{json, Map};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex, OnceLock},
+};
 
 const TEST_INERTIA_VERSION: &str = "v1.0.0";
+static SESSIONS_STORAGE: OnceLock<Arc<Mutex<Vec<InertiaTemporarySession>>>> = OnceLock::new();
 
 fn super_trim(text: String) -> String {
     text.trim()
@@ -82,6 +86,8 @@ async fn generate_actix_app() -> App<
         InitError = (),
     >,
 > {
+    let _ = SESSIONS_STORAGE.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
+
     let inertia = Inertia::new(
         InertiaConfig::builder()
             .set_url("https://inertiajs.com")
@@ -89,6 +95,18 @@ async fn generate_actix_app() -> App<
             .set_template_path("tests/common/root_layout.html")
             .set_template_resolver(&mocked_resolver)
             .set_template_resolver_data(&())
+            .set_reflash_fn(Box::new(move |session| {
+                if let Some(session) = session {
+                    SESSIONS_STORAGE
+                        .get()
+                        .unwrap()
+                        .lock()
+                        .unwrap()
+                        .push(session);
+                }
+
+                Ok(())
+            }))
             .build(),
     )
     .unwrap();
@@ -109,7 +127,9 @@ async fn generate_actix_app() -> App<
 
 #[tokio::test]
 async fn test_assets_version_redirect() {
-    let app = actix_web::test::init_service(generate_actix_app().await).await;
+    let app =
+        actix_web::test::init_service(generate_actix_app().await.wrap(InertiaMiddleware::new()))
+            .await;
 
     let first_access_request = actix_web::test::TestRequest::get()
         .uri("/")
@@ -274,6 +294,38 @@ async fn test_inertia_middleware() {
     assert_eq!(303u16, resp_put.status().as_u16());
     assert_eq!(303u16, resp_post.status().as_u16());
     assert_eq!(303u16, resp_delete.status().as_u16());
+}
+
+#[tokio::test]
+async fn test_inertia_temporary_sessions() {
+    let app =
+        actix_web::test::init_service(generate_actix_app().await.wrap(InertiaMiddleware::new()))
+            .await;
+
+    let request = actix_web::test::TestRequest::get()
+        .uri("/withprops")
+        .insert_header(InertiaHeader::Version("wrong_version").convert())
+        .insert_header(InertiaHeader::Inertia.convert())
+        .to_request();
+
+    let mut errors = Map::new();
+    errors.insert("foo".into(), "We are enemies, we are fooes...".into());
+
+    request.extensions_mut().insert(InertiaTemporarySession {
+        errors: Some(errors.clone()),
+        prev_req_url: "/".into(),
+    });
+
+    // as wrong version has been set, it will force a refresh.
+    // the mocked reflash method should be called, putting the above temporary session inside the static
+    // list
+    let response = actix_web::test::call_service(&app, request).await;
+    assert_eq!(409u16, response.status().as_u16());
+
+    let storage = SESSIONS_STORAGE.get().unwrap();
+
+    assert!(!storage.lock().unwrap().is_empty());
+    assert_eq!(&errors, storage.lock().unwrap()[0].errors.as_ref().unwrap());
 }
 
 // endregion: --- Tests

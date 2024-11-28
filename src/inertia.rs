@@ -6,7 +6,7 @@ use crate::config::InertiaConfig;
 use crate::node_process::NodeJsProc;
 use crate::props::InertiaProps;
 use crate::req_type::InertiaRequestType;
-use crate::{InertiaError, InertiaPage, InertiaSSRPage};
+use crate::{InertiaError, InertiaPage, InertiaSSRPage, InertiaTemporarySession};
 use async_trait::async_trait;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -148,6 +148,9 @@ pub(crate) type TemplateResolver<T> = &'static (dyn Fn(&'static str, ViewData, &
               + Sync
               + 'static);
 
+pub(crate) type ReflashSession =
+    Box<dyn Fn(Option<InertiaTemporarySession>) -> Result<(), InertiaError> + Send + Sync>;
+
 #[derive(PartialEq, Debug)]
 pub struct SsrClient {
     pub(crate) host: &'static str,
@@ -216,6 +219,20 @@ where
     pub(crate) ssr_url: Option<Url>,
     /// Extra data to be passed to the root template.
     pub(crate) custom_view_data: Map<String, Value>,
+    /// A function that must persist the Inertia temporary session (flash session) for one more request.
+    /// It's up to you to implement, as we have no control over your http framework nor sessions manager.
+    /// Inertia will call this function if the request and the Inertia assets version mismatch, just before
+    /// it forces a redirect.
+    ///
+    /// # Arguments
+    /// Inertia's rendering methods will call this function passing the following parameter(s):
+    /// * `inertia_temporary_session`   -   An `Option<InertiaTemporarySession>`. If `Some`, you should assure it's
+    ///                                     restored in the flash sessions for the next request.
+    ///
+    /// # Errors
+    /// You can return an `InertiaError` from this method if you desire, however, all Inertia will do with
+    /// this error is log it as a warning. It won't stop the rendering method from refreshing the request.
+    pub(crate) reflash_inertia_session: ReflashSession,
 }
 
 impl<T> Inertia<T>
@@ -275,6 +292,7 @@ where
             template_resolver_data: config.template_resolver_data,
             ssr_url,
             custom_view_data: config.view_data.unwrap_or_default(),
+            reflash_inertia_session: config.reflash_inertia_session,
         })
     }
 
