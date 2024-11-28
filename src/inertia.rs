@@ -149,7 +149,7 @@ pub(crate) type TemplateResolver<T> = &'static (dyn Fn(&'static str, ViewData, &
               + 'static);
 
 pub(crate) type ReflashSession =
-    Box<dyn Fn(Option<InertiaTemporarySession>) -> Result<(), InertiaError>>;
+    Box<dyn Fn(Option<InertiaTemporarySession>) -> Result<(), InertiaError> + Send + Sync>;
 
 #[derive(PartialEq, Debug)]
 pub struct SsrClient {
