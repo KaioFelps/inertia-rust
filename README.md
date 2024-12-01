@@ -10,7 +10,7 @@ this document carefully to ensure that your Inertia application works correctly.
 
 ```toml
 [dependencies]
-inertia_rust = { version = "0.1", features = ["default", "basic-vite-resolver"] }
+inertia-rust = { version = "0.1", features = ["default", "basic-vite-resolver"] }
 actix-web = "4"
 vite-rust = { version = "0.2", features = ["basic-directives"] }
 ```
