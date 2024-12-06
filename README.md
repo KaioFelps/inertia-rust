@@ -89,7 +89,13 @@ static VITE: OnceLock<Vite> = OnceLock::new();
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // initializes Vite
-    let vite = match Vite::new(ViteConfig::new_with_defaults("public/bundle/manifest.json")).await {
+    let vite = match Vite::new(
+        ViteConfig::default()
+            .set_manifest_path("public/bundle/manifest.json")
+            .set_entrypoints(vec!["app.ts"]),
+    )
+    .await
+    {
         Ok(vite) => vite,
         Err(err) => panic!("{}", err),
     };
@@ -97,9 +103,13 @@ async fn main() -> std::io::Result<()> {
     let vite = VITE.get_or_init(move || vite);
 
     let inertia_config: InertiaConfig<Vite, String> = InertiaConfig::builder()
-        .set_url("http://localhost:8080")
+        .set_url("http://localhost:3000")
         // InertiaVersion::Literal(vite.get_hash()), or
-        .set_version(InertiaVersion::Literal(vite.get_hash().to_string()))
+        .set_version(InertiaVersion::Literal(
+            vite.get_hash()
+                .map(ToString::to_string)
+                .unwrap_or("development-version".into()),
+        ))
         .set_template_path("path/to/your/template.html")
         .set_template_resolver(&basic_vite_resolver)
         .set_template_resolver_data(vite)
@@ -113,7 +123,7 @@ async fn main() -> std::io::Result<()> {
     let inertia_clone = Data::clone(&inertia);
 
     HttpServer::new(move || App::new().app_data(inertia_clone.clone()))
-        .bind(("127.0.0.1", 8080))?
+        .bind(("127.0.0.1", 3000))?
         .run()
         .await
 }
@@ -137,7 +147,13 @@ static VITE: OnceLock<Vite> = OnceLock::new();
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // initializes Vite
-    let vite = match Vite::new(ViteConfig::new_with_defaults("public/bundle/manifest.json")).await {
+    let vite = match Vite::new(
+        ViteConfig::default()
+            .set_manifest_path("public/bundle/manifest.json")
+            .set_entrypoints(vec!["app.ts"]),
+    )
+    .await
+    {
         Ok(vite) => vite,
         Err(err) => panic!("{}", err),
     };
@@ -145,9 +161,13 @@ async fn main() -> std::io::Result<()> {
     let vite = VITE.get_or_init(move || vite);
 
     let inertia_config: InertiaConfig<Vite, String> = InertiaConfig::builder()
-        .set_url("http://localhost:8080")
+        .set_url("http://localhost:3000")
         // InertiaVersion::Literal(vite.get_hash()), or
-        .set_version(InertiaVersion::Literal(vite.get_hash().to_string()))
+        .set_version(InertiaVersion::Literal(
+            vite.get_hash()
+                .map(ToString::to_string)
+                .unwrap_or("development-version".into()),
+        ))
         .set_template_path("path/to/your/template.html")
         .set_template_resolver(&basic_vite_resolver)
         .set_template_resolver_data(vite)
@@ -164,7 +184,7 @@ async fn main() -> std::io::Result<()> {
     let inertia_clone = Data::clone(&inertia);
 
     let server = HttpServer::new(move || App::new().app_data(inertia_clone.clone()))
-        .bind(("127.0.0.1", 8080))?;
+        .bind(("127.0.0.1", 3000))?;
 
     // Starts a Node.js child process that runs the Inertia's server-side-rendering server.
     // It must be started after the server initialization to ensure that the server won't panic and
@@ -201,7 +221,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(inertia_clone.clone())
             .service(index)
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(("127.0.0.1", 3000))?
     .run()
     .await
 }
@@ -221,7 +241,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(inertia_clone.clone())
             .inertia_route::<Vite>("/", "Index")
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(("127.0.0.1", 3000))?
     .run()
     .await
 }
@@ -289,7 +309,7 @@ async fn main() -> std::io::Result<()> {
             })))
             .inertia_route::<Vite>("/", "Index")
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(("127.0.0.1", 3000))?
     .run()
     .await
 }
@@ -378,7 +398,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(InertiaMiddleware::new())
             .inertia_route::<Vite>("/", "Index")
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(("127.0.0.1", 3000))?
     .run()
     .await
 }
