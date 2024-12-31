@@ -3,19 +3,27 @@ use actix_web::http::header::{HeaderName, HeaderValue};
 
 #[allow(unused)]
 pub const X_INERTIA: HeaderName = HeaderName::from_static(inertia::X_INERTIA);
+
 #[allow(unused)]
 pub const X_INERTIA_LOCATION: HeaderName = HeaderName::from_static(inertia::X_INERTIA_LOCATION);
+
 #[allow(unused)]
 pub const X_INERTIA_VERSION: HeaderName = HeaderName::from_static(inertia::X_INERTIA_VERSION);
+
 #[allow(unused)]
 pub const X_INERTIA_PARTIAL_COMPONENT: HeaderName =
     HeaderName::from_static(inertia::X_INERTIA_PARTIAL_COMPONENT);
+
 #[allow(unused)]
 pub const X_INERTIA_PARTIAL_DATA: HeaderName =
     HeaderName::from_static(inertia::X_INERTIA_PARTIAL_DATA);
+
 #[allow(unused)]
 pub const X_INERTIA_PARTIAL_EXCEPT: HeaderName =
     HeaderName::from_static(inertia::X_INERTIA_PARTIAL_EXCEPT);
+
+#[allow(unused)]
+pub const X_INERTIA_RESET: HeaderName = HeaderName::from_static(inertia::X_INERTIA_RESET);
 
 pub enum InertiaHeader<'a> {
     Inertia,
