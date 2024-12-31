@@ -86,7 +86,7 @@ where
 
         if let Some(request_props) = req.extensions().get::<InertiaTemporarySession>() {
             let errors = to_value(&request_props.errors).unwrap();
-            shared_props.insert("errors".into(), InertiaProp::Always(errors));
+            shared_props.insert("errors", InertiaProp::Always(errors));
         }
 
         req.extensions_mut().insert(SharedProps(shared_props));
