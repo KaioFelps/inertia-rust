@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::inertia::Component;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -38,23 +40,92 @@ impl InertiaSSRPage {
     }
 }
 
+pub type DeferredProps<'a> = Option<HashMap<&'a str, Vec<&'a str>>>;
+
 /// Response containing a valid Inertia Payload that will be used
 /// by the Inertia client to render the components.
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
-pub struct InertiaPage {
-    /// The name of the JavaScript page component.
+pub struct InertiaPage<'a> {
+    // The name of the JavaScript page component.
     pub(crate) component: Component,
-    /// The page props (data). A merge of page props and shared props.
+
+    // A merge of page props and shared props .
     pub(crate) props: Map<String, Value>,
-    /// Page's URL. Must be a valid href.
+
     // this is not the same as Inertia::url, that represents the application url.
     // this url represents the current request's url, i.e. the page url.
-    pub(crate) url: String,
+    pub(crate) url: &'a str,
+
     /// Current assets version.
-    pub(crate) version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) version: Option<&'a str>,
+
+    #[serde(rename = "clearHistory")]
+    pub(crate) clear_history: bool,
+
+    #[serde(rename = "encryptHistory")]
+    pub(crate) encrypt_history: bool,
+
+    #[serde(rename = "deferredProps")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) deferred_props: DeferredProps<'a>,
+
+    #[serde(rename = "mergeProps")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) merge_props: Option<Vec<&'a str>>,
 }
 
-impl InertiaPage {
+#[allow(clippy::too_many_arguments)]
+impl<'a> InertiaPage<'a> {
+    /// Instantiates an Inertia Page object to sent as http response,
+    /// according to [Inertia Protocol].
+    ///
+    ///
+    /// # Arguments
+    /// * `component`       -   The name of the javascript page component (e.g. "/Me").
+    /// * `url`             -   The Inertia instance's url (the application URL). It can be a
+    ///                         whole href or an absolute hostless path ("/me").
+    /// * `version`         -   Current assets version. Used to assert assets are up-to-date. See
+    ///                         [Inertia's assets versioning] page for more details.
+    /// * `props`           -   A map of the page's props.
+    /// * `merge_props`     -   A list containing the keys of the properties that shall me merged by the
+    ///                         client-side adapter.
+    /// * `deferred_props`  -   A hashmap of which the keys are groups. It contains the keys of the props
+    ///                         that must be fetched by the client-side adapter after the first page load.
+    ///                         Refer to [Deferred Props] for more details.
+    /// * `clear_history`   -   Whether the history must be cleaned by the client-side once this response is
+    ///                         received. Refer to [Clearing history] section from History Encryption documentatin
+    ///                         for more details.
+    /// * `encrypt_history` -   Whether the client-side adapter must encrypt the history page data related to
+    ///                         this response. Refer to [History Encryption] for more details.
+    ///
+    /// [Inertia Protocol]: https://inertiajs.com/the-protocol
+    /// [Inertia's assets versioning]: https://inertiajs.com/the-protocol#asset-versioning
+    /// [Deferred Props]: https://inertiajs.com/deferred-props
+    /// [History Encryption]: https://inertiajs.com/history-encryption
+    /// [Clearing history]: https://inertiajs.com/history-encryption#clearing-history
+    pub fn new(
+        component: Component,
+        url: &'a str,
+        version: Option<&'a str>,
+        props: Map<String, Value>,
+        merge_props: Option<Vec<&'a str>>,
+        deferred_props: DeferredProps<'a>,
+        clear_history: bool,
+        encrypt_history: bool,
+    ) -> Self {
+        InertiaPage {
+            component,
+            url,
+            props,
+            version,
+            merge_props,
+            deferred_props,
+            clear_history,
+            encrypt_history,
+        }
+    }
+
     pub fn get_props(&self) -> &Map<String, Value> {
         &self.props
     }
@@ -64,51 +135,17 @@ impl InertiaPage {
     }
 
     pub fn get_url(&self) -> &str {
-        &self.url
+        self.url
     }
 
-    pub fn get_version(&self) -> &Option<String> {
+    pub fn get_version(&self) -> &Option<&str> {
         &self.version
-    }
-}
-
-impl InertiaPage {
-    /// Instantiates an Inertia Page object to sent as http response,
-    /// according to [Inertia Protocol].
-    ///
-    /// [Inertia Protocol]: https://inertiajs.com/the-protocol
-    ///
-    /// # Arguments
-    /// * `component`   -   The name of the javascript page component (e.g. "/Me").
-    /// * `url`         -   The Inertia instance's url (the application URL). It can be a
-    ///                     whole href or an absolute hostless path ("/me").
-    /// * `version`     -   Current assets version. Used to assert assets are up-to-date. See
-    ///                     [Inertia's assets versioning] page for more details.
-    /// * `props`       -   A map of the page's props.
-    ///
-    /// [Inertia's assets versioning]: https://inertiajs.com/the-protocol#asset-versioning
-    ///
-    pub fn new(
-        component: Component,
-        url: String,
-        // this indicates that the version str must live at least until the request is freed
-        // from memory. This will happen because the version given is the Inertia::version, a
-        // static living str.
-        version: Option<String>,
-        props: Map<String, Value>,
-    ) -> Self {
-        InertiaPage {
-            component,
-            url,
-            props,
-            version,
-        }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::props::InertiaProp;
+    use crate::props::{resolve_props, InertiaProp};
     use crate::req_type::{InertiaRequestType, PartialComponent};
     use crate::{Component, InertiaPage};
     use actix_web::test;
@@ -159,20 +196,27 @@ mod test {
 
         let page = InertiaPage::new(
             Component("Events".into()),
-            "/events/80".to_string(),
-            Some("generated_version".into()),
-            InertiaProp::resolve_props(&props, req_type),
+            "/events/80",
+            Some("generated_version"),
+            resolve_props(&props, &req_type),
+            None,
+            None,
+            false,
+            false,
         );
 
         let json_page_example = json!({
-          "component": "Events",
-          "props": {
+            "clearHistory":false,
+            "component": "Events",
+            "encryptHistory":false,
+            "props": {
             // "auth": { "name": "John Doe" },              // NOT included
             // "categories": ["foo", "bar"],                // NOT included
             "events": [{"id": 1, "title": "Baile"}]      // included
-          },
-          "url": "/events/80",
-          "version": "generated_version"
+            },
+            "url": "/events/80",
+            "version": "generated_version",
+
         });
 
         assert_eq!(
@@ -200,19 +244,25 @@ mod test {
 
         let page = InertiaPage::new(
             Component("Categories".into()),
-            "/categories".to_string(),
-            Some("generated_version".into()),
-            InertiaProp::resolve_props(&props, req_type),
+            "/categories",
+            Some("generated_version"),
+            resolve_props(&props, &req_type),
+            None,
+            None,
+            false,
+            false,
         );
 
         let json_page_example = json!({
-          "component": "Categories",
-          "props": {
+            "clearHistory": false,
+            "component": "Categories",
+            "encryptHistory": false,
+            "props": {
             // "radioStatus": { "announcer": "John Doe" },  // NOT included
             "categories": ["foo", "bar"],                   // included
-          },
-          "url": "/categories",
-          "version": "generated_version"
+            },
+            "url": "/categories",
+            "version": "generated_version"
         });
 
         assert_eq!(
