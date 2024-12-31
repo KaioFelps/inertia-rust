@@ -208,3 +208,260 @@ pub fn get_deferred_props<'b>(
         false => Some(deferred_props),
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::props::{get_deferred_props, resolve_props, InertiaProp};
+    use crate::req_type::{InertiaRequestType, PartialComponent};
+    use crate::{hashmap, Component, InertiaPage};
+    use actix_web::test;
+    use serde::Serialize;
+    use serde_json::{json, Value};
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    #[test]
+    async fn test_inertia_partials_visit_page() {
+        #[derive(Serialize)]
+        struct Events {
+            id: u16,
+            title: String,
+        }
+
+        let event = Events {
+            id: 1,
+            title: "Baile".into(),
+        };
+
+        let props = hashmap![
+            "event" => InertiaProp::Data(json!({"name": "John Doe"})),
+            "categories" => InertiaProp::Data(vec!["foo".to_string(), "bar".to_string()].into()),
+            "events" => InertiaProp::Data(
+                serde_json::to_value(vec![serde_json::to_value(event).unwrap()]).unwrap(),
+            )
+        ];
+
+        // Request headers
+        // X-Inertia: true
+        // X-Inertia-Version: generated_version
+        // X-Inertia-Partial-Data: events
+        // X-Inertia-Partial-Component: Events
+        let req_type = InertiaRequestType::Partial(PartialComponent {
+            component: Component("Events".to_string()),
+            only: Vec::from(["events".to_string()]),
+            except: Vec::new(),
+        });
+
+        let page = InertiaPage::new(
+            Component("Events".into()),
+            "/events/80",
+            Some("generated_version"),
+            resolve_props(&props, &req_type),
+            None,
+            None,
+            false,
+            false,
+        );
+
+        let json_page_example = json!({
+            "clearHistory":false,
+            "component": "Events",
+            "encryptHistory":false,
+            "props": {
+            // "auth": { "name": "John Doe" },              // NOT included
+            // "categories": ["foo", "bar"],                // NOT included
+            "events": [{"id": 1, "title": "Baile"}]      // included
+            },
+            "url": "/events/80",
+            "version": "generated_version",
+
+        });
+
+        assert_eq!(
+            json!(page).to_string(),
+            serde_json::to_string(&json_page_example).unwrap(),
+        );
+    }
+
+    #[test]
+    async fn test_inertia_standard_visit_page() {
+        let props = hashmap! [
+            "radioStatus" => InertiaProp::Demand(Arc::new(|| json!({"announcer": "John Doe"}))),
+            "categories" => InertiaProp::Data(vec!["foo".to_string(), "bar".to_string()].into())
+        ];
+
+        // Request headers
+        // X-Inertia: true
+        // X-Inertia-Version: generated_version
+        let req_type = InertiaRequestType::Standard;
+
+        let page = InertiaPage::new(
+            Component("Categories".into()),
+            "/categories",
+            Some("generated_version"),
+            resolve_props(&props, &req_type),
+            None,
+            None,
+            false,
+            false,
+        );
+
+        let json_page_example = json!({
+            "clearHistory": false,
+            "component": "Categories",
+            "encryptHistory": false,
+            "props": {
+            // "radioStatus": { "announcer": "John Doe" },  // NOT included
+            "categories": ["foo", "bar"],                   // included
+            },
+            "url": "/categories",
+            "version": "generated_version"
+        });
+
+        assert_eq!(
+            json!(page).to_string(),
+            serde_json::to_string(&json_page_example).unwrap(),
+        );
+    }
+
+    fn get_deferred_props_hashmap<'a>() -> HashMap<&'a str, InertiaProp<'a>> {
+        hashmap![
+            "users" => InertiaProp::Deferred(Arc::new(|| vec!["user1", "user2", "user3"].into()), Some("users")),
+            "permissions" => InertiaProp::Deferred(Arc::new(|| vec!["delete", "update", "read"].into()), Some("users")),
+            "events" => InertiaProp::Deferred(Arc::new(|| vec!["event1", "event2", "event3"].into()), None)
+        ]
+    }
+
+    #[test]
+    async fn test_standard_request_deferred_props_behavior() {
+        let props = get_deferred_props_hashmap();
+
+        let standard_page = json!(InertiaPage {
+            deferred_props: get_deferred_props(&props, &InertiaRequestType::Standard),
+            component: "Foo".into(),
+            clear_history: false,
+            encrypt_history: false,
+            merge_props: None,
+            props: resolve_props(&props, &InertiaRequestType::Standard),
+            url: "foo",
+            version: Some("foo")
+        });
+
+        assert!(
+            standard_page.clone()["deferredProps"]["default"]
+                .as_array()
+                .unwrap()
+                .contains(&serde_json::to_value("events").unwrap()),
+            "Deferred Props field from standard visit should contain an 'default' gorup containing 'events' key."
+        );
+
+        assert!([
+            serde_json::to_value("users").unwrap(),
+            serde_json::to_value("permissions").unwrap()
+        ]
+        .iter()
+        .all(|key| standard_page.clone()["deferredProps"]["users"]
+            .as_array()
+            .unwrap()
+            .contains(key)),
+            "Deferred Props field from standard visit should contain an 'user' group containing 'users' and 'permissions' keys."
+        );
+
+        assert!(standard_page["props"].as_object().unwrap().is_empty(), "Props field should be empty once there is only deferred props in it and it's an standard request.");
+    }
+
+    #[test]
+    async fn test_partial_request_for_default_group_from_deferred_props_behavior() {
+        let props = get_deferred_props_hashmap();
+
+        // partial request for 'default' group only contains 'events' prop
+        let partial_req_for_default = InertiaRequestType::Partial(PartialComponent {
+            component: "Foo".into(),
+            only: vec!["events".into()],
+            except: vec![],
+        });
+
+        let default_partial_page = json!(InertiaPage {
+            deferred_props: get_deferred_props(&props, &partial_req_for_default),
+            component: "Foo".into(),
+            clear_history: false,
+            encrypt_history: false,
+            merge_props: None,
+            props: resolve_props(&props, &partial_req_for_default),
+            url: "foo",
+            version: Some("foo")
+        });
+
+        assert!(
+            default_partial_page.get("deferredProps").is_none(),
+            "'deferredProps' field should not exist in partial requests."
+        );
+
+        assert!(
+            default_partial_page["props"]
+                .as_object()
+                .unwrap()
+                .get("events")
+                .is_some_and(
+                    |events| ["event1", "event2", "event3"].iter().all(|event| events
+                        .as_array()
+                        .unwrap()
+                        .contains(&Value::String(event.to_string())))
+                ),
+            "partial request for 'default' group should contain 'events' list in 'props' field with the props events values."
+        )
+    }
+
+    #[test]
+    async fn test_partial_request_for_users_group_from_deferred_props_behavior() {
+        let props = get_deferred_props_hashmap();
+
+        let partial_req_for_users = InertiaRequestType::Partial(PartialComponent {
+            component: "Foo".into(),
+            only: vec!["users".into(), "permissions".into()],
+            except: vec![],
+        });
+
+        let users_partial_page = json!(InertiaPage {
+            deferred_props: get_deferred_props(&props, &partial_req_for_users),
+            component: "Foo".into(),
+            clear_history: false,
+            encrypt_history: false,
+            merge_props: None,
+            props: resolve_props(&props, &partial_req_for_users),
+            url: "foo",
+            version: Some("foo")
+        });
+
+        assert!(
+            users_partial_page.get("deferredProps").is_none(),
+            "'deferredProps' field should not exist in partial requests."
+        );
+
+        assert!(users_partial_page["props"]
+            .as_object()
+            .unwrap()
+            .get("users")
+            .is_some_and(
+                |users| ["user1", "user2", "user3"].iter().all(|user| users
+                    .as_array()
+                    .unwrap()
+                    .contains(&serde_json::to_value(user).unwrap()))
+            ),
+            "'props' field should contain an 'users' group which should be a list containing the values from given props hashmap 'users' field."
+        );
+
+        assert!(users_partial_page["props"]
+            .as_object()
+            .unwrap()
+            .get("permissions")
+            .is_some_and(
+                |permissions| ["delete", "update", "read"].iter().all(|permission| permissions
+                    .as_array()
+                    .unwrap()
+                    .contains(&serde_json::to_value(permission).unwrap()))
+            ),
+            "'props' field should contain an 'permissions' group which should be a list containing the values from given props hashmap 'permissions' field."
+        );
+    }
+}
