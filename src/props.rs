@@ -211,14 +211,14 @@ pub fn get_deferred_props<'b>(
 
 #[cfg(test)]
 mod test {
-    use crate::props::{get_deferred_props, resolve_props, InertiaProp};
+    use crate::props::{get_deferred_props, get_mergeable_props, resolve_props, InertiaProp};
     use crate::req_type::{InertiaRequestType, PartialComponent};
     use crate::{hashmap, Component, InertiaPage};
     use actix_web::test;
     use serde::Serialize;
-    use serde_json::{json, Value};
+    use serde_json::{json, to_value, Value};
     use std::collections::HashMap;
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
 
     #[test]
     async fn test_inertia_partials_visit_page() {
@@ -463,5 +463,188 @@ mod test {
             ),
             "'props' field should contain an 'permissions' group which should be a list containing the values from given props hashmap 'permissions' field."
         );
+    }
+
+    #[test]
+    async fn test_mergeable_props_behavior_without_reset_list() {
+        let get_inertia_pages = |page: usize| -> (Value, Value) {
+            let users_memory_db = Arc::new(vec!["user1", "user2", "user3", "user4", "user5"]);
+            let permissions_memory_db = ["read", "update", "delete"];
+
+            let props = hashmap![
+                "permissions" => InertiaProp::Mergeable(Box::new(InertiaProp::Data(to_value(
+                    permissions_memory_db.iter().skip((page -1) * 2).take(2).cloned().collect::<Vec<_>>()
+                ).unwrap()))),
+                "users" => InertiaProp::Deferred(Arc::new(move || to_value(users_memory_db
+                    .iter()
+                    .skip((page - 1) * 3)
+                    .take(3)
+                    .cloned()
+                    .collect::<Vec<_>>()).unwrap()), None)
+                    .into_mergeable()
+            ];
+
+            let partial_req = InertiaRequestType::Partial(PartialComponent {
+                component: "Foo".into(),
+                except: vec![],
+                only: vec!["users".into()],
+            });
+
+            (
+                json!(InertiaPage {
+                    clear_history: false,
+                    encrypt_history: false,
+                    component: "Foo".into(),
+                    deferred_props: get_deferred_props(&props, &InertiaRequestType::Standard),
+                    merge_props: get_mergeable_props(&props, vec![]),
+                    props: resolve_props(&props, &InertiaRequestType::Standard),
+                    url: "",
+                    version: Some("")
+                }),
+                json!(InertiaPage {
+                    clear_history: false,
+                    encrypt_history: false,
+                    component: "Foo".into(),
+                    deferred_props: get_deferred_props(&props, &partial_req),
+                    merge_props: get_mergeable_props(&props, vec![]),
+                    props: resolve_props(&props, &partial_req,),
+                    url: "",
+                    version: Some("")
+                }),
+            )
+        };
+
+        let page = Arc::new(Mutex::new(1));
+        let (standard_page, partial_page) = get_inertia_pages(*page.lock().unwrap() as usize);
+
+        assert!(standard_page["props"]
+            .as_object()
+            .unwrap()
+            .contains_key("permissions"));
+
+        assert!(partial_page["props"]
+            .as_object()
+            .unwrap()
+            .contains_key("users"));
+
+        assert!(["permissions", "users"]
+            .iter()
+            .all(|prop| standard_page["mergeProps"]
+                .as_array()
+                .is_some_and(|props| props.contains(&to_value(prop).unwrap()))));
+
+        assert!(standard_page["deferredProps"]["default"]
+            .as_array()
+            .unwrap()
+            .contains(&to_value("users").unwrap()));
+
+        assert!(["user1", "user2", "user3"]
+            .iter()
+            .all(|user| partial_page["props"]["users"]
+                .as_array()
+                .is_some_and(|users| users.contains(&to_value(user).unwrap()))));
+
+        assert!(["read", "update"]
+            .iter()
+            .all(|permission| standard_page["props"]["permissions"]
+                .as_array()
+                .is_some_and(|permissions| permissions.contains(&to_value(permission).unwrap()))));
+
+        //
+        // second page
+        //
+        *page.lock().unwrap() = 2;
+        let (standard_page, partial_page) = get_inertia_pages(*page.lock().unwrap() as usize);
+
+        println!("{}\n\n", standard_page);
+        println!("{}\n\n", partial_page);
+
+        assert!(partial_page["props"]
+            .as_object()
+            .unwrap()
+            .contains_key("users"));
+
+        assert!(standard_page["props"]
+            .as_object()
+            .unwrap()
+            .contains_key("permissions"));
+
+        assert!(["permissions", "users"]
+            .iter()
+            .all(|prop| standard_page["mergeProps"]
+                .as_array()
+                .is_some_and(|props| props.contains(&to_value(prop).unwrap()))));
+
+        assert!(standard_page["deferredProps"]["default"]
+            .as_array()
+            .unwrap()
+            .contains(&to_value("users").unwrap()));
+
+        assert!(["user4", "user5"]
+            .iter()
+            .all(|user| partial_page["props"]["users"]
+                .as_array()
+                .is_some_and(|users| users.contains(&to_value(user).unwrap()))));
+
+        assert!(standard_page["props"]["permissions"]
+            .as_array()
+            .is_some_and(|permissions| permissions.eq(&["delete"])));
+    }
+
+    #[test]
+    async fn test_mergeable_props_behavior_with_reset() {
+        let get_inertia_page = |page: usize, keys_to_reset: &[&str]| -> Value {
+            let permissions_mem_db = ["read", "update", "delete"];
+            let per_page = 2;
+
+            let props = hashmap![
+                "permissions" => InertiaProp::Data(to_value(
+                    permissions_mem_db
+                    .iter()
+                    .skip((page -1) * per_page)
+                    .take(per_page)
+                    .cloned()
+                    .collect::<Vec<_>>())
+                    .unwrap())
+                    .into_mergeable()
+            ];
+
+            json!(InertiaPage {
+                clear_history: false,
+                encrypt_history: false,
+                component: "Foo".into(),
+                deferred_props: None,
+                merge_props: get_mergeable_props(&props, keys_to_reset.to_vec()),
+                props: resolve_props(&props, &InertiaRequestType::Standard),
+                url: "",
+                version: None,
+            })
+        };
+
+        let page = Arc::new(Mutex::new(1));
+
+        let inertia_page = get_inertia_page(*page.lock().unwrap() as usize, &[]);
+
+        assert!(inertia_page["mergeProps"]
+            .as_array()
+            .unwrap()
+            .contains(&to_value("permissions").unwrap()));
+
+        assert!(["read", "update"]
+            .iter()
+            .all(|permission| inertia_page["props"]["permissions"]
+                .as_array()
+                .unwrap()
+                .contains(&to_value(permission).unwrap())));
+
+        *page.lock().unwrap() = 2;
+        let inertia_page = get_inertia_page(*page.lock().unwrap() as usize, &["permissions"]);
+
+        assert!(inertia_page.get("mergeProps").is_none());
+
+        assert!(inertia_page["props"]["permissions"]
+            .as_array()
+            .unwrap()
+            .eq(&["delete"]));
     }
 }
