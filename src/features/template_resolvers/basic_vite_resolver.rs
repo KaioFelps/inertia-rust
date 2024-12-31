@@ -1,14 +1,19 @@
-use crate::{InertiaError, TemplateResolverOutput, ViewData};
+use crate::{template_resolver::TemplateResolver, InertiaError, ViewData};
+use async_trait::async_trait;
 use std::path::Path;
 use vite_rust::{features::html_directives::ViteDefaultDirectives, Vite};
 
-// The async resolver
-pub fn template_resolver(
-    template_path: &'static str,
-    view_data: ViewData,
-    vite: &'static Vite,
-) -> TemplateResolverOutput {
-    Box::pin(async move {
+pub struct BasicViteResolver {
+    vite: Vite,
+}
+
+#[async_trait(?Send)]
+impl TemplateResolver for BasicViteResolver {
+    async fn resolve_template(
+        &self,
+        template_path: &str,
+        view_data: ViewData<'_>,
+    ) -> Result<String, InertiaError> {
         let path = Path::new(template_path);
         let file = match tokio::fs::read(&path).await {
             Ok(file) => file,
@@ -30,13 +35,13 @@ pub fn template_resolver(
             Ok(html) => html,
         };
 
-        if let Err(err) = vite.vite_directive(&mut html) {
+        if let Err(err) = self.vite.vite_directive(&mut html) {
             log::warn!("Failed to resolve vite directive: {}", err);
         };
 
-        vite.assets_url_directive(&mut html);
-        vite.hmr_directive(&mut html);
-        vite.react_directive(&mut html);
+        self.vite.assets_url_directive(&mut html);
+        self.vite.hmr_directive(&mut html);
+        self.vite.react_directive(&mut html);
 
         match &view_data.ssr_page {
             Some(ssr) => {
@@ -63,5 +68,5 @@ pub fn template_resolver(
         }
 
         Ok(html)
-    })
+    }
 }

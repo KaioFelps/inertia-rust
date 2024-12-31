@@ -37,5 +37,5 @@ pub mod actix {
 
 #[cfg(feature = "basic-vite-resolver")]
 pub mod resolvers {
-    pub use super::features::template_resolvers::basic_vite_resolver;
+    pub use super::features::template_resolvers::BasicViteResolver;
 }
