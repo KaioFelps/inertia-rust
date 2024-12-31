@@ -11,26 +11,26 @@ use std::sync::Arc;
 use crate::temporary_session::InertiaTemporarySession;
 use crate::{InertiaProp, InertiaProps};
 
-type SharedPropsCallback = dyn Fn(&ServiceRequest) -> InertiaProps;
+type SharedPropsCallback<'a> = dyn Fn(&ServiceRequest) -> InertiaProps<'a>;
 
-pub struct InertiaMiddleware {
-    shared_props_cb: Arc<SharedPropsCallback>,
+pub struct InertiaMiddleware<'a> {
+    shared_props_cb: Arc<SharedPropsCallback<'a>>,
 }
 
-impl Default for InertiaMiddleware {
+impl Default for InertiaMiddleware<'_> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl InertiaMiddleware {
+impl<'a> InertiaMiddleware<'a> {
     pub fn new() -> Self {
         Self {
             shared_props_cb: Arc::new(|_req| HashMap::new()),
         }
     }
 
-    pub fn with_shared_props(mut self, props: Arc<SharedPropsCallback>) -> Self {
+    pub fn with_shared_props(mut self, props: Arc<SharedPropsCallback<'a>>) -> Self {
         self.shared_props_cb = props;
         self
     }
@@ -39,16 +39,17 @@ impl InertiaMiddleware {
 // Middleware factory is `Transform` trait
 // `S` - type of the next service
 // `B` - type of response's body
-impl<S, B> Transform<S, ServiceRequest> for InertiaMiddleware
+impl<'a, S, B> Transform<S, ServiceRequest> for InertiaMiddleware<'a>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
     S::Future: 'static,
     B: 'static,
+    'a: 'static,
 {
     type Response = ServiceResponse<B>;
     type Error = Error;
     type InitError = ();
-    type Transform = InertiaMiddlewareService<S>;
+    type Transform = InertiaMiddlewareService<'a, S>;
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
@@ -60,18 +61,19 @@ where
     }
 }
 
-pub struct InertiaMiddlewareService<S> {
+pub struct InertiaMiddlewareService<'a, S> {
     service: S,
-    shared_props: Arc<SharedPropsCallback>,
+    shared_props: Arc<SharedPropsCallback<'a>>,
 }
 
-pub(crate) struct SharedProps(pub InertiaProps);
+pub(crate) struct SharedProps<'a>(pub InertiaProps<'a>);
 
-impl<S, B> Service<ServiceRequest> for InertiaMiddlewareService<S>
+impl<'a, S, B> Service<ServiceRequest> for InertiaMiddlewareService<'a, S>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
     S::Future: 'static,
     B: 'static,
+    'a: 'static,
 {
     type Response = ServiceResponse<B>;
     type Error = Error;
