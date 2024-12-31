@@ -27,6 +27,7 @@ impl InertiaRequestType {
     }
 
     #[inline]
+    #[allow(unused)]
     pub fn unwrap_partial(self) -> PartialComponent {
         match self {
             InertiaRequestType::Standard => {
