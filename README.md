@@ -34,6 +34,10 @@ to install) `vite-rust` basic directives (also must be enabled manually at featu
 to inject Vite's tags and Inertia's body and head into your HTML template.
 
 ### Creating your own template resolver
+
+> [!WARNING]
+> Outdated
+
 A template resolver function must be provided during Inertia setup. The basic vite resolver
 might fit for most usages. If you need something more specific, you will need to create
 two functions: one to actually resolve the template and a wrapper function, so that the resolver
@@ -73,6 +77,9 @@ If you don't need any extern struct, you can simply pass a `&'static ()` on Iner
 field. Note that, *Inertia<T>* requires *template_resolver*'s third parameter to be of type *T* either.
 
 ### Inertia setup
+
+> [!WARNING]
+> Outdated
 
 For this guide, I'll consider you're using `vite-rust` and `actix-web`, with the above Cargo.toml dependencies.
 Inside your `main.rs`, you'll have to:
@@ -135,6 +142,10 @@ async fn main() -> std::io::Result<()> {
 ```
 
 #### Server-side rendering
+
+> [!WARNING]
+> Outdated
+
 
 If you have Node.js available in the machine your Rust application is running at, you can enable
 **server-side rendering**. For this, you'll need to do some few changes in your code:
@@ -204,6 +215,10 @@ async fn main() -> std::io::Result<()> {
 ```
 
 ## Page rendering and Responses
+
+> [!WARNING]
+> Outdated
+
 There are a few couple ways of rendering an Inertia page. Every provider will aim to give you
 as many facilities as possible.
 
