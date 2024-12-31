@@ -7,7 +7,7 @@ use std::{collections::HashMap, sync::Arc};
 
 type PropResolver = Arc<dyn Fn() -> Value + Send + Sync>;
 
-pub type InertiaProps<'a> = HashMap<String, InertiaProp<'a>>;
+pub type InertiaProps<'a> = HashMap<&'a str, InertiaProp<'a>>;
 
 #[derive(Clone)]
 pub enum InertiaProp<'a> {
@@ -89,50 +89,51 @@ pub(crate) fn resolve_props<'a>(
                     }
                 }
 
-                props.insert(key.clone(), prop.clone().resolve_unconditionally());
+                props.insert(key.to_string(), prop.clone().resolve_unconditionally());
             }
         }
 
         InertiaRequestType::Partial(partial) => raw_props.iter().for_each(|(key, prop)| {
+            let key = key.to_string();
             match prop {
                 InertiaProp::Always(value) => {
-                    props.insert(key.clone(), value.clone());
+                    props.insert(key, value.clone());
                 }
 
                 InertiaProp::Data(value) => {
-                    if should_be_pushed(key, partial) {
-                        props.insert(key.clone(), value.clone());
+                    if should_be_pushed(&key, partial) {
+                        props.insert(key, value.clone());
                     }
                 }
 
                 InertiaProp::Lazy(resolver) => {
-                    if should_be_pushed(key, partial) {
-                        props.insert(key.clone(), resolver());
+                    if should_be_pushed(&key, partial) {
+                        props.insert(key, resolver());
                     }
                 }
 
                 InertiaProp::Demand(resolver) => {
-                    if should_be_pushed(key, partial) {
-                        props.insert(key.clone(), resolver());
+                    if should_be_pushed(&key, partial) {
+                        props.insert(key, resolver());
                     }
                 }
 
                 InertiaProp::Deferred(resolver, _) => {
-                    if should_be_pushed(key, partial) {
-                        props.insert(key.clone(), resolver());
+                    if should_be_pushed(&key, partial) {
+                        props.insert(key, resolver());
                     }
                 }
 
                 InertiaProp::Mergeable(prop) => match &**prop {
                     InertiaProp::Data(value) => {
-                        if should_be_pushed(key, partial) {
-                            props.insert(key.clone(), value.clone());
+                        if should_be_pushed(&key, partial) {
+                            props.insert(key.to_string(), value.clone());
                         }
                     }
 
                     InertiaProp::Deferred(resolver, _) => {
-                        if should_be_pushed(key, partial) {
-                            props.insert(key.clone(), resolver());
+                        if should_be_pushed(&key, partial) {
+                            props.insert(key.to_string(), resolver());
                         }
                     }
 
@@ -158,9 +159,9 @@ pub fn get_mergeable_props<'b>(
     let props = props
         .iter()
         .filter(|(key, prop)| {
-            matches!(**prop, InertiaProp::Mergeable(_)) && !keys_to_reset.contains(&key.as_str())
+            matches!(**prop, InertiaProp::Mergeable(_)) && !keys_to_reset.contains(*key)
         })
-        .map(|(key, _)| key.as_str())
+        .map(|(key, _)| *key)
         .collect::<Vec<_>>();
 
     match props.is_empty() {
@@ -196,9 +197,9 @@ pub fn get_deferred_props<'b>(
         }
 
         if !deferred_props.contains_key(group) {
-            deferred_props.insert(group, vec![key.as_str()]);
+            deferred_props.insert(group, vec![*key]);
         } else {
-            deferred_props.get_mut(group).unwrap().push(key.as_str());
+            deferred_props.get_mut(group).unwrap().push(*key);
         }
     }
 

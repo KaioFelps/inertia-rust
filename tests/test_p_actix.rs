@@ -13,7 +13,7 @@ use actix_web::{
 use common::template_resolver::{get_dynamic_csr_expect, MockedTemplateResolver};
 use inertia_rust::{
     actix::{render, render_with_props, InertiaHeader, InertiaMiddleware},
-    InertiaPage, InertiaService, InertiaTemporarySession,
+    hashmap, InertiaPage, InertiaService, InertiaTemporarySession,
 };
 use inertia_rust::{Component, Inertia, InertiaConfig, InertiaProp, InertiaVersion};
 use serde_json::{json, Map};
@@ -51,7 +51,7 @@ async fn with_props(req: HttpRequest) -> impl Responder {
     render_with_props(
         &req,
         Component("Index".into()),
-        HashMap::from([("user".into(), InertiaProp::Always("John Doe".into()))]),
+        HashMap::from([("user", InertiaProp::Always("John Doe".into()))]),
     )
     .await
 }
@@ -205,18 +205,14 @@ async fn test_render_with_props() {
 
 #[tokio::test]
 async fn test_shared_props() {
-    let test_shared_property_key = "sharedProperty";
-    let test_shared_property_value = "Some amazing value!";
+    const TEST_SHARED_PROPERTY_KEY: &str = "sharedProperty";
+    const TEST_SHARED_PROPERTY_VALUE: &str = "Some amazing value!";
 
     let app = actix_web::test::init_service(generate_actix_app().await.wrap(
         InertiaMiddleware::new().with_shared_props(Arc::new(|_req| {
-            let mut shared_props = HashMap::new();
-            shared_props.insert(
-                test_shared_property_key.to_string(),
-                InertiaProp::Always(test_shared_property_value.into()),
-            );
-
-            shared_props
+            hashmap![
+                TEST_SHARED_PROPERTY_KEY => InertiaProp::Always(TEST_SHARED_PROPERTY_VALUE.into()),
+            ]
         })),
     ))
     .await;
@@ -237,8 +233,8 @@ async fn test_shared_props() {
     let json_body: InertiaPage = serde_json::from_slice(&body[..]).unwrap();
 
     assert_eq!(
-        test_shared_property_value,
-        json_body.get_props().get(test_shared_property_key).unwrap()
+        TEST_SHARED_PROPERTY_VALUE,
+        json_body.get_props().get(TEST_SHARED_PROPERTY_KEY).unwrap()
     );
 }
 

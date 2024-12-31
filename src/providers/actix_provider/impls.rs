@@ -317,11 +317,10 @@ mod test {
     };
     use crate::req_type::PartialComponent;
     use crate::template_resolver::TemplateResolver;
-    use crate::{Component, Inertia, InertiaError, InertiaPage, InertiaVersion};
+    use crate::{hashmap, Component, Inertia, InertiaError, InertiaPage, InertiaVersion};
     use actix_web::body::MessageBody;
     use actix_web::test;
     use serde_json::json;
-    use std::collections::HashMap;
     use std::str::from_utf8;
 
     use super::resolve_props;
@@ -378,15 +377,10 @@ mod test {
         )
         .unwrap();
 
-        let mut props: HashMap<String, InertiaProp> = HashMap::<String, InertiaProp>::new();
-        props.insert(
-            "title".into(),
-            InertiaProp::Data("My website's cool title!".into()),
-        );
-        props.insert(
-            "content".into(),
-            InertiaProp::Data("Such a nice content, isn't it?".into()),
-        );
+        let props = hashmap![
+            "title" => InertiaProp::Data("My website's cool title!".into()),
+            "content" => InertiaProp::Data("Such a nice content, isn't it?".into()),
+        ];
 
         let fake_req = test::TestRequest::get()
             .insert_header(InertiaHeader::Inertia.convert())
