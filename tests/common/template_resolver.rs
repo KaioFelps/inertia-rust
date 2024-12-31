@@ -1,4 +1,5 @@
-use inertia_rust::{InertiaError, TemplateResolverOutput, ViewData};
+use async_trait::async_trait;
+use inertia_rust::{InertiaError, TemplateResolver, ViewData};
 use std::path::Path;
 
 use crate::super_trim;
@@ -15,71 +16,69 @@ pub fn get_dynamic_csr_expect(url: &str, props: &str, component: &str, version: 
     
 </head>
 <body>
-    <div id="app" data-page={{"component":"{}","props":{},"url":"{}","version":"{}"}}></div>
+    <div id="app" data-page={{"component":"{}","props":{},"url":"{}","version":"{}","clearHistory":false,"encryptHistory":false}}></div>
 </body>
 </html>"#,
         component, props, url, version
     ))
 }
 
-async fn _mocked_resolver(
-    template_path: &str,
-    view_data: ViewData,
-) -> Result<String, InertiaError> {
-    let path = Path::new(template_path);
+pub struct MockedTemplateResolver;
 
-    let read_file = tokio::fs::read(&path).await;
+#[async_trait(?Send)]
+impl TemplateResolver for MockedTemplateResolver {
+    async fn resolve_template(
+        &self,
+        template_path: &str,
+        view_data: ViewData<'_>,
+    ) -> Result<String, InertiaError> {
+        let path = Path::new(template_path);
 
-    if read_file.is_err() {
-        return Err(InertiaError::SsrError(format!(
-            "Failed to open root layout at {}: {:#}",
-            path.to_str().unwrap(),
-            read_file.unwrap_err()
-        )));
-    }
+        let read_file = tokio::fs::read(&path).await;
 
-    let data = read_file.unwrap();
-
-    let mut html = match String::from_utf8(data) {
-        Err(err) => {
+        if read_file.is_err() {
             return Err(InertiaError::SsrError(format!(
-                "Failed to read file contents: {err:?}"
-            )))
+                "Failed to open root layout at {}: {:#}",
+                path.to_str().unwrap(),
+                read_file.unwrap_err()
+            )));
         }
-        Ok(html) => html,
-    };
 
-    match view_data.ssr_page {
-        Some(ssr) => {
-            html = html.replace("%-inertia_body-%", ssr.get_body());
-            html = html.replace("%-inertia_head-%", &ssr.get_head());
-        }
-        None => {
-            let stringified_page: Result<String, serde_json::Error> =
-                serde_json::to_string(&view_data.page);
+        let data = read_file.unwrap();
 
-            if stringified_page.is_err() {
-                return Err(InertiaError::SerializationError(format!(
-                    "Failed to serialize view_data.page: {:?}",
-                    &view_data.page
-                )));
+        let mut html = match String::from_utf8(data) {
+            Err(err) => {
+                return Err(InertiaError::SsrError(format!(
+                    "Failed to read file contents: {err:?}"
+                )))
             }
+            Ok(html) => html,
+        };
 
-            let stringified_page = stringified_page.unwrap();
+        match view_data.ssr_page {
+            Some(ssr) => {
+                html = html.replace("%-inertia_body-%", ssr.get_body());
+                html = html.replace("%-inertia_head-%", &ssr.get_head());
+            }
+            None => {
+                let stringified_page: Result<String, serde_json::Error> =
+                    serde_json::to_string(&view_data.page);
 
-            let container = format!("<div id=\"app\" data-page={stringified_page}></div>",);
-            html = html.replace("%-inertia_body-%", &container);
-            html = html.replace("%-inertia_head-%", "");
+                if stringified_page.is_err() {
+                    return Err(InertiaError::SerializationError(format!(
+                        "Failed to serialize view_data.page: {:?}",
+                        &view_data.page
+                    )));
+                }
+
+                let stringified_page = stringified_page.unwrap();
+
+                let container = format!("<div id=\"app\" data-page={stringified_page}></div>",);
+                html = html.replace("%-inertia_body-%", &container);
+                html = html.replace("%-inertia_head-%", "");
+            }
         }
+
+        Ok(html)
     }
-
-    Ok(html)
-}
-
-pub fn mocked_resolver(
-    template_path: &'static str,
-    view_data: ViewData,
-    _data: &(),
-) -> TemplateResolverOutput {
-    Box::pin(_mocked_resolver(template_path, view_data))
 }
