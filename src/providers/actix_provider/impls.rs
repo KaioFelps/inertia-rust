@@ -235,13 +235,13 @@ impl InertiaHttpRequest for HttpRequest {
     fn should_clear_history(&self) -> bool {
         self.extensions()
             .get::<ShallClearHistory>()
-            .map_or(false, |ShallClearHistory(v)| *v)
+            .is_some_and(|ShallClearHistory(v)| *v)
     }
 
     fn should_encrypt_history(&self) -> bool {
         self.extensions()
             .get::<ShallEncryptHistory>()
-            .map_or(false, |ShallEncryptHistory(v)| *v)
+            .is_some_and(|ShallEncryptHistory(v)| *v)
     }
 }
 
