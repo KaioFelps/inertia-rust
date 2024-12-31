@@ -2,8 +2,8 @@ use super::headers;
 use super::middleware::SharedProps;
 
 use crate::inertia::{Inertia, InertiaHttpRequest, InertiaResponder, InertiaService, ViewData};
-use crate::props::InertiaProp;
 use crate::props::InertiaProps;
+use crate::props::{get_deferred_props, get_mergeable_props, resolve_props};
 use crate::req_type::{InertiaRequestType, PartialComponent};
 use crate::utils::convert_struct_to_stringified_json;
 use crate::utils::{inertia_err_msg, request_page_render};
@@ -20,7 +20,7 @@ use actix_web::{
 use async_trait::async_trait;
 use std::collections::HashMap;
 
-impl Responder for InertiaPage {
+impl Responder for InertiaPage<'_> {
     type Body = BoxBody;
 
     #[inline]
@@ -34,25 +34,22 @@ impl Responder for InertiaPage {
 }
 
 #[async_trait(?Send)]
-impl<T> InertiaResponder<HttpResponse, HttpRequest> for Inertia<T>
-where
-    T: 'static,
-{
+impl InertiaResponder<HttpResponse, HttpRequest> for Inertia {
     #[inline]
-    async fn render(
-        &self,
-        req: &HttpRequest,
+    async fn render<'b>(
+        &'b self,
+        req: &'b HttpRequest,
         component: Component,
     ) -> Result<HttpResponse, InertiaError> {
         self.render_with_props(req, component, HashMap::new()).await
     }
 
     #[inline]
-    async fn render_with_props(
-        &self,
-        req: &HttpRequest,
+    async fn render_with_props<'b>(
+        &'b self,
+        req: &'b HttpRequest,
         component: Component,
-        props: InertiaProps,
+        props: InertiaProps<'b>,
     ) -> Result<HttpResponse, InertiaError> {
         let url = req.uri().to_string();
         let req_type: InertiaRequestType = req.get_request_type()?;
@@ -61,18 +58,30 @@ where
             return Ok(forced_refresh);
         };
 
-        let mut props = InertiaProp::resolve_props(&props, req_type.clone());
+        let reset = req.get_merge_props_to_be_reset();
+        let deferred_props = get_deferred_props(&props, &req_type);
+        let merge_props = get_mergeable_props(&props, reset);
+        let mut props = resolve_props(&props, &req_type);
 
         if let Some(SharedProps(shared_props)) = req.extensions().get::<SharedProps>() {
-            let shared_props = InertiaProp::resolve_props(shared_props, req_type);
+            let shared_props = resolve_props(shared_props, &req_type);
             props.extend(shared_props);
         }
 
-        let page = InertiaPage::new(component, url, Some(self.version.to_string()), props);
+        let page = InertiaPage::new(
+            component,
+            &url,
+            Some(self.version),
+            props,
+            merge_props,
+            deferred_props,
+            req.should_clear_history(),
+            req.should_encrypt_history(),
+        );
 
-        // if it's an inertia request, returns an InertiaPage object
         if req.is_inertia_request() {
-            return Ok(page.respond_to(req));
+            let inertia_page = page.respond_to(req);
+            return Ok(inertia_page);
         }
 
         let mut ssr_page = None;
@@ -100,12 +109,10 @@ where
             custom_props: self.custom_view_data.clone(),
         };
 
-        let html = match (self.template_resolver)(
-            self.template_path,
-            view_data,
-            self.template_resolver_data,
-        )
-        .await
+        let html = match self
+            .template_resolver
+            .resolve_template(self.template_path, view_data)
+            .await
         {
             Err(err) => return Err(err),
             Ok(html) => html,
@@ -153,18 +160,18 @@ where
         InitError = (),
     >,
 {
-    fn inertia_route<T>(self, path: &str, component: &'static str) -> Self
-    where
-        T: 'static,
-    {
+    fn inertia_route(self, path: &str, component: &'static str) -> Self {
         self.route(
             path,
             web::get().to(move |req: HttpRequest| async move {
-                crate::actix::render::<T>(&req, component.into()).await
+                crate::actix::render(&req, component.into()).await
             }),
         )
     }
 }
+
+struct ShallClearHistory(bool);
+struct ShallEncryptHistory(bool);
 
 impl InertiaHttpRequest for HttpRequest {
     fn is_inertia_request(&self) -> bool {
@@ -203,9 +210,6 @@ impl InertiaHttpRequest for HttpRequest {
         Ok(InertiaRequestType::Partial(partials))
     }
 
-    /// Checks if application assets version matches.
-    /// If the request contains the inertia version header, it will be checked.
-    /// Otherwise, it means it does not have outdated assets and can also pass.
     fn check_inertia_version(&self, current_version: &str) -> bool {
         self.headers()
             .get(headers::X_INERTIA_VERSION)
@@ -214,6 +218,30 @@ impl InertiaHttpRequest for HttpRequest {
                     .to_str()
                     .is_ok_and(|version| version == current_version)
             })
+    }
+
+    fn get_merge_props_to_be_reset(&self) -> Vec<&str> {
+        self.headers()
+            .get(headers::X_INERTIA_RESET)
+            .map_or(vec![], |header| {
+                header
+                    .to_str()
+                    .unwrap_or("")
+                    .split(", ")
+                    .collect::<Vec<_>>()
+            })
+    }
+
+    fn should_clear_history(&self) -> bool {
+        self.extensions()
+            .get::<ShallClearHistory>()
+            .map_or(false, |ShallClearHistory(v)| *v)
+    }
+
+    fn should_encrypt_history(&self) -> bool {
+        self.extensions()
+            .get::<ShallEncryptHistory>()
+            .map_or(false, |ShallEncryptHistory(v)| *v)
     }
 }
 
@@ -241,10 +269,7 @@ pub trait InertiaActixHelpers {
     fn check_and_handle_version_mismatch(&self, req: &HttpRequest) -> Result<(), HttpResponse>;
 }
 
-impl<T> InertiaActixHelpers for Inertia<T>
-where
-    T: 'static,
-{
+impl InertiaActixHelpers for Inertia {
     fn check_and_handle_version_mismatch(&self, req: &HttpRequest) -> Result<(), HttpResponse> {
         if req.is_inertia_request() && !req.check_inertia_version(self.version) {
             // tries to reflash Inertia session
@@ -291,14 +316,15 @@ mod test {
         X_INERTIA_PARTIAL_EXCEPT,
     };
     use crate::req_type::PartialComponent;
-    use crate::{
-        Component, Inertia, InertiaError, InertiaPage, InertiaVersion, TemplateResolverOutput,
-    };
+    use crate::template_resolver::TemplateResolver;
+    use crate::{Component, Inertia, InertiaError, InertiaPage, InertiaVersion};
     use actix_web::body::MessageBody;
     use actix_web::test;
     use serde_json::json;
     use std::collections::HashMap;
     use std::str::from_utf8;
+
+    use super::resolve_props;
 
     #[test]
     async fn test_get_partials_requirements() {
@@ -321,36 +347,33 @@ mod test {
         )
     }
 
-    #[test]
-    async fn test_inertia_page() {
-        async fn resolver(
+    struct MyTemplateResolver;
+
+    #[async_trait::async_trait(?Send)]
+    impl TemplateResolver for MyTemplateResolver {
+        async fn resolve_template(
+            &self,
             _path: &str,
-            view_data: ViewData,
-            _data: &'static (),
+            view_data: ViewData<'_>,
         ) -> Result<String, InertiaError> {
             // import the layout root using your favourite engine
             // and renders it passing to it the view_data!
+            let page = view_data.page;
             Ok(format!(
                 "<div id='app' data-page='{}'><div>",
-                serde_json::to_string(&view_data.page).unwrap()
+                serde_json::to_string(&page).unwrap()
             ))
         }
+    }
 
-        fn resolver_wrapper(
-            path: &'static str,
-            view_data: ViewData,
-            _data: &'static (),
-        ) -> TemplateResolverOutput {
-            Box::pin(resolver(path, view_data, _data))
-        }
-
+    #[test]
+    async fn test_inertia_page() {
         let inertia = Inertia::new(
             InertiaConfig::builder()
                 .set_url("https://my-inertia-website.com")
                 .set_version(InertiaVersion::Resolver(Box::new(|| "gen_the_version")))
                 .set_template_path("/resources/view/template.hbs")
-                .set_template_resolver(&resolver_wrapper)
-                .set_template_resolver_data(&())
+                .set_template_resolver(Box::new(MyTemplateResolver))
                 .build(),
         )
         .unwrap();
@@ -379,9 +402,13 @@ mod test {
         // the url and version! Let's mock it for this example, then!
         let page = InertiaPage::new(
             Component("/Users/Index".into()),
-            "/users".to_string(),
-            Some("gen_the_version".to_string()),
-            InertiaProp::resolve_props(&props, fake_req.get_request_type().unwrap()),
+            "/users",
+            Some("gen_the_version"),
+            resolve_props(&props, &fake_req.get_request_type().unwrap()),
+            None,
+            None,
+            false,
+            false,
         );
 
         let body = inertia
