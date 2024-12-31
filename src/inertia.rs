@@ -1,29 +1,35 @@
-use std::future::Future;
-use std::io;
-use std::pin::Pin;
-
 use crate::config::InertiaConfig;
 use crate::node_process::NodeJsProc;
 use crate::props::InertiaProps;
 use crate::req_type::InertiaRequestType;
+use crate::template_resolver::TemplateResolver;
 use crate::{InertiaError, InertiaPage, InertiaSSRPage, InertiaTemporarySession};
 use async_trait::async_trait;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use std::io;
 
 #[allow(unused)]
 pub const X_INERTIA: &str = "x-inertia";
+
 #[allow(unused)]
 pub const X_INERTIA_LOCATION: &str = "x-inertia-location";
+
 #[allow(unused)]
 pub const X_INERTIA_VERSION: &str = "x-inertia-version";
+
 #[allow(unused)]
 pub const X_INERTIA_PARTIAL_COMPONENT: &str = "x-inertia-partial-component";
+
 #[allow(unused)]
 pub const X_INERTIA_PARTIAL_DATA: &str = "x-inertia-partial-data";
+
 #[allow(unused)]
 pub const X_INERTIA_PARTIAL_EXCEPT: &str = "x-inertia-partial-except";
+
+#[allow(unused)]
+pub const X_INERTIA_RESET: &str = "x-inertia-reset";
 
 /// The javascript component name.
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -53,9 +59,7 @@ pub trait InertiaService {
     ///
     /// App::new().inertia_route("/", "Index");
     /// ```
-    fn inertia_route<T>(self, path: &str, component: &'static str) -> Self
-    where
-        T: 'static;
+    fn inertia_route(self, path: &str, component: &'static str) -> Self;
 }
 
 /// InertiaResponder trait defines methods that every provider
@@ -70,9 +74,9 @@ pub trait InertiaResponder<TResponder, THttpRequest> {
     /// * `req`         -   The HTTP request.
     /// * `component`   -   The page javascript component name to be rendered by the
     ///                     client-side adapter.
-    async fn render(
-        &self,
-        req: &THttpRequest,
+    async fn render<'b>(
+        &'b self,
+        req: &'b THttpRequest,
         component: Component,
     ) -> Result<TResponder, InertiaError>;
 
@@ -89,11 +93,11 @@ pub trait InertiaResponder<TResponder, THttpRequest> {
     /// or any of its fields don't implement [`Serialize`] trait.
     ///
     /// [`Serialize`]: serde::Serialize
-    async fn render_with_props(
-        &self,
-        req: &THttpRequest,
+    async fn render_with_props<'b>(
+        &'b self,
+        req: &'b THttpRequest,
         component: Component,
-        props: InertiaProps,
+        props: InertiaProps<'b>,
     ) -> Result<TResponder, InertiaError>;
 
     /// Provokes a client-side redirect to an extern URL.
@@ -107,10 +111,19 @@ pub trait InertiaResponder<TResponder, THttpRequest> {
 /// Defines some helper methods to be implemented to HttpRequests from the
 /// library opted by the cargo feature.
 pub(crate) trait InertiaHttpRequest {
+    fn should_clear_history(&self) -> bool;
+
+    fn should_encrypt_history(&self) -> bool;
+
+    fn get_merge_props_to_be_reset(&self) -> Vec<&str>;
+
     fn is_inertia_request(&self) -> bool;
 
     fn get_request_type(&self) -> Result<InertiaRequestType, InertiaError>;
 
+    /// Checks if application assets version matches.
+    /// If the request contains the inertia version header, it will be checked.
+    /// Otherwise, it means it does not have outdated assets and can also pass.
     fn check_inertia_version(&self, current_version: &str) -> bool;
 }
 
@@ -135,18 +148,11 @@ where
 }
 
 /// View Data is a struct containing props to be used by the root template.
-pub struct ViewData {
-    pub page: InertiaPage,
+pub struct ViewData<'a> {
+    pub page: InertiaPage<'a>,
     pub ssr_page: Option<InertiaSSRPage>,
     pub custom_props: Map<String, Value>,
 }
-
-pub type TemplateResolverOutput =
-    Pin<Box<dyn Future<Output = Result<String, InertiaError>> + Send + Sync + 'static>>;
-pub(crate) type TemplateResolver<T> = &'static (dyn Fn(&'static str, ViewData, &'static T) -> TemplateResolverOutput
-              + Send
-              + Sync
-              + 'static);
 
 pub(crate) type ReflashSession =
     Box<dyn Fn(Option<InertiaTemporarySession>) -> Result<(), InertiaError> + Send + Sync>;
@@ -182,10 +188,7 @@ impl Default for SsrClient {
 /// It is supposed to last during the whole application runtime.
 ///
 /// Extra details of how to initialize and keep it is specific to the feature-opted http library.
-pub struct Inertia<T>
-where
-    T: 'static,
-{
+pub struct Inertia {
     /// URL used between redirects and responses generation, i.g. "https://myapp.com".
     #[allow(unused)]
     pub(crate) url: &'static str,
@@ -193,28 +196,8 @@ where
     pub(crate) template_path: &'static str,
     /// The current assets version.
     pub(crate) version: &'static str,
-    /// A function responsible for rendering the root template
-    /// with the given **view data** and/or **page data**.
-    ///
-    /// This should be relative by the template engine you are using, and it is mandatory for
-    /// rendering the HTML to be served on full requests. Since Rust does not offer a standard
-    /// template engine, there are various options, and it is not our goal to tie you to a specific
-    /// one which we opted to use.
-    ///
-    /// # Arguments
-    /// Inertia will call this function passing the following parameters to it:
-    /// * `path`        -   The path to the application template (`Inertia::template_path`).
-    /// * `view_data`   -   A [`ViewData`] struct,
-    ///
-    /// # Errors
-    /// Returns an [`InertiaError::RenderError`] if it fails to render the html.
-    ///
-    /// # Return
-    /// The return must be the template rendered to HTML. It will be sent as response to full
-    /// requests.
-    pub(crate) template_resolver: TemplateResolver<T>,
-    /// The data to provide to template resolver
-    pub(crate) template_resolver_data: &'static T,
+    /// A struct that implements [TemplateResolver] trait.
+    pub(crate) template_resolver: Box<dyn TemplateResolver>,
     /// Address of Inertia local render server. Will be used by Inertia to perform ssr.
     pub(crate) ssr_url: Option<Url>,
     /// Extra data to be passed to the root template.
@@ -235,10 +218,7 @@ where
     pub(crate) reflash_inertia_session: ReflashSession,
 }
 
-impl<T> Inertia<T>
-where
-    T: 'static,
-{
+impl Inertia {
     /// Initializes an instance of [`Inertia`] struct.
     ///
     /// # Arguments
@@ -248,14 +228,12 @@ where
     /// * `template_path`           -   The path for the root html template.
     /// * `template_resolver`       -   A function that renders the given root template html. Check
     ///                                 more details at [`Inertia::template_resolver`] doc string.
-    /// * `template_resolver_data`  -   The third parameter of your template resolver. Inertia will
-    ///                                 pass it by reference when calling the resolver function.
     ///                                 If you don't plan to use it, just pass an empty tuple (both here
     ///                                 and in your template resolver).
     ///
     ///  # Errors
     /// Returns an [`InertiaError::SsrError`] if it fails to connect to the server.
-    pub fn new<V>(config: InertiaConfig<T, V>) -> Result<Self, io::Error>
+    pub fn new<V>(config: InertiaConfig<V>) -> Result<Self, io::Error>
     where
         V: ToString,
     {
@@ -289,7 +267,6 @@ where
             template_path: config.template_path,
             version,
             template_resolver: config.template_resolver,
-            template_resolver_data: config.template_resolver_data,
             ssr_url,
             custom_view_data: config.view_data.unwrap_or_default(),
             reflash_inertia_session: config.reflash_inertia_session,
@@ -321,40 +298,34 @@ where
     ///     InertiaVersion,
     ///     InertiaError,
     ///     ViewData,
-    ///     TemplateResolverOutput,
+    ///     TemplateResolver,
     ///     InertiaConfig
     /// };
     /// use std::pin::Pin;
     /// use std::future::Future;
     ///
     /// async fn server() {
-    ///     // note that this is the async function and the actual resolver
-    ///     async fn _resolver(
-    ///         path: &'static str, // "www/index.html"
-    ///         view_data: ViewData,
-    ///         _data: &'static ()
-    ///     ) -> Result<String, InertiaError> {
-    ///         // import the layout root and render it using your template engine
-    ///         // lets pretend we rendered it, so it ended up being the html output below!
-    ///         Ok("<h1>my rendered page!</h1>".to_string())
-    ///     }
+    ///     struct MyTemplateResolver;
     ///
-    ///     // a wrapper for the resolver, so that it can be stored inside the Inertia struct
-    ///     fn resolver(
-    ///         path: &'static str,
-    ///         view_data: ViewData,
-    ///         _data: &'static ()
-    ///     ) -> TemplateResolverOutput {
-    ///         Box::pin(_resolver(path, view_data, _data))
+    ///     #[async_trait::async_trait(?Send)]
+    ///     impl TemplateResolver for MyTemplateResolver {
+    ///         async fn resolve_template(
+    ///             &self,
+    ///             template_path: &str,
+    ///             view_data: ViewData<'_>,
+    ///         ) -> Result<String, InertiaError> {
+    ///             // import the layout root and render it using your template engine
+    ///             // lets pretend we rendered it, so it ended up being the html output below!
+    ///             Ok("<h1>my rendered page!</h1>".to_string())
+    ///         }
     ///     }
     ///
     ///     let inertia = Inertia::new(
     ///         InertiaConfig::builder()
     ///             .set_url("https://www.my-web-app.com")
     ///             .set_version(InertiaVersion::Literal("my-assets-version"))
-    ///             .set_template_resolver(&resolver)
+    ///             .set_template_resolver(Box::new(MyTemplateResolver))
     ///             .set_template_path("www/index.html")
-    ///             .set_template_resolver_data(&())
     ///             .build()
     ///     )
     ///     .unwrap();

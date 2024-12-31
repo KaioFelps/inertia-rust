@@ -13,14 +13,8 @@ use actix_web::{HttpRequest, HttpResponse};
 ///
 /// # Panic
 /// Panics if Inertia instance hasn't been configured (set to AppData).
-pub async fn render<T>(
-    req: &HttpRequest,
-    component: Component,
-) -> Result<HttpResponse, InertiaError>
-where
-    T: 'static,
-{
-    let inertia = extract_inertia::<T>(req);
+pub async fn render(req: &HttpRequest, component: Component) -> Result<HttpResponse, InertiaError> {
+    let inertia = extract_inertia(req);
     inertia.render(req, component).await
 }
 
@@ -33,23 +27,17 @@ where
 ///
 /// # Panic
 /// Panics if Inertia instance hasn't been configured (set to AppData).
-pub async fn render_with_props<T>(
+pub async fn render_with_props(
     req: &HttpRequest,
     component: Component,
-    props: InertiaProps,
-) -> Result<HttpResponse, InertiaError>
-where
-    T: 'static,
-{
-    let inertia: &Inertia<T> = extract_inertia(req);
+    props: InertiaProps<'_>,
+) -> Result<HttpResponse, InertiaError> {
+    let inertia: &Inertia = extract_inertia(req);
     inertia.render_with_props(req, component, props).await
 }
 
-fn extract_inertia<T>(req: &HttpRequest) -> &Inertia<T>
-where
-    T: 'static,
-{
-    match req.app_data::<Data<Inertia<T>>>() {
+fn extract_inertia(req: &HttpRequest) -> &Inertia {
+    match req.app_data::<Data<Inertia>>() {
         None => panic!("{}", &inertia_err_msg("There is no Inertia struct in AppData. Please, assure you have correctly configured Inertia.".into())),
         Some(inertia) => inertia
     }

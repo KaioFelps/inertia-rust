@@ -10,12 +10,12 @@ use actix_web::{
     web::{Data, Redirect},
     App, HttpMessage, HttpRequest, HttpResponse, Responder,
 };
-use common::template_resolver::{get_dynamic_csr_expect, mocked_resolver};
+use common::template_resolver::{get_dynamic_csr_expect, MockedTemplateResolver};
 use inertia_rust::{
     actix::{render, render_with_props, InertiaHeader, InertiaMiddleware},
     InertiaPage, InertiaService, InertiaTemporarySession,
 };
-use inertia_rust::{Component, Inertia, InertiaConfig, InertiaProp, InertiaProps, InertiaVersion};
+use inertia_rust::{Component, Inertia, InertiaConfig, InertiaProp, InertiaVersion};
 use serde_json::{json, Map};
 use std::{
     collections::HashMap,
@@ -36,7 +36,7 @@ fn super_trim(text: String) -> String {
 
 #[get("/")]
 async fn home(req: HttpRequest) -> impl Responder {
-    let response = render::<()>(&req, Component("Index".into())).await;
+    let response = render(&req, Component("Index".into())).await;
     match response {
         Ok(response) => response,
         Err(error) => {
@@ -48,18 +48,12 @@ async fn home(req: HttpRequest) -> impl Responder {
 
 #[get("/withprops")]
 async fn with_props(req: HttpRequest) -> impl Responder {
-    let mut props: InertiaProps = HashMap::new();
-    props.insert("user".to_string(), InertiaProp::Always("John Doe".into()));
-
-    let response = render_with_props::<()>(&req, Component("Index".into()), props).await;
-
-    match response {
-        Ok(response) => response,
-        Err(error) => {
-            log::error!("{:#?}", error);
-            HttpResponse::InternalServerError().finish()
-        }
-    }
+    render_with_props(
+        &req,
+        Component("Index".into()),
+        HashMap::from([("user".into(), InertiaProp::Always("John Doe".into()))]),
+    )
+    .await
 }
 
 #[put("/redirect")]
@@ -93,8 +87,7 @@ async fn generate_actix_app() -> App<
             .set_url("https://inertiajs.com")
             .set_version(InertiaVersion::Literal(TEST_INERTIA_VERSION))
             .set_template_path("tests/common/root_layout.html")
-            .set_template_resolver(&mocked_resolver)
-            .set_template_resolver_data(&())
+            .set_template_resolver(Box::new(MockedTemplateResolver))
             .set_reflash_fn(Box::new(move |session| {
                 if let Some(session) = session {
                     SESSIONS_STORAGE
@@ -118,7 +111,7 @@ async fn generate_actix_app() -> App<
         .service(put_redirect)
         .service(post_redirect)
         .service(delete_redirect)
-        .inertia_route::<()>("/withservice", "Index")
+        .inertia_route("/withservice", "Index")
 }
 
 // endregion: --- Service

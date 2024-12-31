@@ -1,6 +1,5 @@
 use crate::{
-    inertia::{ReflashSession, TemplateResolver},
-    InertiaVersion, SsrClient,
+    inertia::ReflashSession, template_resolver::TemplateResolver, InertiaVersion, SsrClient,
 };
 use serde_json::{Map, Value};
 
@@ -18,7 +17,7 @@ use serde_json::{Map, Value};
 /// * `template_path`           -   The path for the root html template.
 /// * `template_resolver`       -   A function that renders the given root template html. Check
 ///                                 more details at [`Inertia::template_resolver`] document string.
-/// * `template_resolver_data`  -   The third parameter of your template resolver. Inertia will
+/// * `assets_manager`  -   The third parameter of your template resolver. Inertia will
 ///                                 pass it by reference when calling the resolver function.
 ///                                 If you don't plan to use it, just pass an empty tuple (both here
 ///                                 and in your template resolver).
@@ -30,25 +29,22 @@ use serde_json::{Map, Value};
 ///                                 handled by the provided `template_resolver`.
 ///
 /// [`Inertia::template_resolver`]: crate::inertia::Inertia
-pub struct InertiaConfig<T, V>
+pub struct InertiaConfig<V>
 where
-    T: 'static,
     V: ToString,
 {
     pub url: &'static str,
     pub version: InertiaVersion<V>,
     pub template_path: &'static str,
-    pub template_resolver: TemplateResolver<T>,
-    pub template_resolver_data: &'static T,
+    pub template_resolver: Box<dyn TemplateResolver>,
     pub with_ssr: bool,
     pub custom_ssr_client: Option<SsrClient>,
     pub view_data: Option<Map<String, Value>>,
     pub reflash_inertia_session: ReflashSession,
 }
 
-impl<T, V> InertiaConfig<T, V>
+impl<V> InertiaConfig<V>
 where
-    T: 'static,
     V: ToString,
 {
     /// Instatiates a new InertiaConfigBuilder instance. It must be configured using a fluent syntax.
@@ -56,47 +52,51 @@ where
     /// # Examples
     /// ```rust
     /// use inertia_rust::{InertiaVersion, InertiaConfig};
-    /// # use inertia_rust::{TemplateResolverOutput, ViewData, InertiaError};
-    /// # async fn _your_template_resolver(_template_path: &str, _view_data: ViewData) -> Result<String, InertiaError> {
-    /// #     return Ok("".to_string());
-    /// # }
+    /// # use inertia_rust::{ViewData, InertiaError, TemplateResolver};
     /// #
-    /// # pub fn your_template_resolver(template_path: &'static str, view_data: ViewData, _data: &()) -> TemplateResolverOutput {
-    /// #     Box::pin(_your_template_resolver(template_path, view_data))
-    /// # }
+    /// #   struct YourTemplateResolver;
+    /// #
+    /// #   #[async_trait::async_trait(?Send)]
+    /// #   impl TemplateResolver for YourTemplateResolver {
+    /// #       async fn resolve_template(
+    /// #           &self,
+    /// #           template_path: &str,
+    /// #           view_data: ViewData<'_>,
+    /// #       ) -> Result<String, InertiaError> {
+    /// #           // import the layout root and render it using your template engine
+    /// #           // lets pretend we rendered it, so it ended up being the html output below!
+    /// #           Ok("<h1>my rendered page!</h1>".to_string())
+    /// #       }
+    /// #   }
     /// #
     /// let inertia_config = InertiaConfig::builder()
     ///     .set_url("http://localhost:8080")
     ///     .set_version(InertiaVersion::Literal("v1"))
     ///     .set_template_path("path/to/template.html")
-    ///     .set_template_resolver(&your_template_resolver)
-    ///     .set_template_resolver_data(&())
+    ///     .set_template_resolver(Box::new(YourTemplateResolver))
     ///     .build();
     /// ```
-    pub fn builder() -> InertiaConfigBuilder<T, V> {
+    pub fn builder() -> InertiaConfigBuilder<V> {
         InertiaConfigBuilder::new()
     }
 }
 
-pub struct InertiaConfigBuilder<T, V>
+pub struct InertiaConfigBuilder<V>
 where
-    T: 'static,
     V: ToString,
 {
     pub url: Option<&'static str>,
     pub version: Option<InertiaVersion<V>>,
     pub template_path: Option<&'static str>,
-    pub template_resolver: Option<TemplateResolver<T>>,
-    pub template_resolver_data: Option<&'static T>,
+    pub template_resolver: Option<Box<dyn TemplateResolver>>,
     pub with_ssr: bool,
     pub custom_ssr_client: Option<SsrClient>,
     pub view_data: Option<Map<String, Value>>,
     pub reflash_inertia_session: Option<ReflashSession>,
 }
 
-impl<T, V> Default for InertiaConfigBuilder<T, V>
+impl<V> Default for InertiaConfigBuilder<V>
 where
-    T: 'static,
     V: ToString,
 {
     fn default() -> Self {
@@ -104,9 +104,8 @@ where
     }
 }
 
-impl<T, V> InertiaConfigBuilder<T, V>
+impl<V> InertiaConfigBuilder<V>
 where
-    T: 'static,
     V: ToString,
 {
     /// Instatiates a new InertiaConfigBuilder instance. It must be configured using a fluent syntax.
@@ -115,20 +114,27 @@ where
     /// ```rust
     /// use inertia_rust::{InertiaConfigBuilder, InertiaVersion};
     ///
-    /// # use inertia_rust::{TemplateResolverOutput, ViewData, InertiaError};
-    /// # async fn _your_template_resolver(_template_path: &str, _view_data: ViewData) -> Result<String, InertiaError> {
-    /// #     return Ok("".to_string());
-    /// # }
-    /// # pub fn your_template_resolver(template_path: &'static str, view_data: ViewData, _data: &()) -> TemplateResolverOutput {
-    /// #     Box::pin(_your_template_resolver(template_path, view_data))
-    /// # }
+    /// # use inertia_rust::{TemplateResolver, ViewData, InertiaError};
+    /// #   struct YourTemplateResolver;
+    /// #
+    /// #   #[async_trait::async_trait(?Send)]
+    /// #   impl TemplateResolver for YourTemplateResolver {
+    /// #       async fn resolve_template(
+    /// #           &self,
+    /// #           template_path: &str,
+    /// #           view_data: ViewData<'_>,
+    /// #       ) -> Result<String, InertiaError> {
+    /// #           // import the layout root and render it using your template engine
+    /// #           // lets pretend we rendered it, so it ended up being the html output below!
+    /// #           Ok("<h1>my rendered page!</h1>".to_string())
+    /// #       }
+    /// #   }
     /// #
     /// let inertia_config = InertiaConfigBuilder::new()
     ///     .set_url("http://localhost:8080")
     ///     .set_version(InertiaVersion::Literal("v1"))
     ///     .set_template_path("path/to/template.html")
-    ///     .set_template_resolver(&your_template_resolver)
-    ///     .set_template_resolver_data(&())
+    ///     .set_template_resolver(Box::new(YourTemplateResolver))
     ///     .build();
     /// ```
     pub fn new() -> Self {
@@ -137,7 +143,6 @@ where
             version: None,
             template_path: None,
             template_resolver: None,
-            template_resolver_data: None,
             view_data: None,
             with_ssr: false,
             custom_ssr_client: None,
@@ -165,13 +170,8 @@ where
         self
     }
 
-    pub fn set_template_resolver(mut self, template_resolver: TemplateResolver<T>) -> Self {
+    pub fn set_template_resolver(mut self, template_resolver: Box<dyn TemplateResolver>) -> Self {
         self.template_resolver = Some(template_resolver);
-        self
-    }
-
-    pub fn set_template_resolver_data(mut self, data: &'static T) -> Self {
-        self.template_resolver_data = Some(data);
         self
     }
 
@@ -197,9 +197,9 @@ where
     /// * `url`
     /// * `template_path`
     /// * `template_resolver`
-    /// * `template_resolver_data`
+    /// * `assets_manager`
     /// * `version`
-    pub fn build(self) -> InertiaConfig<T, V> {
+    pub fn build(self) -> InertiaConfig<V> {
         if self.url.is_none() {
             panic!(
             "[InertiaConfigBuilder] 'url' is a mandatory field and InertiaConfigBuilder cannot build without it.");
@@ -215,11 +215,6 @@ where
             "[InertiaConfigBuilder] 'template_resolver' is a mandatory field and InertiaConfigBuilder cannot build without it.");
         }
 
-        if self.template_resolver_data.is_none() {
-            panic!(
-            "[InertiaConfigBuilder] 'template_resolver_data' is a mandatory field and InertiaConfigBuilder cannot build without it.");
-        }
-
         if self.version.is_none() {
             panic!(
             "[InertiaConfigBuilder] 'version' is a mandatory field and InertiaConfigBuilder cannot build without it.");
@@ -229,7 +224,6 @@ where
             url: self.url.unwrap(),
             template_path: self.template_path.unwrap(),
             template_resolver: self.template_resolver.unwrap(),
-            template_resolver_data: self.template_resolver_data.unwrap(),
             version: self.version.unwrap(),
             view_data: self.view_data,
             with_ssr: self.with_ssr,
@@ -241,26 +235,25 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::{InertiaError, InertiaVersion, TemplateResolverOutput, ViewData};
+    use crate::{template_resolver::TemplateResolver, InertiaError, InertiaVersion, ViewData};
     use std::panic;
 
     use super::{InertiaConfig, InertiaConfigBuilder};
 
     // region: --- Mocks
 
-    async fn _mocked_resolver(
-        _template_path: &str,
-        _view_data: ViewData,
-    ) -> Result<String, InertiaError> {
-        Ok("".to_string())
-    }
+    #[derive(PartialEq, Eq)]
+    struct MyTemplateResolver;
 
-    pub fn mocked_resolver(
-        template_path: &'static str,
-        view_data: ViewData,
-        _data: &(),
-    ) -> TemplateResolverOutput {
-        Box::pin(_mocked_resolver(template_path, view_data))
+    #[async_trait::async_trait(?Send)]
+    impl TemplateResolver for MyTemplateResolver {
+        async fn resolve_template(
+            &self,
+            _path: &str,
+            _view_data: ViewData<'_>,
+        ) -> Result<String, InertiaError> {
+            Ok("".to_string())
+        }
     }
 
     // endregion: --- Mocks
@@ -271,60 +264,46 @@ mod test {
     fn builder_panics_if_critical_fields_are_unset() {
         // region: --- builders
         let build_totally_empty = panic::catch_unwind(move || {
-            InertiaConfigBuilder::<(), &str>::new().build();
+            InertiaConfigBuilder::<&str>::new().build();
         });
 
         let build_without_url = panic::catch_unwind(move || {
-            InertiaConfigBuilder::<(), &str>::new()
-                .set_template_resolver(&mocked_resolver)
+            InertiaConfigBuilder::<&str>::new()
+                .set_template_resolver(Box::new(MyTemplateResolver))
                 .set_template_path("path")
-                .set_template_resolver_data(&())
                 .set_version(InertiaVersion::Literal("v1"))
                 .build()
         });
 
         let build_without_template_resolver = panic::catch_unwind(move || {
-            InertiaConfigBuilder::<(), &str>::new()
+            InertiaConfigBuilder::<&str>::new()
                 .set_url("foo")
                 .set_template_path("path")
-                .set_template_resolver_data(&())
                 .set_version(InertiaVersion::Literal("v1"))
                 .build()
         });
 
         let build_without_template_path = panic::catch_unwind(move || {
-            InertiaConfigBuilder::<(), &str>::new()
+            InertiaConfigBuilder::<&str>::new()
                 .set_url("foo")
-                .set_template_resolver(&mocked_resolver)
-                .set_template_resolver_data(&())
-                .set_version(InertiaVersion::Literal("v1"))
-                .build()
-        });
-
-        let build_without_template_data = panic::catch_unwind(move || {
-            InertiaConfigBuilder::<(), &str>::new()
-                .set_url("foo")
-                .set_template_resolver(&mocked_resolver)
-                .set_template_path("path")
+                .set_template_resolver(Box::new(MyTemplateResolver))
                 .set_version(InertiaVersion::Literal("v1"))
                 .build()
         });
 
         let build_without_version = panic::catch_unwind(move || {
-            InertiaConfigBuilder::<(), &str>::new()
+            InertiaConfigBuilder::<&str>::new()
                 .set_url("foo")
-                .set_template_resolver(&mocked_resolver)
+                .set_template_resolver(Box::new(MyTemplateResolver))
                 .set_template_path("path")
-                .set_template_resolver_data(&())
                 .build()
         });
 
         let build_with_critical_fields_filled = panic::catch_unwind(move || {
-            InertiaConfigBuilder::<(), &str>::new()
+            InertiaConfigBuilder::<&str>::new()
                 .set_url("foo")
-                .set_template_resolver(&mocked_resolver)
+                .set_template_resolver(Box::new(MyTemplateResolver))
                 .set_template_path("path")
-                .set_template_resolver_data(&())
                 .set_version(InertiaVersion::Literal("v1"))
                 .build()
         });
@@ -334,26 +313,23 @@ mod test {
         assert!(build_without_url.is_err());
         assert!(build_without_template_resolver.is_err());
         assert!(build_without_template_path.is_err());
-        assert!(build_without_template_data.is_err());
         assert!(build_without_version.is_err());
         assert!(build_with_critical_fields_filled.is_ok());
     }
 
     #[test]
     fn builder_builds_correctly() {
-        let with_builder = InertiaConfigBuilder::<(), &str>::new()
+        let with_builder = InertiaConfigBuilder::<&str>::new()
             .set_url("foo")
-            .set_template_resolver(&mocked_resolver)
+            .set_template_resolver(Box::new(MyTemplateResolver))
             .set_template_path("path")
-            .set_template_resolver_data(&())
             .set_version(InertiaVersion::Literal("v1"))
             .build();
 
         let directly_initialized = InertiaConfig {
             url: "foo",
-            template_resolver: &mocked_resolver,
+            template_resolver: Box::new(MyTemplateResolver),
             template_path: "path",
-            template_resolver_data: &(),
             version: InertiaVersion::Literal("v1"),
             view_data: None,
             with_ssr: false,
@@ -365,10 +341,6 @@ mod test {
         assert_eq!(
             &with_builder.template_path,
             &directly_initialized.template_path
-        );
-        assert_eq!(
-            &with_builder.template_resolver_data,
-            &directly_initialized.template_resolver_data
         );
         assert_eq!(
             &with_builder.version.resolve(),

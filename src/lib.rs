@@ -7,6 +7,7 @@ mod page;
 mod props;
 mod providers;
 mod req_type;
+mod template_resolver;
 mod temporary_session;
 mod utils;
 
@@ -19,12 +20,12 @@ pub use inertia::Inertia;
 pub use inertia::InertiaService;
 pub use inertia::InertiaVersion;
 pub use inertia::SsrClient;
-pub use inertia::TemplateResolverOutput;
 pub use inertia::ViewData;
 pub use page::InertiaPage;
 pub use page::InertiaSSRPage;
 pub use props::InertiaProp;
 pub use props::InertiaProps;
+pub use template_resolver::TemplateResolver;
 pub use temporary_session::InertiaTemporarySession;
 
 #[cfg(feature = "actix")]
