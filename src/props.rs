@@ -2,10 +2,27 @@ use crate::{
     page::DeferredProps,
     req_type::{InertiaRequestType, PartialComponent},
 };
-use serde_json::{Map, Value};
+use serde::Serialize;
+use serde_json::{to_value, Map, Value};
 use std::{collections::HashMap, sync::Arc};
 
 type PropResolver = Arc<dyn Fn() -> Value + Send + Sync>;
+
+pub trait IntoPropResolver<T>
+where
+    T: Fn() -> Value + Send + Sync,
+{
+    fn wrap_with_arc(self) -> Arc<T>;
+}
+
+impl<T> IntoPropResolver<T> for T
+where
+    T: Fn() -> Value + Send + Sync,
+{
+    fn wrap_with_arc(self) -> Arc<T> {
+        Arc::new(self)
+    }
+}
 
 pub type InertiaProps<'a> = HashMap<&'a str, InertiaProp<'a>>;
 
