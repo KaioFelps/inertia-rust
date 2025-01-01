@@ -12,8 +12,8 @@ use actix_web::{
 };
 use common::template_resolver::{get_dynamic_csr_expect, MockedTemplateResolver};
 use inertia_rust::{
-    actix::{render, render_with_props, InertiaHeader, InertiaMiddleware},
-    hashmap, InertiaPage, InertiaService, InertiaTemporarySession, IntoPropResolver,
+    actix::{InertiaHeader, InertiaMiddleware},
+    hashmap, InertiaFacade, InertiaPage, InertiaService, InertiaTemporarySession, IntoPropResolver,
 };
 use inertia_rust::{Component, Inertia, InertiaConfig, InertiaProp, InertiaVersion};
 use serde::Deserialize;
@@ -38,7 +38,7 @@ fn super_trim(text: String) -> String {
 
 #[get("/")]
 async fn home(req: HttpRequest) -> impl Responder {
-    let response = render(&req, Component("Index".into())).await;
+    let response = Inertia::render(&req, Component("Index".into())).await;
     match response {
         Ok(response) => response,
         Err(error) => {
@@ -50,7 +50,7 @@ async fn home(req: HttpRequest) -> impl Responder {
 
 #[get("/withprops")]
 async fn with_props(req: HttpRequest) -> impl Responder {
-    render_with_props(
+    Inertia::render_with_props(
         &req,
         Component("Index".into()),
         HashMap::from([("user", InertiaProp::Always("John Doe".into()))]),
@@ -76,7 +76,7 @@ async fn merge_and_deferred_props(
     let permissions = ["read", "update", "delete", "create"];
     let users_clone = users.clone();
 
-    render_with_props(
+    Inertia::render_with_props(
         &req,
         "Index".into(),
         hashmap![
@@ -102,6 +102,11 @@ async fn merge_and_deferred_props(
         ],
     )
     .await
+}
+
+#[get("/location")]
+async fn location(req: HttpRequest) -> impl Responder {
+    Inertia::location(&req, "foo")
 }
 
 #[put("/redirect")]

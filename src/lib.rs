@@ -1,5 +1,6 @@
 mod config;
 mod error;
+mod facade;
 mod features;
 mod http_method;
 mod inertia;
@@ -15,6 +16,7 @@ pub mod node_process;
 
 pub use config::{InertiaConfig, InertiaConfigBuilder};
 pub use error::InertiaError;
+pub use facade::InertiaFacade;
 pub use inertia::Component;
 pub use inertia::Inertia;
 pub use inertia::InertiaService;
@@ -31,7 +33,6 @@ pub use temporary_session::InertiaTemporarySession;
 
 #[cfg(feature = "actix")]
 pub mod actix {
-    pub use super::providers::actix::facade::{render, render_with_props};
     pub use super::providers::actix::headers::InertiaHeader;
     pub use super::providers::actix::middleware::InertiaMiddleware;
 }

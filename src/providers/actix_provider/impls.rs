@@ -1,6 +1,7 @@
 use super::headers;
 use super::middleware::SharedProps;
 
+use crate::facade::InertiaFacade;
 use crate::inertia::{Inertia, InertiaHttpRequest, InertiaResponder, InertiaService, ViewData};
 use crate::props::InertiaProps;
 use crate::props::{get_deferred_props, get_mergeable_props, resolve_props};
@@ -165,7 +166,7 @@ where
         self.route(
             path,
             web::get().to(move |req: HttpRequest| async move {
-                crate::actix::render(&req, component.into()).await
+                Inertia::render(&req, component.into()).await
             }),
         )
     }
@@ -284,7 +285,7 @@ impl InertiaActixHelpers for Inertia {
                 );
             };
 
-            return Err(Self::location(req, &req.uri().to_string()));
+            return Err(Inertia::location(req, &req.uri().to_string()));
         }
 
         Ok(())
