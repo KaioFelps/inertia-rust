@@ -14,6 +14,7 @@ use actix_web::body::BoxBody;
 use actix_web::dev::{ServiceFactory, ServiceRequest};
 use actix_web::http::header::HeaderName;
 use actix_web::http::StatusCode;
+use actix_web::web::ServiceConfig;
 use actix_web::{
     web, App, FromRequest, HttpMessage, HttpRequest, HttpResponse, HttpResponseBuilder, Responder,
     ResponseError,
@@ -150,6 +151,19 @@ impl ResponseError for InertiaError {
         HttpResponseBuilder::new(StatusCode::INTERNAL_SERVER_ERROR)
             .insert_header(actix_web::http::header::ContentType::json())
             .body(self.get_cause())
+    }
+}
+
+impl InertiaService for &mut ServiceConfig {
+    fn inertia_route(self, path: &str, component: &'static str) -> Self {
+        self.route(
+            path,
+            web::get().to(move |req: HttpRequest| async move {
+                Inertia::render(&req, component.into()).await
+            }),
+        );
+
+        self
     }
 }
 
