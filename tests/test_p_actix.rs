@@ -106,7 +106,7 @@ async fn merge_and_deferred_props(
 
 #[get("/location")]
 async fn location(req: HttpRequest) -> impl Responder {
-    Inertia::location(&req, "foo")
+    Inertia::location(&req, "https://inertiajs.com")
 }
 
 #[put("/redirect")]
@@ -166,6 +166,7 @@ async fn generate_actix_app() -> App<
         .service(delete_redirect)
         .inertia_route("/withservice", "Index")
         .service(merge_and_deferred_props)
+        .service(location)
 }
 
 // endregion: --- Service
@@ -205,6 +206,25 @@ async fn test_assets_version_redirect() {
             .headers()
             .get("x-inertia-location")
             .unwrap()
+    );
+}
+
+#[tokio::test]
+async fn test_location() {
+    let app = actix_web::test::init_service(generate_actix_app().await).await;
+
+    let request = actix_web::test::TestRequest::get()
+        .uri("/location")
+        .insert_header(InertiaHeader::Inertia.convert())
+        .insert_header(InertiaHeader::Version(TEST_INERTIA_VERSION).convert())
+        .to_request();
+
+    let response = actix_web::test::call_service(&app, request).await;
+
+    assert_eq!(409u16, response.status().as_u16());
+    assert_eq!(
+        "https://inertiajs.com",
+        response.headers().get("x-inertia-location").unwrap()
     );
 }
 
