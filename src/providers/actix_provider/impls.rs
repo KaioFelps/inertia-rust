@@ -182,32 +182,31 @@ impl InertiaHttpRequest for HttpRequest {
     }
 
     fn get_request_type(&self) -> Result<InertiaRequestType, InertiaError> {
-        let partial_comp = self.headers().get(headers::X_INERTIA_PARTIAL_COMPONENT);
+        if let Some(header) = self.headers().get(headers::X_INERTIA_PARTIAL_COMPONENT) {
+            let component: Component = header
+                .to_str()
+                .map_err(|_| {
+                    InertiaError::SerializationError(format!(
+                        "Failed to serialize header {}",
+                        headers::X_INERTIA_PARTIAL_COMPONENT
+                    ))
+                })?
+                .into();
 
-        if partial_comp.is_none() {
-            return Ok(InertiaRequestType::Standard);
+            let only = extract_partials_headers_content(self, &headers::X_INERTIA_PARTIAL_DATA)?;
+            let except =
+                extract_partials_headers_content(self, &headers::X_INERTIA_PARTIAL_EXCEPT)?;
+
+            let partials = PartialComponent {
+                component,
+                only,
+                except,
+            };
+
+            return Ok(InertiaRequestType::Partial(partials));
         }
 
-        let partial_comp = partial_comp.unwrap().to_str();
-
-        if partial_comp.is_err() {
-            return Err(InertiaError::SerializationError(format!(
-                "Failed to serialize header {}",
-                headers::X_INERTIA_PARTIAL_COMPONENT
-            )));
-        }
-
-        let component = Component(partial_comp.unwrap().into());
-        let only = extract_partials_headers_content(self, &headers::X_INERTIA_PARTIAL_DATA)?;
-        let except = extract_partials_headers_content(self, &headers::X_INERTIA_PARTIAL_EXCEPT)?;
-
-        let partials = PartialComponent {
-            component,
-            only,
-            except,
-        };
-
-        Ok(InertiaRequestType::Partial(partials))
+        Ok(InertiaRequestType::Standard)
     }
 
     fn check_inertia_version(&self, current_version: &str) -> bool {
