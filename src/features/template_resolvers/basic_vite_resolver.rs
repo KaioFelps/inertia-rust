@@ -7,6 +7,12 @@ pub struct BasicViteResolver {
     vite: Vite,
 }
 
+impl BasicViteResolver {
+    pub fn new(vite: Vite) -> Self {
+        Self { vite }
+    }
+}
+
 #[async_trait(?Send)]
 impl TemplateResolver for BasicViteResolver {
     async fn resolve_template(
