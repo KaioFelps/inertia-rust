@@ -10,26 +10,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::io;
 
-#[allow(unused)]
 pub const X_INERTIA: &str = "x-inertia";
-
-#[allow(unused)]
 pub const X_INERTIA_LOCATION: &str = "x-inertia-location";
-
-#[allow(unused)]
 pub const X_INERTIA_VERSION: &str = "x-inertia-version";
-
-#[allow(unused)]
 pub const X_INERTIA_PARTIAL_COMPONENT: &str = "x-inertia-partial-component";
-
-#[allow(unused)]
 pub const X_INERTIA_PARTIAL_DATA: &str = "x-inertia-partial-data";
-
-#[allow(unused)]
 pub const X_INERTIA_PARTIAL_EXCEPT: &str = "x-inertia-partial-except";
-
-#[allow(unused)]
 pub const X_INERTIA_RESET: &str = "x-inertia-reset";
+pub const X_INERTIA_ERROR_BAG: &str = "x-inertia-error-bag";
 
 /// The javascript component name.
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]

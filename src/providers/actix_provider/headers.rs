@@ -1,34 +1,29 @@
-use crate::inertia;
+use crate::{inertia, Component};
 use actix_web::http::header::{HeaderName, HeaderValue};
 
-#[allow(unused)]
 pub const X_INERTIA: HeaderName = HeaderName::from_static(inertia::X_INERTIA);
-
-#[allow(unused)]
 pub const X_INERTIA_LOCATION: HeaderName = HeaderName::from_static(inertia::X_INERTIA_LOCATION);
-
-#[allow(unused)]
 pub const X_INERTIA_VERSION: HeaderName = HeaderName::from_static(inertia::X_INERTIA_VERSION);
-
-#[allow(unused)]
 pub const X_INERTIA_PARTIAL_COMPONENT: HeaderName =
     HeaderName::from_static(inertia::X_INERTIA_PARTIAL_COMPONENT);
 
-#[allow(unused)]
 pub const X_INERTIA_PARTIAL_DATA: HeaderName =
     HeaderName::from_static(inertia::X_INERTIA_PARTIAL_DATA);
 
-#[allow(unused)]
 pub const X_INERTIA_PARTIAL_EXCEPT: HeaderName =
     HeaderName::from_static(inertia::X_INERTIA_PARTIAL_EXCEPT);
 
-#[allow(unused)]
 pub const X_INERTIA_RESET: HeaderName = HeaderName::from_static(inertia::X_INERTIA_RESET);
+
+pub const X_INERTIA_ERROR_BAG: HeaderName = HeaderName::from_static(inertia::X_INERTIA_ERROR_BAG);
 
 pub enum InertiaHeader<'a> {
     Inertia,
     InertiaLocation(&'a str),
     InertiaPartialData(Vec<&'a str>),
+    InertiaPartialExcept(Vec<&'a str>),
+    InertiaPartialComponent(Component),
+    InertiaReset(Vec<&'a str>),
     Version(&'a str),
 }
 
@@ -40,23 +35,22 @@ impl InertiaHeader<'_> {
             Self::InertiaLocation(path) => {
                 (X_INERTIA_LOCATION, HeaderValue::from_str(path).unwrap())
             }
-            Self::InertiaPartialData(partials) => {
-                if partials.is_empty() {
-                    return (X_INERTIA_PARTIAL_DATA, HeaderValue::from_str("").unwrap());
-                }
-
-                let mut str_partials = String::from(partials[0]);
-
-                for part in partials[1..].iter() {
-                    str_partials.push(',');
-                    str_partials.push_str(part);
-                }
-
-                (
-                    X_INERTIA_PARTIAL_DATA,
-                    HeaderValue::from_str(str_partials.as_str()).unwrap(),
-                )
-            }
+            Self::InertiaPartialData(partials) => (
+                X_INERTIA_PARTIAL_DATA,
+                HeaderValue::from_str(&partials.join(",")).unwrap(),
+            ),
+            Self::InertiaPartialExcept(partials) => (
+                X_INERTIA_PARTIAL_EXCEPT,
+                HeaderValue::from_str(&partials.join(",")).unwrap(),
+            ),
+            Self::InertiaReset(reset) => (
+                X_INERTIA_PARTIAL_EXCEPT,
+                HeaderValue::from_str(&reset.join(",")).unwrap(),
+            ),
+            InertiaHeader::InertiaPartialComponent(Component(component)) => (
+                X_INERTIA_PARTIAL_COMPONENT,
+                HeaderValue::from_str(component).unwrap(),
+            ),
         }
     }
 }
