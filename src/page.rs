@@ -141,4 +141,20 @@ impl<'a> InertiaPage<'a> {
     pub fn get_version(&self) -> &Option<&str> {
         &self.version
     }
+
+    pub fn get_clear_history(&self) -> bool {
+        self.clear_history
+    }
+
+    pub fn get_encrypt_history(&self) -> bool {
+        self.encrypt_history
+    }
+
+    pub fn get_deferred_props(&self) -> &DeferredProps {
+        &self.deferred_props
+    }
+
+    pub fn get_merge_props(&self) -> &Option<Vec<&str>> {
+        &self.merge_props
+    }
 }
