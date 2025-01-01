@@ -24,6 +24,7 @@ pub enum InertiaHeader<'a> {
     InertiaPartialExcept(Vec<&'a str>),
     InertiaPartialComponent(Component),
     InertiaReset(Vec<&'a str>),
+    InertiaErrorBag(&'a str),
     Version(&'a str),
 }
 
@@ -47,10 +48,13 @@ impl InertiaHeader<'_> {
                 X_INERTIA_PARTIAL_EXCEPT,
                 HeaderValue::from_str(&reset.join(",")).unwrap(),
             ),
-            InertiaHeader::InertiaPartialComponent(Component(component)) => (
+            Self::InertiaPartialComponent(Component(component)) => (
                 X_INERTIA_PARTIAL_COMPONENT,
                 HeaderValue::from_str(component).unwrap(),
             ),
+            Self::InertiaErrorBag(bag) => {
+                (X_INERTIA_ERROR_BAG, HeaderValue::from_str(bag).unwrap())
+            }
         }
     }
 }
