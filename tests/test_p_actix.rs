@@ -7,16 +7,17 @@ use actix_web::{
     get,
     http::StatusCode,
     post, put,
-    web::{Data, Redirect},
+    web::{Data, Query, Redirect},
     App, HttpMessage, HttpRequest, HttpResponse, Responder,
 };
 use common::template_resolver::{get_dynamic_csr_expect, MockedTemplateResolver};
 use inertia_rust::{
     actix::{render, render_with_props, InertiaHeader, InertiaMiddleware},
-    hashmap, InertiaPage, InertiaService, InertiaTemporarySession,
+    hashmap, InertiaPage, InertiaService, InertiaTemporarySession, IntoPropResolver,
 };
 use inertia_rust::{Component, Inertia, InertiaConfig, InertiaProp, InertiaVersion};
-use serde_json::{json, Map};
+use serde::Deserialize;
+use serde_json::{json, to_value, Map};
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex, OnceLock},
@@ -24,6 +25,7 @@ use std::{
 
 const TEST_INERTIA_VERSION: &str = "v1.0.0";
 static SESSIONS_STORAGE: OnceLock<Arc<Mutex<Vec<InertiaTemporarySession>>>> = OnceLock::new();
+static TIMES_DEFERRED_RESOLVER_HAS_EXECUTED: OnceLock<Arc<Mutex<u32>>> = OnceLock::new();
 
 fn super_trim(text: String) -> String {
     text.trim()
@@ -52,6 +54,52 @@ async fn with_props(req: HttpRequest) -> impl Responder {
         &req,
         Component("Index".into()),
         HashMap::from([("user", InertiaProp::Always("John Doe".into()))]),
+    )
+    .await
+}
+
+#[derive(Deserialize)]
+struct MergeAndDeferredPropsQuery {
+    per_page: Option<usize>,
+    page: Option<usize>,
+}
+
+#[get("/merge_and_deferred_props")]
+async fn merge_and_deferred_props(
+    req: HttpRequest,
+    query: Query<MergeAndDeferredPropsQuery>,
+) -> impl Responder {
+    let page = query.page.unwrap_or(1);
+    let per_page = query.per_page.unwrap_or(3);
+
+    let users = Arc::new(["user1", "user2", "user3", "user4", "user5"]);
+    let permissions = ["read", "update", "delete", "create"];
+    let users_clone = users.clone();
+
+    render_with_props(
+        &req,
+        "Index".into(),
+        hashmap![
+            "authUser" => InertiaProp::data("").unwrap(),
+            // let's pretend this is a very heavy operation!
+            // so it make sense to defer it
+            "users" => InertiaProp::defer((move || {
+                let counter = TIMES_DEFERRED_RESOLVER_HAS_EXECUTED.get_or_init(|| Arc::new(Mutex::new(0)));
+                *counter.lock().unwrap() += 1;
+
+                to_value(users_clone
+                .clone()
+                .iter()
+                .skip((page -1)* per_page)
+                .take(per_page)
+                .cloned()
+                .collect::<Vec<_>>())
+                .unwrap()
+            })
+                .wrap_with_arc())
+                .into_mergeable(),
+            "permissions" => InertiaProp::merge(permissions.into_iter().skip((page-1)*per_page).take(per_page).collect::<Vec<_>>()).unwrap()
+        ],
     )
     .await
 }
@@ -112,6 +160,7 @@ async fn generate_actix_app() -> App<
         .service(post_redirect)
         .service(delete_redirect)
         .inertia_route("/withservice", "Index")
+        .service(merge_and_deferred_props)
 }
 
 // endregion: --- Service
@@ -315,6 +364,85 @@ async fn test_inertia_temporary_sessions() {
 
     assert!(!storage.lock().unwrap().is_empty());
     assert_eq!(&errors, storage.lock().unwrap()[0].errors.as_ref().unwrap());
+}
+
+#[tokio::test]
+async fn test_defer_and_merge_props() {
+    const ROUTE: &str = "/merge_and_deferred_props";
+    let app = actix_web::test::init_service(generate_actix_app().await).await;
+
+    let initial_standard_request = actix_web::test::TestRequest::get()
+        .uri(ROUTE)
+        .insert_header(InertiaHeader::Inertia.convert())
+        .insert_header(InertiaHeader::Version(TEST_INERTIA_VERSION).convert())
+        .to_request();
+
+    // in order to retrieve the deferred "users" prop
+    let initial_partial_request = actix_web::test::TestRequest::get()
+        .uri(&format!("{}?page=2", ROUTE))
+        .insert_header(InertiaHeader::Inertia.convert())
+        .insert_header(InertiaHeader::Version(TEST_INERTIA_VERSION).convert())
+        .insert_header(InertiaHeader::InertiaPartialData(vec!["users"]).convert())
+        .insert_header(InertiaHeader::InertiaPartialComponent("Index".into()).convert())
+        .to_request();
+
+    let standard_body = actix_web::test::call_service(&app, initial_standard_request)
+        .await
+        .into_body()
+        .try_into_bytes()
+        .unwrap()
+        .to_vec();
+
+    let partial_body = actix_web::test::call_service(&app, initial_partial_request)
+        .await
+        .into_body()
+        .try_into_bytes()
+        .unwrap()
+        .to_vec();
+
+    let standard_body: InertiaPage = serde_json::from_slice(&standard_body[..]).unwrap();
+    let partial_body: InertiaPage = serde_json::from_slice(&partial_body[..]).unwrap();
+
+    assert!(["users", "permissions"].iter().all(|prop| standard_body
+        .get_merge_props()
+        .as_ref()
+        .is_some_and(|props| props.contains(prop))));
+
+    assert!(standard_body
+        .get_deferred_props()
+        .as_ref()
+        .is_some_and(|props| props
+            .get("default")
+            .is_some_and(|default_props| default_props.eq(&["users"]))));
+
+    assert!(standard_body
+        .get_props()
+        .get("permissions")
+        .is_some_and(
+            |permissions| ["read", "delete", "update"]
+                .iter()
+                .all(|permission| permissions
+                    .as_array()
+                    .unwrap()
+                    .contains(&to_value(permission).unwrap()))
+        ));
+
+    assert!(partial_body
+        .get_props()
+        .get("users")
+        .is_some_and(|users_prop| ["user4", "user5"].iter().all(|user| users_prop
+            .as_array()
+            .unwrap()
+            .contains(&to_value(user).unwrap()))));
+
+    assert_eq!(
+        1,
+        *TIMES_DEFERRED_RESOLVER_HAS_EXECUTED
+            .get_or_init(|| Arc::new(Mutex::new(0)))
+            .lock()
+            .unwrap(),
+        "Deferred Resolver should have been called only once, since only one request has required it's group."
+    );
 }
 
 // endregion: --- Tests
