@@ -254,7 +254,7 @@ mod test {
             "event" => InertiaProp::Data(json!({"name": "John Doe"})),
             "categories" => InertiaProp::Data(vec!["foo".to_string(), "bar".to_string()].into()),
             "events" => InertiaProp::Data(
-                serde_json::to_value(vec![serde_json::to_value(event).unwrap()]).unwrap(),
+                to_value(vec![to_value(event).unwrap()]).unwrap(),
             )
         ];
 
@@ -368,13 +368,13 @@ mod test {
             standard_page.clone()["deferredProps"]["default"]
                 .as_array()
                 .unwrap()
-                .contains(&serde_json::to_value("events").unwrap()),
+                .contains(&to_value("events").unwrap()),
             "Deferred Props field from standard visit should contain an 'default' gorup containing 'events' key."
         );
 
         assert!([
-            serde_json::to_value("users").unwrap(),
-            serde_json::to_value("permissions").unwrap()
+            to_value("users").unwrap(),
+            to_value("permissions").unwrap()
         ]
         .iter()
         .all(|key| standard_page.clone()["deferredProps"]["users"]
@@ -463,7 +463,7 @@ mod test {
                 |users| ["user1", "user2", "user3"].iter().all(|user| users
                     .as_array()
                     .unwrap()
-                    .contains(&serde_json::to_value(user).unwrap()))
+                    .contains(&to_value(user).unwrap()))
             ),
             "'props' field should contain an 'users' group which should be a list containing the values from given props hashmap 'users' field."
         );
@@ -476,7 +476,7 @@ mod test {
                 |permissions| ["delete", "update", "read"].iter().all(|permission| permissions
                     .as_array()
                     .unwrap()
-                    .contains(&serde_json::to_value(permission).unwrap()))
+                    .contains(&to_value(permission).unwrap()))
             ),
             "'props' field should contain an 'permissions' group which should be a list containing the values from given props hashmap 'permissions' field."
         );
