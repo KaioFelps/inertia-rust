@@ -76,13 +76,51 @@ impl<'a> InertiaProp<'a> {
     /// Will panic if the prop isn't neither `InertiaProp::Data` nor `InertiaProp::Deferred`
     /// variants.
     #[allow(dead_code)]
-    fn into_mergeable(self) -> InertiaProp<'a> {
+    pub fn into_mergeable(self) -> InertiaProp<'a> {
         match self {
             InertiaProp::Data(_) | InertiaProp::Deferred(_, _) => (),
             _ => panic!("You've tried to convert an invalid variant of InertiaProp into InertiaMergeableProp."),
         }
 
         InertiaProp::Mergeable(Box::new(self))
+    }
+
+    pub fn data<T>(value: T) -> Result<InertiaProp<'a>, serde_json::Error>
+    where
+        T: Serialize,
+    {
+        Ok(InertiaProp::Data(to_value(value)?))
+    }
+
+    pub fn always<T>(value: T) -> Result<InertiaProp<'a>, serde_json::Error>
+    where
+        T: Serialize,
+    {
+        Ok(InertiaProp::Always(to_value(value)?))
+    }
+
+    pub fn merge<T>(value: T) -> Result<InertiaProp<'a>, serde_json::Error>
+    where
+        T: Serialize,
+    {
+        let prop = InertiaProp::Data(to_value(value)?);
+        Ok(InertiaProp::Mergeable(Box::new(prop)))
+    }
+
+    pub fn lazy(resolver: PropResolver) -> InertiaProp<'a> {
+        InertiaProp::Lazy(resolver)
+    }
+
+    pub fn demand(resolver: PropResolver) -> InertiaProp<'a> {
+        InertiaProp::Demand(resolver)
+    }
+
+    pub fn defer(resolver: PropResolver) -> InertiaProp<'a> {
+        InertiaProp::Deferred(resolver, None)
+    }
+
+    pub fn defer_with_group(resolver: PropResolver, group: &'a str) -> InertiaProp<'a> {
+        InertiaProp::Deferred(resolver, Some(group))
     }
 }
 
