@@ -36,7 +36,7 @@ where
     pub url: &'static str,
     pub version: InertiaVersion<V>,
     pub template_path: &'static str,
-    pub template_resolver: Box<dyn TemplateResolver>,
+    pub template_resolver: Box<dyn TemplateResolver + Send + Sync>,
     pub with_ssr: bool,
     pub custom_ssr_client: Option<SsrClient>,
     pub view_data: Option<Map<String, Value>>,
@@ -88,7 +88,7 @@ where
     pub url: Option<&'static str>,
     pub version: Option<InertiaVersion<V>>,
     pub template_path: Option<&'static str>,
-    pub template_resolver: Option<Box<dyn TemplateResolver>>,
+    pub template_resolver: Option<Box<dyn TemplateResolver + Send + Sync>>,
     pub with_ssr: bool,
     pub custom_ssr_client: Option<SsrClient>,
     pub view_data: Option<Map<String, Value>>,
@@ -170,7 +170,10 @@ where
         self
     }
 
-    pub fn set_template_resolver(mut self, template_resolver: Box<dyn TemplateResolver>) -> Self {
+    pub fn set_template_resolver(
+        mut self,
+        template_resolver: Box<dyn TemplateResolver + Send + Sync>,
+    ) -> Self {
         self.template_resolver = Some(template_resolver);
         self
     }

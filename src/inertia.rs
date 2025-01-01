@@ -161,7 +161,7 @@ pub struct Inertia {
     /// The current assets version.
     pub(crate) version: &'static str,
     /// A struct that implements [TemplateResolver] trait.
-    pub(crate) template_resolver: Box<dyn TemplateResolver>,
+    pub(crate) template_resolver: Box<dyn TemplateResolver + Send + Sync>,
     /// Address of Inertia local render server. Will be used by Inertia to perform ssr.
     pub(crate) ssr_url: Option<Url>,
     /// Extra data to be passed to the root template.
