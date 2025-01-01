@@ -7,7 +7,7 @@ pub(crate) struct PartialComponent {
     pub except: Vec<String>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) enum InertiaRequestType {
     Standard,
     Partial(PartialComponent),
