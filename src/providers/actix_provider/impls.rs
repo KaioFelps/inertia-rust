@@ -36,16 +36,17 @@ impl Responder for InertiaPage<'_> {
 #[async_trait(?Send)]
 impl InertiaResponder<HttpResponse, HttpRequest> for Inertia {
     #[inline]
-    async fn render<'b>(
+    async fn inner_render<'b>(
         &'b self,
         req: &'b HttpRequest,
         component: Component,
     ) -> Result<HttpResponse, InertiaError> {
-        self.render_with_props(req, component, HashMap::new()).await
+        self.inner_render_with_props(req, component, HashMap::new())
+            .await
     }
 
     #[inline]
-    async fn render_with_props<'b>(
+    async fn inner_render_with_props<'b>(
         &'b self,
         req: &'b HttpRequest,
         component: Component,
@@ -126,7 +127,7 @@ impl InertiaResponder<HttpResponse, HttpRequest> for Inertia {
     }
 
     #[inline]
-    fn location(req: &HttpRequest, url: &str) -> HttpResponse {
+    fn inner_location(req: &HttpRequest, url: &str) -> HttpResponse {
         if !req.is_inertia_request() {
             return HttpResponse::Found()
                 .append_header((actix_web::http::header::LOCATION, url))
@@ -405,7 +406,7 @@ mod test {
         );
 
         let body = inertia
-            .render_with_props(&fake_req, Component("/Users/Index".into()), props)
+            .inner_render_with_props(&fake_req, Component("/Users/Index".into()), props)
             .await
             .unwrap()
             .into_body();
