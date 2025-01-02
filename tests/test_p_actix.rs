@@ -13,7 +13,7 @@ use actix_web::{
 use common::template_resolver::{get_dynamic_csr_expect, MockedTemplateResolver};
 use inertia_rust::{
     actix::{InertiaHeader, InertiaMiddleware},
-    hashmap, InertiaFacade, InertiaPage, InertiaService, InertiaTemporarySession, IntoPropResolver,
+    hashmap, prop_resolver, InertiaFacade, InertiaPage, InertiaService, InertiaTemporarySession,
 };
 use inertia_rust::{Component, Inertia, InertiaConfig, InertiaProp, InertiaVersion};
 use serde::Deserialize;
@@ -74,7 +74,6 @@ async fn merge_and_deferred_props(
 
     let users = Arc::new(["user1", "user2", "user3", "user4", "user5"]);
     let permissions = ["read", "update", "delete", "create"];
-    let users_clone = users.clone();
 
     Inertia::render_with_props(
         &req,
@@ -83,20 +82,20 @@ async fn merge_and_deferred_props(
             "authUser" => InertiaProp::data("").unwrap(),
             // let's pretend this is a very heavy operation!
             // so it make sense to defer it
-            "users" => InertiaProp::defer((move || {
-                let counter = TIMES_DEFERRED_RESOLVER_HAS_EXECUTED.get_or_init(|| Arc::new(Mutex::new(0)));
-                *counter.lock().unwrap() += 1;
+            "users" => InertiaProp::defer(prop_resolver!(
+                    let users_clone = users.clone(); {
+                    let counter = TIMES_DEFERRED_RESOLVER_HAS_EXECUTED.get_or_init(|| Arc::new(Mutex::new(0)));
+                    *counter.lock().unwrap() += 1;
 
-                to_value(users_clone
-                .clone()
-                .iter()
-                .skip((page -1)* per_page)
-                .take(per_page)
-                .cloned()
-                .collect::<Vec<_>>())
-                .unwrap()
-            })
-                .wrap_with_arc())
+                    to_value(users_clone
+                    .clone()
+                    .iter()
+                    .skip((page -1)* per_page)
+                    .take(per_page)
+                    .cloned()
+                    .collect::<Vec<_>>())
+                    .unwrap()
+                }))
                 .into_mergeable(),
             "permissions" => InertiaProp::merge(permissions.into_iter().skip((page-1)*per_page).take(per_page).collect::<Vec<_>>()).unwrap()
         ],

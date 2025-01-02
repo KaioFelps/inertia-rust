@@ -255,14 +255,16 @@ pub fn get_deferred_props<'b>(
 
 #[cfg(test)]
 mod test {
-    use crate::props::{get_deferred_props, get_mergeable_props, resolve_props, InertiaProp};
+    use crate::props::{get_deferred_props, get_mergeable_props, InertiaProp};
     use crate::req_type::{InertiaRequestType, PartialComponent};
-    use crate::{hashmap, Component, InertiaPage};
+    use crate::{hashmap, prop_resolver, Component, InertiaPage};
     use actix_web::test;
     use serde::Serialize;
     use serde_json::{json, to_value, Value};
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
+
+    use super::resolve_props;
 
     #[test]
     async fn test_inertia_partials_visit_page() {
@@ -370,9 +372,9 @@ mod test {
 
     fn get_deferred_props_hashmap<'a>() -> HashMap<&'a str, InertiaProp<'a>> {
         hashmap![
-            "users" => InertiaProp::Deferred(Arc::new(|| vec!["user1", "user2", "user3"].into()), Some("users")),
-            "permissions" => InertiaProp::Deferred(Arc::new(|| vec!["delete", "update", "read"].into()), Some("users")),
-            "events" => InertiaProp::Deferred(Arc::new(|| vec!["event1", "event2", "event3"].into()), None)
+            "users" => InertiaProp::Deferred(prop_resolver!({ to_value(vec!["user1", "user2", "user3"]).unwrap() }), Some("users")),
+            "permissions" => InertiaProp::Deferred(prop_resolver!({ to_value(vec!["delete", "update", "read"]).unwrap()}), Some("users")),
+            "events" => InertiaProp::Deferred(prop_resolver!({ to_value(vec!["event1", "event2", "event3"]).unwrap() }), None)
         ]
     }
 
