@@ -19,10 +19,8 @@ createServer((page: Page) => {
         render: ReactDOMServer.renderToString,
 
         resolve: async (component) => {
-            return await resolvePageComponent(
-                `./pages/${component}.tsx`,
-                import.meta.glob('./pages/**/*.tsx', { eager: false })
-            );
+            const pages = import.meta.glob('./pages/**/*.tsx', { eager: true });
+            return pages[`./pages/${component}.tsx`];
         },
         
         setup: ({ App, props }) => {

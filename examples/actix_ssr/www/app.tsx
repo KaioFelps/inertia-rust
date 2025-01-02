@@ -2,7 +2,6 @@ import "./index.css"
 
 import { hydrateRoot } from 'react-dom/client'
 import { createInertiaApp } from '@inertiajs/react'
-import { resolvePageComponent } from "laravel-vite-plugin/inertia-helpers";
 
 export const appName = 'Inertia Test'
 export const titleResolver = (title: string) => (title ? `${appName} - ${title}` : title);
@@ -13,10 +12,8 @@ createInertiaApp({
   title: titleResolver,
 
   resolve: async (component) => {
-    return await resolvePageComponent(
-        `./pages/${component}.tsx`,
-        import.meta.glob('./pages/**/*.tsx', { eager: false })
-    );
+    const pages = import.meta.glob('./pages/**/*.tsx', { eager: true });
+    return pages[`./pages/${component}.tsx`];
   },
 
   setup({ el, App, props }) {
