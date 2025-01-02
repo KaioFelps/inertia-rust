@@ -12,6 +12,22 @@ macro_rules! hashmap {
     };
 }
 
+#[macro_export]
+macro_rules! prop_resolver {
+    () => (std::sync::Arc::new(move || Box::pin(async move { () })));
+
+    ($($clone_stmt: stmt),+; $block: block) => {{
+        std::sync::Arc::new(move || {
+            $($clone_stmt)+
+            Box::pin(async move $block)
+        })
+    }};
+
+    ($block: block) => {{
+        std::sync::Arc::new(move || Box::pin(async move $block))
+    }};
+}
+
 #[cfg(test)]
 mod test {
     use std::{
@@ -38,6 +54,44 @@ mod test {
         assert_eq!(
             HashMap::<_, _>::new() as HashMap<String, String>,
             hashmap![]
+        );
+    }
+
+    async fn an_async_operation() {}
+
+    #[tokio::test]
+    async fn test_prop_resolver_with_moving_let() {
+        let message = Arc::new("Super important and often used message!");
+        let counter = Arc::new(Mutex::new(1));
+
+        let counter_clone = counter.clone();
+        let message_clone = message.clone();
+
+        let prop_with_macro = InertiaProp::lazy(prop_resolver!(
+            let counter_clone = counter_clone.clone(),
+            let message_clone = message_clone.clone();
+            {
+                an_async_operation().await;
+                format!("{} {}", message_clone, *counter_clone.lock().unwrap()).into()
+            }
+        ));
+
+        let counter_clone = counter.clone();
+        let message_clone = message.clone();
+
+        let prop_with_arc = InertiaProp::lazy(Arc::new(move || {
+            let counter_clone = counter_clone.clone();
+            let message_clone = message_clone.clone();
+
+            Box::pin(async move {
+                an_async_operation().await;
+                format!("{} {}", message_clone, *counter_clone.lock().unwrap()).into()
+            })
+        }));
+
+        assert_eq!(
+            prop_with_arc.resolve_unconditionally().await,
+            prop_with_macro.resolve_unconditionally().await
         );
     }
 }
