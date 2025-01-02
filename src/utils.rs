@@ -84,24 +84,8 @@ pub(crate) async fn request_page_render(
     }
 }
 
-#[macro_export]
-macro_rules! hashmap {
-    () => ( std::collections::HashMap::new() );
-    ($( $key: expr => $value: expr ),+ $(,)?) => {
-        {
-            let mut map = std::collections::HashMap::new();
-            $(
-                map.insert($key, $value);
-            )*
-            map
-        }
-    };
-}
-
 #[cfg(test)]
 mod test {
-    use std::collections::HashMap;
-
     use super::*;
 
     #[test]
@@ -132,25 +116,5 @@ mod test {
             serde_json::to_string(&parsed_to_json_map).unwrap(),
             "{\"foo\":{\"bar\":2024,\"baz\":true},\"statement\":\"Inertia slays!\"}"
         )
-    }
-
-    #[test]
-    fn test_hashmap_macro() {
-        let mut manual_hashmap = HashMap::new();
-        manual_hashmap.insert("foo".to_string(), 10);
-        manual_hashmap.insert("bar".to_string(), 25);
-        manual_hashmap.insert("baz".to_string(), 49020);
-
-        let macro_hashmap = hashmap![
-            "foo".to_string() => 10,
-            "bar".to_string() => 25,
-            "baz".to_string() => 49020,
-        ];
-
-        assert_eq!(manual_hashmap, macro_hashmap);
-        assert_eq!(
-            HashMap::<_, _>::new() as HashMap<String, String>,
-            hashmap![]
-        );
     }
 }

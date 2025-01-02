@@ -4,6 +4,7 @@ mod facade;
 mod features;
 mod http_method;
 mod inertia;
+mod macros;
 mod page;
 mod props;
 mod providers;
