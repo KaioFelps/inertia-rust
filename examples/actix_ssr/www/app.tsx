@@ -1,27 +1,26 @@
 import "./index.css"
 
-import { createRoot } from 'react-dom/client'
+import { hydrateRoot } from 'react-dom/client'
 import { createInertiaApp } from '@inertiajs/react'
-import { resolvePageComponent } from "laravel-vite-plugin/inertia-helpers"
+import { resolvePageComponent } from "laravel-vite-plugin/inertia-helpers";
 
-const appName = 'Inertia Test'
+export const appName = 'Inertia Test'
+export const titleResolver = (title: string) => (title ? `${appName} - ${title}` : title);
 
 createInertiaApp({
   progress: { color: '#eedcff', includeCSS: true },
 
-  title: (title) => (title ? `${appName} - ${title}` : title),
+  title: titleResolver,
 
-  resolve: async (name) => {
-    const page: any = await resolvePageComponent(
-      `./pages/${name}.tsx`,
-      import.meta.glob('./pages/**/*.tsx')
-    )
-
-    return page
+  resolve: async (component) => {
+    return await resolvePageComponent(
+        `./pages/${component}.tsx`,
+        import.meta.glob('./pages/**/*.tsx', { eager: false })
+    );
   },
 
   setup({ el, App, props }) {
-    // hydrateRoot(el, <App {...props} />)
-    createRoot(el).render(<App {...props} />)
+    // createRoot(el).render(<App {...props} />);
+    hydrateRoot(el, <App {...props} />);
   },
 })

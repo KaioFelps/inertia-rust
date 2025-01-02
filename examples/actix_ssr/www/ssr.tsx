@@ -1,24 +1,34 @@
 import ReactDOMServer from 'react-dom/server'
 import { createInertiaApp } from '@inertiajs/react'
-import server from "@inertiajs/core/server";
-
-const appName = 'Inertia Test'
-
-function render(page: any) {
-    return createInertiaApp({
-        page,
-        title: (title) => (title ? `${appName} - ${title}` : title),
-        render: ReactDOMServer.renderToString,
-        resolve: (name: string) => {
-            const pages = import.meta.glob('./pages/**/*.tsx', { eager: true })
-            const page: any = pages[`./pages/${name}.tsx`]
-            return page
-        },
-        setup: ({ App, props }) => <App {...props} />,
-    })
-}
+import createServer from "@inertiajs/react/server";
+import type {Page} from "@inertiajs/core/types"
+import { resolvePageComponent } from "laravel-vite-plugin/inertia-helpers"
 
 const portArgIdx = process.argv.indexOf("--port");
 const port = portArgIdx >= 0 ? Number(process.argv[portArgIdx + 1]) : 1000;
 
-server(async (page) => await render(page), port)
+export const appName = 'Inertia Test'
+export const titleResolver = (title: string) => (title ? `${appName} - ${title}` : title);
+
+createServer((page: Page) => {
+    return createInertiaApp({
+        page,
+
+        title: titleResolver,
+        
+        render: ReactDOMServer.renderToString,
+
+        resolve: async (component) => {
+            return await resolvePageComponent(
+                `./pages/${component}.tsx`,
+                import.meta.glob('./pages/**/*.tsx', { eager: false })
+            );
+        },
+        
+        setup: ({ App, props }) => {
+            return <App {...props} />
+        },
+    })},
+
+    port
+)
