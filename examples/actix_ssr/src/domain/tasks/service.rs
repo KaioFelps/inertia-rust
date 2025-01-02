@@ -1,3 +1,7 @@
+use std::time::Duration;
+
+use tokio::time::sleep;
+
 use super::entity::Task;
 
 pub async fn get_tasks(page: usize) -> Vec<Task> {
@@ -32,6 +36,8 @@ pub async fn get_tasks(page: usize) -> Vec<Task> {
             done: false,
         },
     ];
+
+    sleep(Duration::from_millis(500)).await;
 
     tasks
         .iter()
