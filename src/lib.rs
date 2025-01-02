@@ -27,7 +27,6 @@ pub use page::InertiaPage;
 pub use page::InertiaSSRPage;
 pub use props::InertiaProp;
 pub use props::InertiaProps;
-pub use props::IntoPropResolver;
 pub use template_resolver::TemplateResolver;
 pub use temporary_session::InertiaTemporarySession;
 

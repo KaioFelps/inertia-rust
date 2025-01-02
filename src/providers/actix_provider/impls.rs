@@ -64,10 +64,15 @@ impl InertiaResponder<HttpResponse, HttpRequest> for Inertia {
         let reset = req.get_merge_props_to_be_reset();
         let deferred_props = get_deferred_props(&props, &req_type);
         let merge_props = get_mergeable_props(&props, reset);
-        let mut props = resolve_props(&props, &req_type);
+        let mut props = resolve_props(&props, &req_type).await;
 
-        if let Some(SharedProps(shared_props)) = req.extensions().get::<SharedProps>() {
-            let shared_props = resolve_props(shared_props, &req_type);
+        let shared_props = req
+            .extensions()
+            .get::<SharedProps>()
+            .map(|shared_props| shared_props.0.clone());
+
+        if let Some(shared_props) = shared_props {
+            let shared_props = resolve_props(&shared_props, &req_type).await;
             props.extend(shared_props);
         }
 
@@ -413,7 +418,7 @@ mod test {
             Component("/Users/Index".into()),
             "/users",
             Some("gen_the_version"),
-            resolve_props(&props, &fake_req.get_request_type().unwrap()),
+            resolve_props(&props, &fake_req.get_request_type().unwrap()).await,
             None,
             None,
             false,

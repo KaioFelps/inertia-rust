@@ -4,25 +4,9 @@ use crate::{
 };
 use serde::Serialize;
 use serde_json::{to_value, Map, Value};
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
 
-type PropResolver = Arc<dyn Fn() -> Value + Send + Sync>;
-
-pub trait IntoPropResolver<T>
-where
-    T: Fn() -> Value + Send + Sync,
-{
-    fn wrap_with_arc(self) -> Arc<T>;
-}
-
-impl<T> IntoPropResolver<T> for T
-where
-    T: Fn() -> Value + Send + Sync,
-{
-    fn wrap_with_arc(self) -> Arc<T> {
-        Arc::new(self)
-    }
-}
+type PropResolver = Arc<dyn Fn() -> Pin<Box<dyn Future<Output = Value> + Send>> + Send + Sync>;
 
 pub type InertiaProps<'a> = HashMap<&'a str, InertiaProp<'a>>;
 
@@ -59,14 +43,14 @@ pub enum InertiaProp<'a> {
 
 impl<'a> InertiaProp<'a> {
     #[inline]
-    fn resolve_unconditionally(self) -> Value {
+    pub(crate) async fn resolve_unconditionally(self) -> Value {
         match self {
             InertiaProp::Always(value) => value,
             InertiaProp::Data(value) => value,
-            InertiaProp::Lazy(resolver) => resolver(),
-            InertiaProp::Demand(resolver) => resolver(),
-            InertiaProp::Deferred(resolver, _group) => resolver(),
-            InertiaProp::Mergeable(prop) => prop.resolve_unconditionally(),
+            InertiaProp::Demand(resolver) => resolver().await,
+            InertiaProp::Deferred(resolver, _group) => resolver().await,
+            InertiaProp::Mergeable(prop) => Box::pin(prop.resolve_unconditionally()).await,
+            InertiaProp::Lazy(resolver) => resolver().await,
         }
     }
 
@@ -125,7 +109,7 @@ impl<'a> InertiaProp<'a> {
 }
 
 #[inline]
-pub(crate) fn resolve_props<'a>(
+pub(crate) async fn resolve_props<'a>(
     raw_props: &'a InertiaProps<'a>,
     req_type: &InertiaRequestType,
 ) -> Map<String, Value> {
@@ -144,58 +128,63 @@ pub(crate) fn resolve_props<'a>(
                     }
                 }
 
-                props.insert(key.to_string(), prop.clone().resolve_unconditionally());
+                props.insert(
+                    key.to_string(),
+                    prop.clone().resolve_unconditionally().await,
+                );
             }
         }
 
-        InertiaRequestType::Partial(partial) => raw_props.iter().for_each(|(key, prop)| {
-            let key = key.to_string();
-            match prop {
-                InertiaProp::Always(value) => {
-                    props.insert(key, value.clone());
-                }
-
-                InertiaProp::Data(value) => {
-                    if should_be_pushed(&key, partial) {
+        InertiaRequestType::Partial(partial) => {
+            for (key, prop) in raw_props {
+                let key = key.to_string();
+                match prop {
+                    InertiaProp::Always(value) => {
                         props.insert(key, value.clone());
                     }
-                }
 
-                InertiaProp::Lazy(resolver) => {
-                    if should_be_pushed(&key, partial) {
-                        props.insert(key, resolver());
-                    }
-                }
-
-                InertiaProp::Demand(resolver) => {
-                    if should_be_pushed(&key, partial) {
-                        props.insert(key, resolver());
-                    }
-                }
-
-                InertiaProp::Deferred(resolver, _) => {
-                    if should_be_pushed(&key, partial) {
-                        props.insert(key, resolver());
-                    }
-                }
-
-                InertiaProp::Mergeable(prop) => match &**prop {
                     InertiaProp::Data(value) => {
                         if should_be_pushed(&key, partial) {
-                            props.insert(key.to_string(), value.clone());
+                            props.insert(key, value.clone());
+                        }
+                    }
+
+                    InertiaProp::Lazy(resolver) => {
+                        if should_be_pushed(&key, partial) {
+                            props.insert(key, resolver().await);
+                        }
+                    }
+
+                    InertiaProp::Demand(resolver) => {
+                        if should_be_pushed(&key, partial) {
+                            props.insert(key, resolver().await);
                         }
                     }
 
                     InertiaProp::Deferred(resolver, _) => {
                         if should_be_pushed(&key, partial) {
-                            props.insert(key.to_string(), resolver());
+                            props.insert(key, resolver().await);
                         }
                     }
 
-                    _ => (),
-                },
-            };
-        }),
+                    InertiaProp::Mergeable(prop) => match &**prop {
+                        InertiaProp::Data(value) => {
+                            if should_be_pushed(&key, partial) {
+                                props.insert(key.to_string(), value.clone());
+                            }
+                        }
+
+                        InertiaProp::Deferred(resolver, _) => {
+                            if should_be_pushed(&key, partial) {
+                                props.insert(key.to_string(), resolver().await);
+                            }
+                        }
+
+                        _ => (),
+                    },
+                };
+            }
+        }
     };
 
     props
@@ -311,7 +300,7 @@ mod test {
             Component("Events".into()),
             "/events/80",
             Some("generated_version"),
-            resolve_props(&props, &req_type),
+            resolve_props(&props, &req_type).await,
             None,
             None,
             false,
@@ -341,7 +330,7 @@ mod test {
     #[test]
     async fn test_inertia_standard_visit_page() {
         let props = hashmap! [
-            "radioStatus" => InertiaProp::Demand(Arc::new(|| json!({"announcer": "John Doe"}))),
+            "radioStatus" => InertiaProp::Demand(Arc::new(|| Box::pin(async move { json!({"announcer": "John Doe"}) }))),
             "categories" => InertiaProp::Data(vec!["foo".to_string(), "bar".to_string()].into())
         ];
 
@@ -354,7 +343,7 @@ mod test {
             Component("Categories".into()),
             "/categories",
             Some("generated_version"),
-            resolve_props(&props, &req_type),
+            resolve_props(&props, &req_type).await,
             None,
             None,
             false,
@@ -397,7 +386,7 @@ mod test {
             clear_history: false,
             encrypt_history: false,
             merge_props: None,
-            props: resolve_props(&props, &InertiaRequestType::Standard),
+            props: resolve_props(&props, &InertiaRequestType::Standard).await,
             url: "foo",
             version: Some("foo")
         });
@@ -442,7 +431,7 @@ mod test {
             clear_history: false,
             encrypt_history: false,
             merge_props: None,
-            props: resolve_props(&props, &partial_req_for_default),
+            props: resolve_props(&props, &partial_req_for_default).await,
             url: "foo",
             version: Some("foo")
         });
@@ -483,7 +472,7 @@ mod test {
             clear_history: false,
             encrypt_history: false,
             merge_props: None,
-            props: resolve_props(&props, &partial_req_for_users),
+            props: resolve_props(&props, &partial_req_for_users).await,
             url: "foo",
             version: Some("foo")
         });
@@ -522,7 +511,7 @@ mod test {
 
     #[test]
     async fn test_mergeable_props_behavior_without_reset_list() {
-        let get_inertia_pages = |page: usize| -> (Value, Value) {
+        let get_inertia_pages = move |page: usize| {
             let users_memory_db = Arc::new(vec!["user1", "user2", "user3", "user4", "user5"]);
             let permissions_memory_db = ["read", "update", "delete"];
 
@@ -530,12 +519,17 @@ mod test {
                 "permissions" => InertiaProp::Mergeable(Box::new(InertiaProp::Data(to_value(
                     permissions_memory_db.iter().skip((page -1) * 2).take(2).cloned().collect::<Vec<_>>()
                 ).unwrap()))),
-                "users" => InertiaProp::Deferred(Arc::new(move || to_value(users_memory_db
-                    .iter()
-                    .skip((page - 1) * 3)
-                    .take(3)
-                    .cloned()
-                    .collect::<Vec<_>>()).unwrap()), None)
+                "users" => InertiaProp::defer(prop_resolver!(
+                    let users = users_memory_db.clone();
+                    {
+                    to_value(users
+                        .clone()
+                        .iter()
+                        .skip((page - 1) * 3)
+                        .take(3)
+                        .cloned()
+                        .collect::<Vec<_>>()).unwrap()
+                    }))
                     .into_mergeable()
             ];
 
@@ -545,32 +539,35 @@ mod test {
                 only: vec!["users".into()],
             });
 
-            (
-                json!(InertiaPage {
-                    clear_history: false,
-                    encrypt_history: false,
-                    component: "Foo".into(),
-                    deferred_props: get_deferred_props(&props, &InertiaRequestType::Standard),
-                    merge_props: get_mergeable_props(&props, vec![]),
-                    props: resolve_props(&props, &InertiaRequestType::Standard),
-                    url: "",
-                    version: Some("")
-                }),
-                json!(InertiaPage {
-                    clear_history: false,
-                    encrypt_history: false,
-                    component: "Foo".into(),
-                    deferred_props: get_deferred_props(&props, &partial_req),
-                    merge_props: get_mergeable_props(&props, vec![]),
-                    props: resolve_props(&props, &partial_req,),
-                    url: "",
-                    version: Some("")
-                }),
-            )
+            async move {
+                (
+                    json!(InertiaPage {
+                        clear_history: false,
+                        encrypt_history: false,
+                        component: "Foo".into(),
+                        deferred_props: get_deferred_props(&props, &InertiaRequestType::Standard),
+                        merge_props: get_mergeable_props(&props, vec![]),
+                        props: resolve_props(&props, &InertiaRequestType::Standard).await,
+                        url: "",
+                        version: Some("")
+                    }),
+                    json!(InertiaPage {
+                        clear_history: false,
+                        encrypt_history: false,
+                        component: "Foo".into(),
+                        deferred_props: get_deferred_props(&props, &partial_req),
+                        merge_props: get_mergeable_props(&props, vec![]),
+                        props: resolve_props(&props, &partial_req).await,
+                        url: "",
+                        version: Some("")
+                    }),
+                )
+            }
         };
 
         let page = Arc::new(Mutex::new(1));
-        let (standard_page, partial_page) = get_inertia_pages(*page.lock().unwrap() as usize);
+        let _page = *page.lock().unwrap();
+        let (standard_page, partial_page) = get_inertia_pages(_page).await;
 
         assert!(standard_page["props"]
             .as_object()
@@ -609,7 +606,8 @@ mod test {
         // second page
         //
         *page.lock().unwrap() = 2;
-        let (standard_page, partial_page) = get_inertia_pages(*page.lock().unwrap() as usize);
+        let _page = *page.lock().unwrap();
+        let (standard_page, partial_page) = get_inertia_pages(_page).await;
 
         println!("{}\n\n", standard_page);
         println!("{}\n\n", partial_page);
@@ -648,7 +646,7 @@ mod test {
 
     #[test]
     async fn test_mergeable_props_behavior_with_reset() {
-        let get_inertia_page = |page: usize, keys_to_reset: &[&str]| -> Value {
+        async fn get_inertia_page(page: usize, keys_to_reset: &[&str]) -> Value {
             let permissions_mem_db = ["read", "update", "delete"];
             let per_page = 2;
 
@@ -670,15 +668,15 @@ mod test {
                 component: "Foo".into(),
                 deferred_props: None,
                 merge_props: get_mergeable_props(&props, keys_to_reset.to_vec()),
-                props: resolve_props(&props, &InertiaRequestType::Standard),
+                props: resolve_props(&props, &InertiaRequestType::Standard).await,
                 url: "",
                 version: None,
             })
-        };
+        }
 
         let page = Arc::new(Mutex::new(1));
-
-        let inertia_page = get_inertia_page(*page.lock().unwrap() as usize, &[]);
+        let _page = *page.lock().unwrap();
+        let inertia_page = get_inertia_page(_page, &[]).await;
 
         assert!(inertia_page["mergeProps"]
             .as_array()
@@ -693,7 +691,8 @@ mod test {
                 .contains(&to_value(permission).unwrap())));
 
         *page.lock().unwrap() = 2;
-        let inertia_page = get_inertia_page(*page.lock().unwrap() as usize, &["permissions"]);
+        let _page = *page.lock().unwrap();
+        let inertia_page = get_inertia_page(_page, &["permissions"]).await;
 
         assert!(inertia_page.get("mergeProps").is_none());
 
