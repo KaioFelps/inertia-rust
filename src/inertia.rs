@@ -322,4 +322,16 @@ impl Inertia {
             Ok(process) => Ok(process),
         }
     }
+
+    pub fn get_url(&self) -> &'static str {
+        self.url
+    }
+
+    pub fn get_version(&self) -> &'static str {
+        self.version
+    }
+
+    pub fn get_ssr_url(&self) -> &Option<Url> {
+        &self.ssr_url
+    }
 }
