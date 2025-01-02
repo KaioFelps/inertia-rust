@@ -10,7 +10,7 @@ This example uses `inertia_rust` crate with the following stack:
 ## Running
 #### Development
 For running the project in **development** mode, you'll need to processes: one to
-run Vite's dev server (`npm run dev`) and another for the Rust application (`cargo run`).
+run Vite's dev server (`npm run dev`) and another for the Rust application (`npx vite build -ssr && cargo run`).
 
 On development, all assets are served by Vite's development server, and `vite-rust`
 generates tags referencing the vite-served assets.
