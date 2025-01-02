@@ -5,6 +5,7 @@ use config::inertia::initialize_inertia;
 use server::get_server;
 
 mod config;
+mod domain;
 mod routes;
 mod server;
 
