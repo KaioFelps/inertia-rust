@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@inertiajs/core": "^1.2.0",
+    "@inertiajs/core": "2.0",
     "@inertiajs/react": "2.0",
     "@phosphor-icons/react": "^2.1.7",
     "@vitejs/plugin-react": "^4.3.1",
