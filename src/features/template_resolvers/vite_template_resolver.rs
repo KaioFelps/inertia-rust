@@ -3,18 +3,18 @@ use async_trait::async_trait;
 use std::{path::Path, sync::Arc};
 use vite_rust::{features::html_directives::ViteDefaultDirectives, Vite};
 
-pub struct BasicViteResolver {
+pub struct ViteTemplateResolver {
     pub vite: Arc<Vite>,
 }
 
-impl BasicViteResolver {
+impl ViteTemplateResolver {
     pub fn new(vite: Arc<Vite>) -> Self {
         Self { vite }
     }
 }
 
 #[async_trait(?Send)]
-impl TemplateResolver for BasicViteResolver {
+impl TemplateResolver for ViteTemplateResolver {
     async fn resolve_template(
         &self,
         template_path: &str,

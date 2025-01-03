@@ -37,7 +37,7 @@ pub mod actix {
     pub use super::providers::actix::middleware::InertiaMiddleware;
 }
 
-#[cfg(feature = "basic-vite-resolver")]
+#[cfg(feature = "vite-template-resolver")]
 pub mod resolvers {
-    pub use super::features::template_resolvers::BasicViteResolver;
+    pub use super::features::template_resolvers::ViteTemplateResolver;
 }

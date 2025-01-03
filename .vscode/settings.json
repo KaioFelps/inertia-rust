@@ -1,7 +1,7 @@
 {
     "rust-analyzer.cargo.features": [
         "actix",
-        "basic-vite-resolver",
+        "vite-template-resolver",
     ],
     "rust-analyzer.checkOnSave.command": "clippy",
     "[rust]": {
