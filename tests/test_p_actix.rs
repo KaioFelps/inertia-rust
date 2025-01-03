@@ -79,7 +79,7 @@ async fn merge_and_deferred_props(
         &req,
         "Index".into(),
         hashmap![
-            "authUser" => InertiaProp::data("").unwrap(),
+            "authUser" => InertiaProp::data(""),
             // let's pretend this is a very heavy operation!
             // so it make sense to defer it
             "users" => InertiaProp::defer(prop_resolver!(
@@ -97,7 +97,7 @@ async fn merge_and_deferred_props(
                     .unwrap()
                 }))
                 .into_mergeable(),
-            "permissions" => InertiaProp::merge(permissions.into_iter().skip((page-1)*per_page).take(per_page).collect::<Vec<_>>()).unwrap()
+            "permissions" => InertiaProp::merge(permissions.into_iter().skip((page-1)*per_page).take(per_page).collect::<Vec<_>>())
         ],
     )
     .await

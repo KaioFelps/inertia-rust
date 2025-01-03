@@ -69,26 +69,32 @@ impl<'a> InertiaProp<'a> {
         InertiaProp::Mergeable(Box::new(self))
     }
 
-    pub fn data<T>(value: T) -> Result<InertiaProp<'a>, serde_json::Error>
+    pub fn data<T>(value: T) -> InertiaProp<'a>
     where
         T: Serialize,
     {
-        Ok(InertiaProp::Data(to_value(value)?))
+        InertiaProp::Data(
+            to_value(value).expect("Called 'InertiaProp::data' with an non-serializable value."),
+        )
     }
 
-    pub fn always<T>(value: T) -> Result<InertiaProp<'a>, serde_json::Error>
+    pub fn always<T>(value: T) -> InertiaProp<'a>
     where
         T: Serialize,
     {
-        Ok(InertiaProp::Always(to_value(value)?))
+        InertiaProp::Always(
+            to_value(value).expect("Called 'InertiaProp::always' with an non-serializable value."),
+        )
     }
 
-    pub fn merge<T>(value: T) -> Result<InertiaProp<'a>, serde_json::Error>
+    pub fn merge<T>(value: T) -> InertiaProp<'a>
     where
         T: Serialize,
     {
-        let prop = InertiaProp::Data(to_value(value)?);
-        Ok(InertiaProp::Mergeable(Box::new(prop)))
+        let prop = InertiaProp::Data(
+            to_value(value).expect("Called 'InertiaProp::merge' with an non-serializable value."),
+        );
+        InertiaProp::Mergeable(Box::new(prop))
     }
 
     pub fn lazy(resolver: PropResolver) -> InertiaProp<'a> {
@@ -530,7 +536,8 @@ mod test {
                         .skip((page - 1) * 3)
                         .take(3)
                         .cloned()
-                        .collect::<Vec<_>>()).unwrap()
+                        .collect::<Vec<_>>())
+                        .unwrap()
                     }))
                     .into_mergeable()
             ];
