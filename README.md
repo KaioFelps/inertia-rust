@@ -29,7 +29,7 @@ feature is enabled at inertia_rust dependency properties.
 still do not have default support for template engines, even though you can easily set
 it up by yourself.
 
-The basic vite resolver is a `template-resolver` function that uses (and thus require you
+The vite template resolver is a `template-resolver` function that uses (and thus require you
 to install) `vite-rust` basic directives (also must be enabled manually at features property)
 to inject Vite's tags and Inertia's body and head into your HTML template.
 
@@ -38,7 +38,7 @@ to inject Vite's tags and Inertia's body and head into your HTML template.
 > [!WARNING]
 > Outdated
 
-A template resolver function must be provided during Inertia setup. The basic vite resolver
+A template resolver function must be provided during Inertia setup. The vite template resolver
 might fit for most usages. If you need something more specific, you will need to create
 two functions: one to actually resolve the template and a wrapper function, so that the resolver
 can be stored inside Inertia structure.
@@ -66,7 +66,7 @@ pub fn template_resolver(
 ```
 
 You might have noted that the third parameter is a reference to `SomeUsefulStruct`. This must be
-some useful struct used by your resolver. For instance, our basic vite resolver requires a
+some useful struct used by your resolver. For instance, our vite template resolver requires a
 static reference to a `vite_rust::Vite` struct, because it's what provides the HTML tags of the modules,
 HMR and other important stuff that must be injected into the HTML.
 
