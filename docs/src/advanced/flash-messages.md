@@ -1,8 +1,8 @@
 # Flash Messages and Validation Errors
 
-[Inertia Middleware](../basic/installation.md#inertia-middleware) will also flash errors into the shared props. These
-props will be injected back into the request and will be further merged again with the page props
-during rendering, thus making all of them available to your client-side page component.
+[Inertia Middleware](../basic/installation.md#inertia-middleware) will also merge flash errors with the
+shared props. The resulting props will be injected back into the request and will be further merged again
+with the page props during rendering, thus, making all of them available to your client-side page component.
 
 As said earlier, Inertia Rust is not made for one single framework and all of them actually might have
 built-in sessions management. Hence, you need to built by yourself a second middleware that injects an `InertiaTemporarySession` object in the request context/extensions:
@@ -20,7 +20,7 @@ pub struct InertiaTemporarySession {
 ```
 
 The middleware tries to extract this from the request context and merge it with the shared props. This
-is how validation errors get available to your page components.
+is how validation errors might get available to your page components without explicitly sending them with `Inertia::render_with_props`.
 
 ## Temporary Session Middleware
 
