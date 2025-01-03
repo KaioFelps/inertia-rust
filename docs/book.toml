@@ -9,6 +9,7 @@ title = "Inertia Rust"
 [output.html]
 smart-punctuation = true
 git-repository-url = "https://github.com/KaioFelps/inertia-rust/tree/v2?b=v2"
+site-url = "/inertia-rust/"
 
 [output.html.playground]
 runnable = false
