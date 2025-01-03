@@ -1,14 +1,14 @@
 use crate::{template_resolver::TemplateResolver, InertiaError, ViewData};
 use async_trait::async_trait;
-use std::{path::Path, sync::Arc};
+use std::path::Path;
 use vite_rust::{features::html_directives::ViteDefaultDirectives, Vite};
 
 pub struct ViteTemplateResolver {
-    pub vite: Arc<Vite>,
+    pub vite: Vite,
 }
 
 impl ViteTemplateResolver {
-    pub fn new(vite: Arc<Vite>) -> Self {
+    pub fn new(vite: Vite) -> Self {
         Self { vite }
     }
 }
