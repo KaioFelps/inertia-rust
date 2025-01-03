@@ -15,13 +15,13 @@ First of all, enable SSR in your Inertia initialization function:
 // src/config/inertia.rs
 use super::vite::initialize_vite;
 use inertia_rust::{
-    resolvers::BasicViteResolver, Inertia, InertiaConfig, InertiaVersion, SsrClient,
+    resolvers::ViteTemplateResolver, Inertia, InertiaConfig, InertiaVersion, SsrClient,
 };
 use std::{env, io, sync::Arc};
 
 pub async fn initialize_inertia() -> Result<Inertia, io::Error> {
     let vite = Arc::new(initialize_vite().await);
-    let resolver = BasicViteResolver::new(vite.clone());
+    let resolver = ViteTemplateResolver::new(vite.clone());
 
     Inertia::new(
         InertiaConfig::builder()

@@ -7,12 +7,12 @@ provider, assure the needed peer crate is also available.
 # Cargo.toml
 
 [dependencies]
-inertia-rust = { version = "0.2", features = ["actix", "basic-vite-resolver"] }
+inertia-rust = { version = "0.2", features = ["actix", "vite-template-resolver"] }
 actix-web = "4"
 vite-rust = { version = "0.2" }
 ```
 
-The **basic-vite-resolver** feature enables the `BasicViteResolver`. We'll discuss it furthermore, in the
+The **vite-template-resolver** feature enables the `ViteTemplateResolver`. We'll discuss it furthermore, in the
 [Template Resolvers], along with how to set up your own template resolver. On this documentation, we'll use
 [vite-rust] and [Actix Web], so you must have them installed.
 
@@ -23,11 +23,11 @@ The **basic-vite-resolver** feature enables the `BasicViteResolver`. We'll discu
 ## Available Crate Features
 
 * `actix`: enable Actix Web provider;
-* `basic-vite-resolver`: enable `BasicViteResolver`.
+* `vite-template-resolver`: enable `ViteTemplateResolver`.
 
 ## Vite Setup
 
-`BasicViteResolver` requires an `Arc<Vite>`, so, we need to both set up Vite and Inertia. Read vite-rust
+`ViteTemplateResolver` requires an `Arc<Vite>`, so, we need to both set up Vite and Inertia. Read vite-rust
 docs for more details about setting it up. For this example, consider the following configuration:
 
 ```rust
@@ -55,13 +55,13 @@ pub async fn initialize_vite() -> Vite {
 // src/config/inertia.rs
 use super::vite::initialize_vite;
 use inertia_rust::{
-    resolvers::BasicViteResolver, Inertia, InertiaConfig, InertiaVersion, SsrClient,
+    resolvers::ViteTemplateResolver, Inertia, InertiaConfig, InertiaVersion, SsrClient,
 };
 use std::{env, io, sync::Arc};
 
 pub async fn initialize_inertia() -> Result<Inertia, io::Error> {
     let vite = Arc::new(initialize_vite().await);
-    let resolver = BasicViteResolver::new(vite.clone());
+    let resolver = ViteTemplateResolver::new(vite.clone());
 
     Inertia::new(
         InertiaConfig::builder()
@@ -103,7 +103,7 @@ async fn main() -> std::io::Result<()> {
 ```
 
 ## Root Template
-`BasicViteResolver` receives a path to an HTML template file. Inertia Rust will pass the given `template_path`
+`ViteTemplateResolver` receives a path to an HTML template file. Inertia Rust will pass the given `template_path`
 to the resolver. In this case, it's `www/root.html` file.
 
 ```html
