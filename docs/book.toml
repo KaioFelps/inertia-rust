@@ -1,0 +1,14 @@
+[book]
+authors = ["Kaio Felipe"]
+language = "en"
+description = "Learn how to use Inertia with Rust to build single-page apps!"
+multilingual = false
+src = "src"
+title = "Inertia Rust"
+
+[output.html]
+smart-punctuation = true
+git-repository-url = "https://github.com/KaioFelps/inertia-rust/tree/v2?b=v2"
+
+[output.html.playground]
+runnable = false
