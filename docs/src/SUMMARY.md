@@ -10,6 +10,8 @@
 
 # More About Props
 - [Shared Props](./props/shared.md)
+- [Deferred Props](./props/deferred.md)
+- [Merging Props](./props/merging.md)
 
 # Advanced
 - [Flash Messages and Validation Errors](./advanced/flash-messages.md)
