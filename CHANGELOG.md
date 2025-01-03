@@ -93,5 +93,5 @@ inner method, so there is literally 0 advantage on using the instance methods di
 - render facades for actix-web provider;
 - `InertiaConfig` and `InertiaConfigBuilder` for instantiating `Inertia` struct;
 - `NodeJsProc` and server-side rendering feature;
-- basic vite-rust template resolver;
+- vite-rust template resolver;
 - `InertiaMiddleware` with shared props.
