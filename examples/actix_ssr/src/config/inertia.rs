@@ -1,4 +1,4 @@
-use std::{io, sync::Arc};
+use std::io;
 
 use inertia_rust::{
     resolvers::ViteTemplateResolver, Inertia, InertiaConfig, InertiaVersion, SsrClient,
@@ -10,7 +10,7 @@ use super::vite::initialize_vite;
 
 pub async fn initialize_inertia() -> Result<Inertia, io::Error> {
     let vite = initialize_vite().await;
-    let resolver = ViteTemplateResolver::new(Arc::new(vite));
+    let resolver = ViteTemplateResolver::new(vite);
 
     Inertia::new(
         InertiaConfig::builder()

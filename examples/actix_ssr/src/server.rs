@@ -20,7 +20,7 @@ pub fn get_server() -> App<
         .wrap(
             InertiaMiddleware::new().with_shared_props(Arc::new(move |_req| {
                 hashmap![
-                    "version" => InertiaProp::always("0.1.0").unwrap(),
+                    "version" => InertiaProp::always("0.1.0"),
                     "assetsVersion" => InertiaProp::lazy(prop_resolver!({to_value(ASSETS_VERSION.get().unwrap()).unwrap()}))
                 ]
             })),
