@@ -11,7 +11,8 @@ license-file = "LICENSE"
 exclude = [
     "examples/*",
     ".idea/*",
-    ".vscode/*"
+    ".vscode/*",
+    "docs/"
 ]
 
 [features]
