@@ -15,7 +15,6 @@ exclude = [
 ]
 
 [features]
-default = ["actix"]
 actix = ["dep:actix-web"]
 basic-vite-resolver = ["dep:vite-rust"]
 
