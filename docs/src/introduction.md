@@ -12,7 +12,7 @@ be very different depending on the opted provider.
 We will cover only how to make things that are specific to Inertia Rust. For the front-end, refer to
 [Inertia's oficial documentation](https://inertiajs.com/).
 
-> Note: This documentation describes how to use **Inertia Rust** v2.*, which is compatible with Inertia.js
+> Note: This documentation describes how to use `inertia-rust v2.x`, which is compatible with Inertia.js
 > v2.0.0. Also, it has notable differences comparing to the former v0.1.0.
 >
 > Indeed, we went from v0.1.0 straight to v2.0.0. The reason is we wanted to let it as clear as possible
