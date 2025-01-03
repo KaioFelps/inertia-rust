@@ -1,5 +1,5 @@
-#[cfg(feature = "basic-vite-resolver")]
-mod basic_vite_resolver;
+#[cfg(feature = "vite-template-resolver")]
+mod vite_template_resolver;
 
-#[cfg(feature = "basic-vite-resolver")]
-pub use basic_vite_resolver::BasicViteResolver;
+#[cfg(feature = "vite-template-resolver")]
+pub use vite_template_resolver::ViteTemplateResolver;

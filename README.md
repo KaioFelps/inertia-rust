@@ -15,7 +15,7 @@ this document carefully to ensure that your Inertia application works correctly.
 
 ```toml
 [dependencies]
-inertia-rust = { version = "0.2", features = ["actix", "basic-vite-resolver"] }
+inertia-rust = { version = "0.2", features = ["actix", "vite-template-resolver"] }
 actix-web = "4"
 vite-rust = { version = "0.2", features = ["basic-directives"] }
 ```
@@ -25,7 +25,7 @@ Currently, inertia_rust is still under development and is working to support Act
 Therefore, ensure you have actix_web on your dependency section and "default" or "actix"
 feature is enabled at inertia_rust dependency properties.
 
-"basic-vite-resolver" feature enables few basic `vite-rust` directives. Currently, we
+"vite-template-resolver" feature enables few basic `vite-rust` directives. Currently, we
 still do not have default support for template engines, even though you can easily set
 it up by yourself.
 
@@ -91,7 +91,7 @@ Inside your `main.rs`, you'll have to:
 ```rust
 use actix_web::web::Data;
 use actix_web::{App, HttpServer};
-use inertia_rust::resolvers::basic_vite_resolver;
+use inertia_rust::resolvers::vite_template_resolver;
 use inertia_rust::{Inertia, InertiaConfig, InertiaVersion};
 use std::sync::OnceLock;
 use vite_rust::{Vite, ViteConfig};
@@ -123,7 +123,7 @@ async fn main() -> std::io::Result<()> {
                 .unwrap_or("development-version".into()),
         ))
         .set_template_path("path/to/your/template.html")
-        .set_template_resolver(&basic_vite_resolver)
+        .set_template_resolver(&vite_template_resolver)
         .set_template_resolver_data(vite)
         .build();
 
@@ -153,7 +153,7 @@ If you have Node.js available in the machine your Rust application is running at
 ```rust
 use actix_web::web::Data;
 use actix_web::{App, HttpServer};
-use inertia_rust::resolvers::basic_vite_resolver;
+use inertia_rust::resolvers::vite_template_resolver;
 use inertia_rust::{Inertia, InertiaConfig, InertiaVersion, SsrClient};
 use std::sync::OnceLock;
 use vite_rust::{Vite, ViteConfig};
@@ -185,7 +185,7 @@ async fn main() -> std::io::Result<()> {
                 .unwrap_or("development-version".into()),
         ))
         .set_template_path("path/to/your/template.html")
-        .set_template_resolver(&basic_vite_resolver)
+        .set_template_resolver(&vite_template_resolver)
         .set_template_resolver_data(vite)
         .enable_ssr()
         // `set_ssr_client` is optional. If not set, `SsrClient::default()` will be used.
