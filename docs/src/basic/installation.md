@@ -27,7 +27,7 @@ The **vite-template-resolver** feature enables the `ViteTemplateResolver`. We'll
 
 ## Vite Setup
 
-`ViteTemplateResolver` requires an `Arc<Vite>`, so, we need to both set up Vite and Inertia. Read vite-rust
+`ViteTemplateResolver` requires a `Vite` instance, so, we need to both set up Vite and Inertia. Read [vite-rust]
 docs for more details about setting it up. For this example, consider the following configuration:
 
 ```rust
@@ -49,6 +49,8 @@ pub async fn initialize_vite() -> Vite {
 }
 ```
 
+[vite-rust]: https://github.com/KaioFelps/vite-rust
+
 ## Inertia Setup
 
 ```rust
@@ -60,8 +62,8 @@ use inertia_rust::{
 use std::{env, io, sync::Arc};
 
 pub async fn initialize_inertia() -> Result<Inertia, io::Error> {
-    let vite = Arc::new(initialize_vite().await);
-    let resolver = ViteTemplateResolver::new(vite.clone());
+    let vite = initialize_vite().await;
+    let resolver = ViteTemplateResolver::new(vite);
 
     Inertia::new(
         InertiaConfig::builder()
@@ -73,9 +75,6 @@ pub async fn initialize_inertia() -> Result<Inertia, io::Error> {
     )
 }
 ```
-
-The reason the resolver requires `Vite` to be wrapped by `Arc` is that it allows you to use the same
-vite instance after passing it's ownership to the resolver without cloning the `Vite` or re-instantiating it.
 
 ## Actix Web Server
 ```rust
