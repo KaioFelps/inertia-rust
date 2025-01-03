@@ -51,7 +51,7 @@ async fn r#todo(req: HttpRequest, query: web::Query<TodoQuery>) -> impl Responde
                 let tasks = get_tasks(page).await;
                 to_value(tasks).unwrap()
             })).into_mergeable(),
-            "page" => InertiaProp::data(page).unwrap()
+            "page" => InertiaProp::data(page)
         ],
     )
     .await
