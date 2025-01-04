@@ -23,7 +23,11 @@ impl InertiaFacade<HttpRequest, HttpResponse> for Inertia {
     }
 
     fn location(req: &HttpRequest, url: &str) -> HttpResponse {
-        <Inertia as InertiaResponder<HttpResponse, HttpRequest>>::inner_location(req, url)
+        Inertia::inner_location(req, url)
+    }
+
+    fn encrypt_history(req: &HttpRequest, encrypt: bool) {
+        Inertia::inner_encrypt_history(req, encrypt);
     }
 }
 

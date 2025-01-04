@@ -145,6 +145,11 @@ impl InertiaResponder<HttpResponse, HttpRequest> for Inertia {
             .append_header(headers::InertiaHeader::InertiaLocation(url).convert())
             .finish()
     }
+
+    #[inline]
+    fn inner_encrypt_history(req: &HttpRequest, encrypt: bool) {
+        req.extensions_mut().insert(ShallEncryptHistory(encrypt));
+    }
 }
 
 impl ResponseError for InertiaError {
@@ -191,8 +196,8 @@ where
     }
 }
 
-struct ShallClearHistory(bool);
-struct ShallEncryptHistory(bool);
+struct ShallClearHistory(pub(crate) bool);
+struct ShallEncryptHistory(pub(crate) bool);
 
 impl InertiaHttpRequest for HttpRequest {
     fn is_inertia_request(&self) -> bool {

@@ -42,4 +42,10 @@ pub trait InertiaFacade<TRequest, TResponse> {
     /// * `req`     - A reference to the HTTP request.
     /// * `url`     - The URL to be redirected to.
     fn location(req: &TRequest, url: &str) -> TResponse;
+
+    /// Whether to encrypt or not the current request. Refer to [History Encrypt] for more
+    /// details
+    ///
+    /// [History Encrypt]: https://kaiofelps.github.io/inertia-rust/history-encrypt
+    fn encrypt_history(req: &TRequest, encrypt: bool);
 }

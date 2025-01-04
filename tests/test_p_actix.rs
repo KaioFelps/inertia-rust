@@ -123,6 +123,12 @@ async fn delete_redirect() -> impl Responder {
     Redirect::to("/").using_status_code(StatusCode::FOUND)
 }
 
+#[get("/encrypt/method")]
+async fn encrypt_with_method(req: HttpRequest) -> impl Responder {
+    Inertia::encrypt_history(&req, true);
+    Inertia::render(&req, "Foo".into()).await
+}
+
 async fn generate_actix_app() -> App<
     impl ServiceFactory<
         ServiceRequest,
@@ -166,6 +172,7 @@ async fn generate_actix_app() -> App<
         .inertia_route("/withservice", "Index")
         .service(merge_and_deferred_props)
         .service(location)
+        .service(encrypt_with_method)
 }
 
 // endregion: --- Service
@@ -467,6 +474,28 @@ async fn test_defer_and_merge_props() {
             .unwrap(),
         "Deferred Resolver should have been called only once, since only one request has required it's group."
     );
+}
+
+#[tokio::test]
+async fn test_history_encrypt_method() {
+    let app = actix_web::test::init_service(generate_actix_app().await).await;
+
+    let req = actix_web::test::TestRequest::get()
+        .uri("/encrypt/method")
+        .insert_header(InertiaHeader::Version(TEST_INERTIA_VERSION).convert())
+        .insert_header(InertiaHeader::Inertia.convert())
+        .to_request();
+
+    let body = actix_web::test::call_service(&app, req)
+        .await
+        .into_body()
+        .try_into_bytes()
+        .unwrap()
+        .to_vec();
+
+    let body: InertiaPage = serde_json::from_slice(&body[..]).unwrap();
+
+    assert!(body.get_encrypt_history());
 }
 
 // endregion: --- Tests
