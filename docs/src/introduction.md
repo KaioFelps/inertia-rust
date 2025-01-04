@@ -3,7 +3,7 @@
 **Inertia Rust** is a Rust adapter for Inertia.js.
 
 It's not its aim to work around a single specific framework. Instead, it's built out
-of providers, which are responsible for implementing the crate's trats for a given framework.
+of providers, which are responsible for implementing the crate's traits for a given framework.
 
 Currently, only **actix-web** has a provider. As it's the first --- and the only --- existing provider,
 every code block will be considering it as the underlying framework. Note, however, that the code shouldn't
