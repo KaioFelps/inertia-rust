@@ -33,6 +33,7 @@ pub use temporary_session::InertiaTemporarySession;
 
 #[cfg(feature = "actix")]
 pub mod actix {
+    pub use super::providers::actix::encrypt_middleware::EncryptHistoryMiddleware;
     pub use super::providers::actix::headers::InertiaHeader;
     pub use super::providers::actix::middleware::InertiaMiddleware;
 }

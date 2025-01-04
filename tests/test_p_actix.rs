@@ -12,7 +12,7 @@ use actix_web::{
 };
 use common::template_resolver::{get_dynamic_csr_expect, MockedTemplateResolver};
 use inertia_rust::{
-    actix::{InertiaHeader, InertiaMiddleware},
+    actix::{EncryptHistoryMiddleware, InertiaHeader, InertiaMiddleware},
     hashmap, prop_resolver, InertiaFacade, InertiaPage, InertiaService, InertiaTemporarySession,
 };
 use inertia_rust::{Component, Inertia, InertiaConfig, InertiaProp, InertiaVersion};
@@ -27,12 +27,20 @@ const TEST_INERTIA_VERSION: &str = "v1.0.0";
 static SESSIONS_STORAGE: OnceLock<Arc<Mutex<Vec<InertiaTemporarySession>>>> = OnceLock::new();
 static TIMES_DEFERRED_RESOLVER_HAS_EXECUTED: OnceLock<Arc<Mutex<u32>>> = OnceLock::new();
 
+// region: --- Helpers
+
 fn super_trim(text: String) -> String {
     text.trim()
         .replace("\r\n", "")
         .replace("\n", "")
         .replace("\t", "")
 }
+
+fn request_as_bytes_vec(response: ServiceResponse) -> Vec<u8> {
+    response.into_body().try_into_bytes().unwrap().to_vec()
+}
+
+// endregion: --- Helpers
 
 // region: --- Service
 
@@ -129,6 +137,12 @@ async fn encrypt_with_method(req: HttpRequest) -> impl Responder {
     Inertia::render(&req, "Foo".into()).await
 }
 
+#[get("/encrypt/overwrites/middleware")]
+async fn encrypt_ovewrites_middleware(req: HttpRequest) -> impl Responder {
+    Inertia::encrypt_history(&req, false);
+    Inertia::render(&req, "Foo".into()).await
+}
+
 async fn generate_actix_app() -> App<
     impl ServiceFactory<
         ServiceRequest,
@@ -173,6 +187,7 @@ async fn generate_actix_app() -> App<
         .service(merge_and_deferred_props)
         .service(location)
         .service(encrypt_with_method)
+        .service(encrypt_ovewrites_middleware)
 }
 
 // endregion: --- Service
@@ -476,6 +491,10 @@ async fn test_defer_and_merge_props() {
     );
 }
 
+// endregion: --- Tests
+
+// region: --- History Encryption Tests
+
 #[tokio::test]
 async fn test_history_encrypt_method() {
     let app = actix_web::test::init_service(generate_actix_app().await).await;
@@ -498,4 +517,46 @@ async fn test_history_encrypt_method() {
     assert!(body.get_encrypt_history());
 }
 
-// endregion: --- Tests
+#[tokio::test]
+async fn test_history_encrypt_middleware() {
+    let app = actix_web::test::init_service(
+        generate_actix_app()
+            .await
+            .wrap(EncryptHistoryMiddleware::new()),
+    )
+    .await;
+
+    let req = actix_web::test::TestRequest::get()
+        .uri("/")
+        .insert_header(InertiaHeader::Version(TEST_INERTIA_VERSION).convert())
+        .insert_header(InertiaHeader::Inertia.convert())
+        .to_request();
+
+    let body = request_as_bytes_vec(actix_web::test::call_service(&app, req).await);
+    let body: InertiaPage = serde_json::from_slice(&body[..]).unwrap();
+
+    assert!(body.get_encrypt_history());
+}
+
+#[tokio::test]
+async fn test_history_encryt_method_overwrites_middleware() {
+    let app = actix_web::test::init_service(
+        generate_actix_app()
+            .await
+            .wrap(EncryptHistoryMiddleware::new()),
+    )
+    .await;
+
+    let req = actix_web::test::TestRequest::get()
+        .uri("/encrypt/overwrites/middleware")
+        .insert_header(InertiaHeader::Version(TEST_INERTIA_VERSION).convert())
+        .insert_header(InertiaHeader::Inertia.convert())
+        .to_request();
+
+    let body = request_as_bytes_vec(actix_web::test::call_service(&app, req).await);
+    let body: InertiaPage = serde_json::from_slice(&body[..]).unwrap();
+
+    assert!(!body.get_encrypt_history());
+}
+
+// endregion: --- History Encryption Tests

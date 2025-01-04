@@ -196,8 +196,8 @@ where
     }
 }
 
-struct ShallClearHistory(pub(crate) bool);
-struct ShallEncryptHistory(pub(crate) bool);
+pub(crate) struct ShallClearHistory(pub bool);
+pub(crate) struct ShallEncryptHistory(pub bool);
 
 impl InertiaHttpRequest for HttpRequest {
     fn is_inertia_request(&self) -> bool {
