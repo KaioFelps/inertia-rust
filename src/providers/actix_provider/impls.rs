@@ -6,6 +6,7 @@ use crate::inertia::{Inertia, InertiaHttpRequest, InertiaResponder, InertiaServi
 use crate::props::InertiaProps;
 use crate::props::{get_deferred_props, get_mergeable_props, resolve_props};
 use crate::req_type::{InertiaRequestType, PartialComponent};
+use crate::temporary_session::InertiaSessionToReflash;
 use crate::utils::convert_struct_to_stringified_json;
 use crate::utils::{inertia_err_msg, request_page_render};
 use crate::{Component, InertiaError, InertiaPage, InertiaTemporarySession};
@@ -57,7 +58,7 @@ impl InertiaResponder<HttpResponse, HttpRequest> for Inertia {
         let url = req.uri().to_string();
         let req_type: InertiaRequestType = req.get_request_type()?;
 
-        if let Err(forced_refresh) = self.check_and_handle_version_mismatch(req) {
+        if let Some(forced_refresh) = self.check_and_handle_version_mismatch(req) {
             return Ok(forced_refresh);
         };
 
@@ -294,29 +295,27 @@ fn extract_partials_headers_content(
     Ok(partials)
 }
 
-pub trait InertiaActixHelpers {
-    fn check_and_handle_version_mismatch(&self, req: &HttpRequest) -> Result<(), HttpResponse>;
+trait InertiaActixHelpers {
+    fn check_and_handle_version_mismatch(&self, req: &HttpRequest) -> Option<HttpResponse>;
 }
 
 impl InertiaActixHelpers for Inertia {
-    fn check_and_handle_version_mismatch(&self, req: &HttpRequest) -> Result<(), HttpResponse> {
+    fn check_and_handle_version_mismatch(&self, req: &HttpRequest) -> Option<HttpResponse> {
         if req.is_inertia_request() && !req.check_inertia_version(self.version) {
-            // tries to reflash Inertia session
-            let inertia_session = req.extensions_mut().remove::<InertiaTemporarySession>();
-            if let Err(err) = (self.reflash_inertia_session)(inertia_session) {
-                log::warn!(
-                    "{}",
-                    inertia_err_msg(format!(
-                        "Failed to reflesh Inertia Temporary Session. {}",
-                        err.get_cause()
-                    ))
-                );
-            };
-
-            return Err(Inertia::location(req, &req.uri().to_string()));
+            reflash_inertia_session(req);
+            return Some(Inertia::location(req, &req.uri().to_string()));
         }
 
-        Ok(())
+        None
+    }
+}
+
+fn reflash_inertia_session(req: &HttpRequest) {
+    if let Some(inertia_temporary_session) =
+        req.extensions_mut().remove::<InertiaTemporarySession>()
+    {
+        req.extensions_mut()
+            .insert(InertiaSessionToReflash(inertia_temporary_session));
     }
 }
 
