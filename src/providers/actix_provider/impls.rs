@@ -84,7 +84,7 @@ impl InertiaResponder<HttpResponse, HttpRequest> for Inertia {
             merge_props,
             deferred_props,
             req.should_clear_history(),
-            req.should_encrypt_history(),
+            req.should_encrypt_history(self.encrypt_history),
         );
 
         if req.is_inertia_request() {
@@ -263,10 +263,11 @@ impl InertiaHttpRequest for HttpRequest {
             .is_some_and(|ShallClearHistory(v)| *v)
     }
 
-    fn should_encrypt_history(&self) -> bool {
-        self.extensions()
-            .get::<ShallEncryptHistory>()
-            .is_some_and(|ShallEncryptHistory(v)| *v)
+    fn should_encrypt_history(&self, default: bool) -> bool {
+        match self.extensions().get::<ShallEncryptHistory>() {
+            Some(ShallEncryptHistory(should_encrypt)) => *should_encrypt,
+            None => default,
+        }
     }
 }
 

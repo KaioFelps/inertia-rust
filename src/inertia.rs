@@ -79,7 +79,7 @@ pub trait InertiaResponder<TResponder, THttpRequest> {
 pub(crate) trait InertiaHttpRequest {
     fn should_clear_history(&self) -> bool;
 
-    fn should_encrypt_history(&self) -> bool;
+    fn should_encrypt_history(&self, default: bool) -> bool;
 
     fn get_merge_props_to_be_reset(&self) -> Vec<&str>;
 
@@ -182,6 +182,7 @@ pub struct Inertia {
     /// You can return an `InertiaError` from this method if you desire, however, all Inertia will do with
     /// this error is log it as a warning. It won't stop the rendering method from refreshing the request.
     pub(crate) reflash_inertia_session: ReflashSession,
+    pub(crate) encrypt_history: bool,
 }
 
 impl Inertia {
@@ -196,9 +197,17 @@ impl Inertia {
     ///                                 more details at [`Inertia::template_resolver`] doc string.
     ///                                 If you don't plan to use it, just pass an empty tuple (both here
     ///                                 and in your template resolver).
+    /// * `reflesh_inertia_session` -   A callback that persist an [`InertiaTemporarySession`] across
+    ///                                 one more request using your framework's session manager.
+    ///                                 refer to [Flash Messages and Validation Errors] for more details.
+    /// * `encrypt_history`         -   Whether to encrypt or not the session. Refer to [History encryption]
+    ///                                 for more details.
     ///
     ///  # Errors
     /// Returns an [`InertiaError::SsrError`] if it fails to connect to the server.
+    ///
+    /// [Flash Messages and Validation Errors]: https://kaiofelps.github.io/inertia-rust/advanced/flash-messages.html
+    /// [History encryption]: https://inertiajs.com/history-encryption
     pub fn new<V>(config: InertiaConfig<V>) -> Result<Self, io::Error>
     where
         V: ToString,
@@ -236,6 +245,7 @@ impl Inertia {
             ssr_url,
             custom_view_data: config.view_data.unwrap_or_default(),
             reflash_inertia_session: config.reflash_inertia_session,
+            encrypt_history: config.encrypt_history,
         })
     }
 

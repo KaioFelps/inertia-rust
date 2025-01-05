@@ -41,6 +41,7 @@ where
     pub custom_ssr_client: Option<SsrClient>,
     pub view_data: Option<Map<String, Value>>,
     pub reflash_inertia_session: ReflashSession,
+    pub encrypt_history: bool,
 }
 
 impl<V> InertiaConfig<V>
@@ -93,6 +94,7 @@ where
     pub custom_ssr_client: Option<SsrClient>,
     pub view_data: Option<Map<String, Value>>,
     pub reflash_inertia_session: Option<ReflashSession>,
+    pub encrypt_history: bool,
 }
 
 impl<V> Default for InertiaConfigBuilder<V>
@@ -147,6 +149,7 @@ where
             with_ssr: false,
             custom_ssr_client: None,
             reflash_inertia_session: None,
+            encrypt_history: false,
         }
     }
 
@@ -193,6 +196,11 @@ where
         self
     }
 
+    pub fn encrypt_history(mut self) -> Self {
+        self.encrypt_history = true;
+        self
+    }
+
     /// Compile the current `InertiaConfigBuilder` into a valid `InertiaConfig` struct.
     ///
     /// # Panics
@@ -232,6 +240,7 @@ where
             with_ssr: self.with_ssr,
             custom_ssr_client: self.custom_ssr_client,
             reflash_inertia_session: self.reflash_inertia_session.unwrap_or(Box::new(|_| Ok(()))),
+            encrypt_history: self.encrypt_history,
         }
     }
 }
@@ -338,6 +347,7 @@ mod test {
             with_ssr: false,
             custom_ssr_client: None,
             reflash_inertia_session: Box::new(|_| Ok(())),
+            encrypt_history: false,
         };
 
         assert_eq!(&with_builder.url, &directly_initialized.url);
