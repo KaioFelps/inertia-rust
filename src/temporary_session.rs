@@ -20,3 +20,5 @@ impl Default for InertiaTemporarySession {
         }
     }
 }
+
+pub struct InertiaSessionToReflash(pub InertiaTemporarySession);

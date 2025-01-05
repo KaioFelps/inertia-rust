@@ -29,6 +29,7 @@ pub use page::InertiaSSRPage;
 pub use props::InertiaProp;
 pub use props::InertiaProps;
 pub use template_resolver::TemplateResolver;
+pub use temporary_session::InertiaSessionToReflash;
 pub use temporary_session::InertiaTemporarySession;
 
 #[cfg(feature = "actix")]
