@@ -1,6 +1,4 @@
-use crate::{
-    inertia::ReflashSession, template_resolver::TemplateResolver, InertiaVersion, SsrClient,
-};
+use crate::{template_resolver::TemplateResolver, InertiaVersion, SsrClient};
 use serde_json::{Map, Value};
 
 /// A configuration struct for initializing Inertia. You can directly fill the struct or use
@@ -40,7 +38,6 @@ where
     pub with_ssr: bool,
     pub custom_ssr_client: Option<SsrClient>,
     pub view_data: Option<Map<String, Value>>,
-    pub reflash_inertia_session: ReflashSession,
     pub encrypt_history: bool,
 }
 
@@ -93,7 +90,6 @@ where
     pub with_ssr: bool,
     pub custom_ssr_client: Option<SsrClient>,
     pub view_data: Option<Map<String, Value>>,
-    pub reflash_inertia_session: Option<ReflashSession>,
     pub encrypt_history: bool,
 }
 
@@ -148,7 +144,6 @@ where
             view_data: None,
             with_ssr: false,
             custom_ssr_client: None,
-            reflash_inertia_session: None,
             encrypt_history: false,
         }
     }
@@ -183,11 +178,6 @@ where
 
     pub fn set_view_data(mut self, view_data: Map<String, Value>) -> Self {
         self.view_data = Some(view_data);
-        self
-    }
-
-    pub fn set_reflash_fn(mut self, reflash_inertia_session_fn: ReflashSession) -> Self {
-        self.reflash_inertia_session = Some(reflash_inertia_session_fn);
         self
     }
 
@@ -239,7 +229,6 @@ where
             view_data: self.view_data,
             with_ssr: self.with_ssr,
             custom_ssr_client: self.custom_ssr_client,
-            reflash_inertia_session: self.reflash_inertia_session.unwrap_or(Box::new(|_| Ok(()))),
             encrypt_history: self.encrypt_history,
         }
     }
@@ -346,7 +335,6 @@ mod test {
             view_data: None,
             with_ssr: false,
             custom_ssr_client: None,
-            reflash_inertia_session: Box::new(|_| Ok(())),
             encrypt_history: false,
         };
 
