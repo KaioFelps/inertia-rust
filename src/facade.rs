@@ -44,8 +44,14 @@ pub trait InertiaFacade<TRequest, TResponse> {
     fn location(req: &TRequest, url: &str) -> TResponse;
 
     /// Whether to encrypt or not the current request. Refer to [History Encrypt] for more
-    /// details
+    /// details.
     ///
     /// [History Encrypt]: https://kaiofelps.github.io/inertia-rust/history-encrypt
     fn encrypt_history(req: &TRequest, encrypt: bool);
+
+    /// Triggers a history clearing from server-side. Refer to [History Encrypt] for more
+    /// details.
+    ///
+    /// [History Encrypt]: https://kaiofelps.github.io/inertia-rust/history-encrypt#clearing-history
+    fn clear_history(req: &TRequest);
 }

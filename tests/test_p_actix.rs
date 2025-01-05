@@ -164,6 +164,12 @@ async fn encrypt_ovewrites(req: HttpRequest) -> impl Responder {
     Inertia::render(&req, "Foo".into()).await
 }
 
+#[get("/encrypt/clearhistory")]
+async fn encrypt_clear_history(req: HttpRequest) -> impl Responder {
+    Inertia::clear_history(&req);
+    Inertia::render(&req, "Foo".into()).await
+}
+
 async fn generate_actix_app() -> App<
     impl ServiceFactory<
         ServiceRequest,
@@ -189,6 +195,7 @@ async fn generate_actix_app() -> App<
         .service(location)
         .service(encrypt_with_method)
         .service(encrypt_ovewrites)
+        .service(encrypt_clear_history)
 }
 
 // endregion: --- Service
@@ -625,6 +632,21 @@ async fn test_history_encrypt_method_overwrites_everything() {
     let body: InertiaPage = serde_json::from_slice(&body[..]).unwrap();
 
     assert!(!body.get_encrypt_history());
+}
+
+#[tokio::test]
+async fn test_clear_history() {
+    let app = actix_web::test::init_service(generate_actix_app().await).await;
+    let req = actix_web::test::TestRequest::get()
+        .uri("/encrypt/clearhistory")
+        .insert_header(InertiaHeader::Version(TEST_INERTIA_VERSION).convert())
+        .insert_header(InertiaHeader::Inertia.convert())
+        .to_request();
+
+    let body = request_as_bytes_vec(actix_web::test::call_service(&app, req).await);
+    let body: InertiaPage = serde_json::from_slice(&body[..]).unwrap();
+
+    assert!(body.get_clear_history());
 }
 
 // endregion: --- History Encryption Tests

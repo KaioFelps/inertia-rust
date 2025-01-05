@@ -72,6 +72,8 @@ pub trait InertiaResponder<TResponder, THttpRequest> {
     fn inner_location(req: &THttpRequest, url: &str) -> TResponder;
 
     fn inner_encrypt_history(req: &THttpRequest, encrypt: bool);
+
+    fn inner_clear_history(req: &THttpRequest);
 }
 
 /// Defines some helper methods to be implemented to HttpRequests from the

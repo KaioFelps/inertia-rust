@@ -8,11 +8,13 @@ use async_trait::async_trait;
 
 #[async_trait(?Send)]
 impl InertiaFacade<HttpRequest, HttpResponse> for Inertia {
+    #[inline]
     async fn render(req: &HttpRequest, component: Component) -> Result<HttpResponse, InertiaError> {
         let inertia = extract_inertia(req);
         inertia.inner_render(req, component).await
     }
 
+    #[inline]
     async fn render_with_props(
         req: &HttpRequest,
         component: Component,
@@ -22,12 +24,19 @@ impl InertiaFacade<HttpRequest, HttpResponse> for Inertia {
         inertia.inner_render_with_props(req, component, props).await
     }
 
+    #[inline]
     fn location(req: &HttpRequest, url: &str) -> HttpResponse {
         Inertia::inner_location(req, url)
     }
 
+    #[inline]
     fn encrypt_history(req: &HttpRequest, encrypt: bool) {
         Inertia::inner_encrypt_history(req, encrypt);
+    }
+
+    #[inline]
+    fn clear_history(req: &HttpRequest) {
+        Inertia::inner_clear_history(req);
     }
 }
 

@@ -150,6 +150,11 @@ impl InertiaResponder<HttpResponse, HttpRequest> for Inertia {
     fn inner_encrypt_history(req: &HttpRequest, encrypt: bool) {
         req.extensions_mut().insert(ShallEncryptHistory(encrypt));
     }
+
+    #[inline]
+    fn inner_clear_history(req: &HttpRequest) {
+        req.extensions_mut().insert(ShallClearHistory);
+    }
 }
 
 impl ResponseError for InertiaError {
@@ -196,7 +201,7 @@ where
     }
 }
 
-pub(crate) struct ShallClearHistory(pub bool);
+pub(crate) struct ShallClearHistory;
 pub(crate) struct ShallEncryptHistory(pub bool);
 
 impl InertiaHttpRequest for HttpRequest {
@@ -258,9 +263,7 @@ impl InertiaHttpRequest for HttpRequest {
     }
 
     fn should_clear_history(&self) -> bool {
-        self.extensions()
-            .get::<ShallClearHistory>()
-            .is_some_and(|ShallClearHistory(v)| *v)
+        self.extensions().get::<ShallClearHistory>().is_some()
     }
 
     fn should_encrypt_history(&self, default: bool) -> bool {
