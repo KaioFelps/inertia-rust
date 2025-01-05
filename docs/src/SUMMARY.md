@@ -13,5 +13,8 @@
 - [Deferred Props](./props/deferred.md)
 - [Merging Props](./props/merging.md)
 
+# Security
+- [History Encryption](./security/history-encryption.md) 
+
 # Advanced
 - [Flash Messages and Validation Errors](./advanced/flash-messages.md)
