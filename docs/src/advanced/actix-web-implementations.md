@@ -4,8 +4,16 @@ Check some useful snippets of middlewares mentioned by the previous chapter.
 
 ## Temporary Session Middleware (with Reflash)
 
-This is a simple middleware that extracts errors from the session and add to extensions. After the
-request, it'll reflash the session if needed.
+This middleware uses actix sessions to manage the Inertia Rust temporary sessions. It's responsible
+for:
+
+* Before the route execution:
+    * Removing flash data from user's session (errors, previous and current URLs);
+    * Instantiating a `InertiaTemporarySession` and injecting it to the current request;
+* After the route responds:
+    * Check if there is a request for reflashing the current session (and reflashes it, if so);
+    * Otherwise, adds the new "previous" and "current" requests URLs and the `SessionErrors` to the
+      actual user's session.
 
 ```toml
 # ./Cargo.toml
@@ -24,7 +32,7 @@ use actix_web::dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Tr
 use actix_web::Error;
 use actix_web::HttpMessage;
 use futures_util::future::LocalBoxFuture;
-use inertia_rust::{InertiaSessionToReflash, InertiaTemporarySession};
+use inertia_rust::{InertiaSessionToReflash, InertiaTemporarySession, actix::SessionErrors};
 use log::error;
 use serde_json::Map;
 use std::future::{ready, Ready};
@@ -113,19 +121,23 @@ where
             //
             // otherwise, gets the previous request's URI and stores the current one's as the next
             // request "previous", moving the navigation history
-            let (prev_url, curr_url) =
+            let (prev_url, curr_url, optional_errors) =
                 if let Some(InertiaSessionToReflash(inertia_session)) = inertia_session {
-                    if let Err(err) = session.insert(ERRORS_KEY, inertia_session.errors) {
-                        error!(
-                            "Failed to reflash Inertia Temporary Session's errors: {}",
-                            err
-                        );
-                    }
-
-                    (before_prev_url, inertia_session.prev_req_url)
+                    (before_prev_url, inertia_session.prev_req_url, inertia_session.errors)
                 } else {
-                    (prev_url, req.uri().to_string())
+                    let errors = req
+                        .extensions_mut()
+                        .remove::<SessionErrors>()
+                        .map(|SessionErrors(errors)| errors);
+
+                    (prev_url, req.uri().to_string(), errors)
                 };
+
+            if let Some(errors) = optional_errors {
+                if let Err(err) = session.insert(ERRORS_KEY, inertia_session.errors) {
+                    error!("Failed to add errors to session: {}", err);
+                }
+            }
 
             if let Err(err) = session.insert(PREV_REQ_KEY, prev_url) {
                 error!("Failed to update session previous request URL: {}", err);
@@ -150,67 +162,3 @@ and flash messages shouldn't persist across multiple requests.
 > `InertiaMiddleware` has the correct `InertiaTemporarySession` when it's finally executed.
 
 For more details on how to configure actix session, refer to their own documentation.
-
-## The `back-with-errors` Method
-
-```toml
-# ./Cargo.toml
-[dependencies]
-serde_json = "1.0"
-serde = { version = "1.0.217", features = ["derive"]}
-actix-web = "4.9.0"
-actix-session = "0.10.1"
-inertia-rust = { version = "2.0.0", features = ["actix"] }
-log = "0.4.22"
-```
-
-```rust
-// extensions/inertia.rs
-use actix_session::SessionExt;
-use actix_web::{web::Redirect, HttpRequest};
-use inertia_rust::{Inertia, InertiaFacade};
-use log::error;
-use serde_json::{to_value, Map, Value};
-use std::collections::HashMap;
-
-const ERRORS_KEY: &str = "_errors";
-
-pub trait RedirectBackWithErrors {
-    fn back_with_errors(req: &HttpRequest, errors: HashMap<&str, Value>) -> Redirect;
-}
-
-impl RedirectBackWithErrors for Inertia {
-    fn back_with_errors(req: &HttpRequest, errors: HashMap<&str, Value>) -> Redirect {
-        let errors = to_value(errors).unwrap_or_else(|err| {
-            error!("Failed to parse errors: {}", err);
-            Map::new().into()
-        });
-
-        let session = req.get_session();
-
-        if let Err(err) = session.insert(ERRORS_KEY, errors) {
-            error!(
-                "Failed to store errors in the user's session: {}",
-                err
-            );
-        };
-
-        Inertia::back(req)
-    }
-}
-```
-
-Then, use it like this:
-
-```rust
-use crate::extensions::inertia::RedirectBackWithErrors;
-use actix_web::{get, HttpRequest, Responder};
-use inertia_rust::{hashmap, Inertia};
-
-#[get("/foo")]
-async fn foo(req: HttpRequest) -> impl Responder {
-    Inertia::back_with_errors(&req, hashmap![
-        "age" => "You must be over 13 y.o. to access this website".into()
-    ])
-}
-```

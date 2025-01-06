@@ -44,28 +44,23 @@ Check a actix web implementation of this middleware at [Actix Web Implementation
 
 ## Redirecting Back With Errors
 
-To redirect back with errors, ensure the Inertia Temporary Session middleware is correctly set up. Then,
-all you need to do is to add the errors to your session within the `"_errors"` key or whatever key you've
-setup in your Inertia Temporary Session middleware. Then, just redirect back.
+To redirect back with errors, ensure the Inertia Temporary Session middleware is correctly set up. It
+must look for a `SessionErrors` instance in the request extensions and persist it in the user's session
+inside the `"_errors"` key -- or whatever key choosen to represent the errors in the sessions.
 
-> Note: `"_errors"` key is expected to contain a stringified JSON object.
+> Note: `"_errors"` key is expected to represent a stringified JSON object.
 
 For instance, it would be something like the following pseudo Rust code:
 
 ```rust
 use actix_web::{get, HttpRequest, Responder};
-use inertia_rust::{Inertia, InertiaFacade};
-use serde_json::json;
+use inertia_rust::{hashmap, Inertia, InertiaFacade};
 
 #[get("/foo")]
 async fn foo(req: HttpRequest) -> impl Responder {
-    let sessions = req.get_sessions_mut();
-
-    sessions.insert("_errors": json!({
-        "age": "You must be over 13 y.o. to access this website"
-    }));
-
-    Inertia::back(&req)
+    Inertia::back_with_errors(&req, hashmap![
+        "age" => to_value("You must be over 13 y.o. to access this website").unwrap()
+    ])
 }
 ```
 
