@@ -71,7 +71,7 @@ where
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let session = req.get_session();
 
-        let errors = session.remove("_errors").map(|errors| {
+        let errors = session.remove(ERRORS_KEY).map(|errors| {
             serde_json::from_str(&errors).unwrap_or_else(|err| {
                 error!("Failed to serialize session errors: {}", err);
                 Map::new()
@@ -186,7 +186,7 @@ impl RedirectBackWithErrors for Inertia {
 
         if let Err(err) = session.insert(ERRORS_KEY, errors) {
             error!(
-                "Failed to reflash Inertia Temporary Session's errors: {}",
+                "Failed to store errors in the user's session: {}",
                 err
             );
         };
