@@ -34,8 +34,29 @@ async fn index(req: HttpRequest) -> impl Responder {
 }
 ```
 
+To redirect to the previous page (a.k.a **redirect back**), use the `back` facade method:
+
+```rust
+use inertia_rust::{Inertia, InertiaFacade};
+use actix_web::{get, Responder, HttpRequest};
+
+#[get("/")]
+async fn index(req: HttpRequest) -> impl Responder {
+    Inertia::back(&req)
+}
+```
+
+If you've configured your [Inertia Temporary Session] middleware, it will use the previous visited page with
+more accuracy. Otherwise, it'll look for a `referer` header. In last case, it will redirect to `/`.
+
+Redirecting back with props is a little bit of advanced. Refer to [Redirecting Back With Errors] for an
+detailed explanation.
+
+[Inertia Temporary Session]: ../advanced/flash-messages.md
+[Redirecting Back With Errors]: ../advanced/flash-messages.md#redirecting-back-with-errors
+
 ## Responses
-You can simply render a page (be it ReactJs, Svelte or Vue.js) by calling the facade `render` method:
+Calling the facade `render` method render a page (be it ReactJs, Svelte or Vue.js):
 
 ```rust
 use inertia_rust::{Inertia, InertiaFacade};

@@ -18,3 +18,4 @@
 
 # Advanced
 - [Flash Messages and Validation Errors](./advanced/flash-messages.md)
+    - [Actix Web Implementations](./advanced/actix-web-implementations.md)
