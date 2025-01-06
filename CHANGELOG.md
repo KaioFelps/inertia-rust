@@ -9,11 +9,13 @@
 - support for [Deferred Props](https://inertiajs.com/deferred-props);
 - support for [Merge Props](https://inertiajs.com/merging-props);
 - `InertiaFacade` trait + implementation for actix-web provider;
+- `Inertia::back` and `Inertia::back_with_errors` methods;
+- documentation website.
 
 ### Removed
-- `template_resolver_data` field from `InertiaConfig` and `InertiaConfigBuilder` (check **Breaking Changes** section
-for more details);
+- `template_resolver_data` field from `InertiaConfig` and `InertiaConfigBuilder`;
 - `inertia_rust::actix::render` and `inertia_rust::actix::render_with_props` facade methods;
+- `reflash_inertia_session` usage from crate (and setters from `InertiaConfigBuilder`);
 
 ### Changed
 - `Inertia::template_resolver` field's type;
@@ -33,7 +35,18 @@ implements our `TemplateResolver` trait. It's absolutely more simple now. You ca
 might need directly in the struct body. Your implementation now can also be a simple
 `async fn foo(...) { /* ... */ }`, instead of something like `let foo = move |...| Box::pin(async move { /* ... */ })`.
 
-This is better explained on the **Template Resolvers** section from the [readme file](README.md).
+This is better explained on the **[Template Resolvers]** section from the documentation.
+
+[Template Resolvers]: https://kaiofelps.github.io/inertia-rust/basic/advanced/template_resolvers.html
+
+### `reflash_inertia_session` method
+This field was optional and would default to a useless callback (something like `|_| Ok(())`). It'd be used for
+reflashing the session when Inertia Rust would decide to trigger a forced-refresh --- due to assets version
+mismatch.
+
+Now, instead of calling it, Inertia Rust will add the `InertiaTemporarySession` from struct (if there is such) to
+the request extensions wrapped with `InertiaSessionToReflash`. It's still up to you to guarantee it's reflashed using
+sessions or whatever method you decides to.
 
 #### Actix Facades
 `actix::facade`'s `render` and `render_with_props` methods no longer exist. Now, you might use `Inertia::render`
