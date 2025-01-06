@@ -618,8 +618,8 @@ mod test {
         let _page = *page.lock().unwrap();
         let (standard_page, partial_page) = get_inertia_pages(_page).await;
 
-        println!("{}\n\n", standard_page);
-        println!("{}\n\n", partial_page);
+        log::info!("{}\n\n", standard_page);
+        log::info!("{}\n\n", partial_page);
 
         assert!(partial_page["props"]
             .as_object()
