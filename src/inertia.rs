@@ -256,11 +256,11 @@ impl Inertia {
     /// ```rust
     /// use inertia_rust::node_process::NodeJsProc;
     /// use inertia_rust::{
+    ///     template_resolvers::TemplateResolver,
     ///     Inertia,
     ///     InertiaVersion,
     ///     InertiaError,
     ///     ViewData,
-    ///     TemplateResolver,
     ///     InertiaConfig
     /// };
     /// use std::pin::Pin;

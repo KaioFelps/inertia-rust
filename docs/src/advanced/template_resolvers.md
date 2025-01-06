@@ -18,7 +18,7 @@ data your template resolver needs to render a page. Then, implement `TemplateRes
 For instance, this is a short of `ViteTemplateResolver`:
 
 ```rust
-use crate::{template_resolver::TemplateResolver, InertiaError, ViewData};
+use crate::{template_resolvers::TemplateResolver, InertiaError, ViewData};
 use async_trait::async_trait;
 use std::path::Path;
 use vite_rust::{features::html_directives::ViteDefaultDirectives, Vite};

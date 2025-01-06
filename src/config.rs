@@ -112,7 +112,7 @@ where
     /// ```rust
     /// use inertia_rust::{InertiaConfigBuilder, InertiaVersion};
     ///
-    /// # use inertia_rust::{TemplateResolver, ViewData, InertiaError};
+    /// # use inertia_rust::{template_resolvers::TemplateResolver, ViewData, InertiaError};
     /// #   struct YourTemplateResolver;
     /// #
     /// #   #[async_trait::async_trait(?Send)]
