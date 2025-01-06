@@ -185,9 +185,6 @@ impl Inertia {
     ///                                 more details at [`Inertia::template_resolver`] doc string.
     ///                                 If you don't plan to use it, just pass an empty tuple (both here
     ///                                 and in your template resolver).
-    /// * `reflesh_inertia_session` -   A callback that persist an [`InertiaTemporarySession`] across
-    ///                                 one more request using your framework's session manager.
-    ///                                 refer to [Flash Messages and Validation Errors] for more details.
     /// * `encrypt_history`         -   Whether to encrypt or not the session. Refer to [History encryption]
     ///                                 for more details.
     ///
