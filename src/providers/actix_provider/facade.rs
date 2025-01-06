@@ -2,12 +2,12 @@ use crate::facade::InertiaFacade;
 use crate::inertia::InertiaResponder;
 use crate::utils::inertia_err_msg;
 use crate::{Component, Inertia, InertiaError, InertiaProps};
-use actix_web::web::Data;
+use actix_web::web::{Data, Redirect};
 use actix_web::{HttpRequest, HttpResponse};
 use async_trait::async_trait;
 
 #[async_trait(?Send)]
-impl InertiaFacade<HttpRequest, HttpResponse> for Inertia {
+impl InertiaFacade<HttpRequest, HttpResponse, Redirect> for Inertia {
     #[inline]
     async fn render(req: &HttpRequest, component: Component) -> Result<HttpResponse, InertiaError> {
         let inertia = extract_inertia(req);
@@ -37,6 +37,12 @@ impl InertiaFacade<HttpRequest, HttpResponse> for Inertia {
     #[inline]
     fn clear_history(req: &HttpRequest) {
         Inertia::inner_clear_history(req);
+    }
+
+    #[inline]
+    fn back(req: &HttpRequest) -> Redirect {
+        let inertia = extract_inertia(req);
+        inertia.inner_back(req)
     }
 }
 

@@ -15,7 +15,7 @@ use actix_web::body::BoxBody;
 use actix_web::dev::{ServiceFactory, ServiceRequest};
 use actix_web::http::header::HeaderName;
 use actix_web::http::StatusCode;
-use actix_web::web::ServiceConfig;
+use actix_web::web::{Redirect, ServiceConfig};
 use actix_web::{
     web, App, FromRequest, HttpMessage, HttpRequest, HttpResponse, HttpResponseBuilder, Responder,
     ResponseError,
@@ -37,7 +37,7 @@ impl Responder for InertiaPage<'_> {
 }
 
 #[async_trait(?Send)]
-impl InertiaResponder<HttpResponse, HttpRequest> for Inertia {
+impl InertiaResponder<HttpResponse, HttpRequest, Redirect> for Inertia {
     #[inline]
     async fn inner_render<'b>(
         &'b self,
@@ -155,6 +155,23 @@ impl InertiaResponder<HttpResponse, HttpRequest> for Inertia {
     #[inline]
     fn inner_clear_history(req: &HttpRequest) {
         req.extensions_mut().insert(ShallClearHistory);
+    }
+
+    #[inline]
+    fn inner_back(&self, req: &HttpRequest) -> Redirect {
+        let extensions = req.extensions();
+        let session = extensions.get::<InertiaTemporarySession>();
+        let previous_uri = if let Some(session) = session {
+            session.prev_req_url.clone()
+        } else {
+            req.headers()
+                .get(HeaderName::from_static("referer"))
+                .map_or("/".to_string(), |header| {
+                    header.to_str().unwrap_or("/").to_string()
+                })
+        };
+
+        Redirect::new(req.uri().to_string(), previous_uri).using_status_code(StatusCode::FOUND)
     }
 }
 

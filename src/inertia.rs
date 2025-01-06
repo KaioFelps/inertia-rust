@@ -55,7 +55,7 @@ pub trait InertiaService {
 /// if "actix" feature is passed with the --feature flag or with the
 /// feature field in the cargo toml.
 #[async_trait(?Send)] // it's `?Send` because some frameworks like Actix won't require requests to be thread-safe
-pub trait InertiaResponder<TResponder, THttpRequest> {
+pub trait InertiaResponder<TResponder, THttpRequest, TRedirect> {
     async fn inner_render<'b>(
         &'b self,
         req: &'b THttpRequest,
@@ -68,6 +68,8 @@ pub trait InertiaResponder<TResponder, THttpRequest> {
         component: Component,
         props: InertiaProps<'b>,
     ) -> Result<TResponder, InertiaError>;
+
+    fn inner_back(&self, req: &THttpRequest) -> TRedirect;
 
     fn inner_location(req: &THttpRequest, url: &str) -> TResponder;
 

@@ -2,7 +2,7 @@ use crate::{Component, InertiaError, InertiaProps};
 use async_trait::async_trait;
 
 #[async_trait(?Send)]
-pub trait InertiaFacade<TRequest, TResponse> {
+pub trait InertiaFacade<TRequest, TResponse, TRedirect> {
     /// Renders an Inertia Page as an HTTP response.
     ///
     /// # Arguments
@@ -54,4 +54,10 @@ pub trait InertiaFacade<TRequest, TResponse> {
     ///
     /// [History Encrypt]: https://kaiofelps.github.io/inertia-rust/history-encrypt#clearing-history
     fn clear_history(req: &TRequest);
+
+    /// Triggers a redirect to the previous URL (or "/", if there is no previous URL).
+    /// Please refer to [Flash Messages and Validation Errors] for more information.
+    ///
+    /// [Flash Messages and Validation Errors]: https://kaiofelps.github.io/inertia-rust/advanced/flash-messages.html
+    fn back(req: &TRequest) -> TRedirect;
 }
