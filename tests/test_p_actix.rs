@@ -1,7 +1,7 @@
 mod common;
 
-use actix_web::dev::{forward_ready, Service, Transform};
 use actix_web::http::header::TryIntoHeaderPair;
+use actix_web::middleware::{from_fn, Next};
 use actix_web::{
     body::MessageBody,
     delete,
@@ -13,7 +13,7 @@ use actix_web::{
     App, HttpMessage, HttpRequest, HttpResponse, Responder,
 };
 use common::template_resolver::{get_dynamic_csr_expect, MockedTemplateResolver};
-use futures::future::{ready, LocalBoxFuture, Ready};
+use inertia_rust::actix::SessionErrors;
 use inertia_rust::{
     actix::{EncryptHistoryMiddleware, InertiaHeader, InertiaMiddleware},
     hashmap, prop_resolver, InertiaConfigBuilder, InertiaFacade, InertiaPage, InertiaService,
@@ -28,8 +28,13 @@ use std::{
 };
 
 const TEST_INERTIA_VERSION: &str = "v1.0.0";
-static SESSIONS_STORAGE: OnceLock<Arc<Mutex<Vec<InertiaTemporarySession>>>> = OnceLock::new();
+static SESSIONS_STORAGE: OnceLock<Arc<Mutex<HashMap<String, InertiaTemporarySession>>>> =
+    OnceLock::new();
+
 static TIMES_DEFERRED_RESOLVER_HAS_EXECUTED: OnceLock<Arc<Mutex<u32>>> = OnceLock::new();
+
+#[derive(Clone)]
+struct SessionKey(pub String);
 
 // region: --- Helpers
 
@@ -50,6 +55,10 @@ fn get_inertia_config() -> InertiaConfigBuilder<&'static str> {
         .set_version(InertiaVersion::Literal(TEST_INERTIA_VERSION))
         .set_template_path("tests/common/root_layout.html")
         .set_template_resolver(Box::new(MockedTemplateResolver))
+}
+
+fn maybe_initialize_sessions_storage() {
+    SESSIONS_STORAGE.get_or_init(|| Arc::new(Mutex::new(HashMap::new())));
 }
 
 // endregion: --- Helpers
@@ -170,6 +179,16 @@ async fn redirect_back_with_header(req: HttpRequest) -> impl Responder {
     Inertia::back(&req)
 }
 
+#[post("/redirect/back/with/errors")]
+async fn redirect_back_with_errors(req: HttpRequest) -> impl Responder {
+    Inertia::back_with_errors(
+        &req,
+        hashmap![
+            "foo" => "We are enemies, we are foes...".into()
+        ],
+    )
+}
+
 #[get("/encrypt/method")]
 async fn encrypt_with_method(req: HttpRequest) -> impl Responder {
     Inertia::encrypt_history(&req, true);
@@ -191,79 +210,72 @@ async fn encrypt_clear_history(req: HttpRequest) -> impl Responder {
 // endregion: --- Routes
 
 // region: --- Middleware
-struct ReflashTemporarySessionMiddleware;
 
-impl<S, B> Transform<S, ServiceRequest> for ReflashTemporarySessionMiddleware
-where
-    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = actix_web::Error>,
-    S::Future: 'static,
-    B: 'static,
-{
-    type Response = ServiceResponse<B>;
-    type Error = actix_web::Error;
-    type InitError = ();
-    type Transform = ReflashTemporarySessionService<S>;
-    type Future = Ready<Result<Self::Transform, Self::InitError>>;
+async fn reflash_temporary_session_middleware(
+    req: ServiceRequest,
+    next: Next<impl MessageBody>,
+) -> Result<ServiceResponse<impl MessageBody>, actix_web::Error> {
+    let session_key = req
+        .extensions()
+        .get::<SessionKey>()
+        .cloned()
+        .map(|SessionKey(session)| session)
+        .unwrap();
 
-    fn new_transform(&self, service: S) -> Self::Future {
-        ready(Ok(ReflashTemporarySessionService { service }))
-    }
-}
+    let (prev_req_url, curr_req_url, errors) = if let Some(session) = SESSIONS_STORAGE
+        .get()
+        .unwrap()
+        .lock()
+        .unwrap()
+        .remove(&session_key)
+    {
+        (session.prev_req_url, req.uri().to_string(), session.errors)
+    } else {
+        (
+            "http://localhost:3000/bar".into(),
+            "http://localhost:3000/foo".into(),
+            None,
+        )
+    };
 
-struct ReflashTemporarySessionService<S> {
-    service: S,
-}
+    let temporary_session = InertiaTemporarySession {
+        errors,
+        prev_req_url: prev_req_url.clone(),
+    };
 
-impl<S, B> Service<ServiceRequest> for ReflashTemporarySessionService<S>
-where
-    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = actix_web::Error>,
-    S::Future: 'static,
-    B: 'static,
-{
-    type Response = ServiceResponse<B>;
-    type Error = actix_web::Error;
-    type Future = LocalBoxFuture<'static, Result<Self::Response, Self::Error>>;
+    req.extensions_mut().insert(temporary_session);
 
-    forward_ready!(service);
+    let res = next.call(req).await?;
 
-    fn call(&self, req: ServiceRequest) -> Self::Future {
-        let before_prev_req_url = "http://localhost:3000/bar";
-        let prev_url = "http://localhost:3000/foo";
+    let req = res.request();
 
-        let session = SESSIONS_STORAGE.get().unwrap().lock().unwrap();
-        let session = session.first();
-        if let Some(session) = session {
-            req.extensions_mut().insert(session.clone());
-        }
+    let inertia_session = req.extensions_mut().remove::<InertiaSessionToReflash>();
 
-        let fut = self.service.call(req);
+    let (prev_req_url, _curr_url, errors) =
+        if let Some(InertiaSessionToReflash(inertia_session)) = inertia_session {
+            (
+                prev_req_url,
+                inertia_session.prev_req_url,
+                inertia_session.errors,
+            )
+        } else {
+            let errors = req
+                .extensions_mut()
+                .remove::<SessionErrors>()
+                .map(|SessionErrors(errors)| errors);
 
-        Box::pin(async move {
-            let res = fut.await?;
+            (curr_req_url, req.uri().to_string(), errors)
+        };
 
-            let session = SESSIONS_STORAGE.get().unwrap();
-            let req = res.request();
-            let inertia_session = req.extensions_mut().remove::<InertiaSessionToReflash>();
+    SESSIONS_STORAGE.get().unwrap().lock().unwrap().insert(
+        session_key,
+        InertiaTemporarySession {
+            errors,
+            prev_req_url,
+        },
+    );
 
-            let (prev_url, _, errors) =
-                if let Some(InertiaSessionToReflash(inertia_session)) = inertia_session {
-                    (
-                        before_prev_req_url,
-                        inertia_session.prev_req_url,
-                        inertia_session.errors,
-                    )
-                } else {
-                    (prev_url, req.uri().to_string(), None)
-                };
-
-            session.lock().unwrap().push(InertiaTemporarySession {
-                errors,
-                prev_req_url: prev_url.into(),
-            });
-
-            Ok(res)
-        })
-    }
+    Ok(res)
 }
 
 // endregion: --- Middleware
@@ -277,7 +289,7 @@ async fn generate_actix_app() -> App<
         InitError = (),
     >,
 > {
-    let _ = SESSIONS_STORAGE.get_or_init(|| Arc::new(Mutex::new(Vec::new())));
+    maybe_initialize_sessions_storage();
 
     let inertia = Inertia::new(get_inertia_config().build()).unwrap();
 
@@ -296,6 +308,7 @@ async fn generate_actix_app() -> App<
         .service(encrypt_clear_history)
         .service(redirect_back_with_header)
         .service(redirect_back_with_reflash)
+        .service(redirect_back_with_errors)
 }
 
 // endregion: --- Service
@@ -490,10 +503,12 @@ async fn test_inertia_middleware() {
 
 #[tokio::test]
 async fn test_inertia_temporary_sessions() {
+    let session_key = "test_inertia_temporary_sessions".to_string();
+
     let app = actix_web::test::init_service(
         generate_actix_app()
             .await
-            .wrap(ReflashTemporarySessionMiddleware)
+            .wrap(from_fn(reflash_temporary_session_middleware))
             .wrap(InertiaMiddleware::new()),
     )
     .await;
@@ -504,8 +519,12 @@ async fn test_inertia_temporary_sessions() {
         .insert_header(InertiaHeader::Inertia.convert())
         .to_request();
 
+    request
+        .extensions_mut()
+        .insert(SessionKey(session_key.clone()));
+
     let mut errors = Map::new();
-    errors.insert("foo".into(), "We are enemies, we are fooes...".into());
+    errors.insert("foo".into(), "We are enemies, we are foes...".into());
 
     request.extensions_mut().insert(InertiaTemporarySession {
         errors: Some(errors.clone()),
@@ -521,7 +540,7 @@ async fn test_inertia_temporary_sessions() {
 
     let storage = SESSIONS_STORAGE.get().unwrap();
 
-    assert!(!storage.lock().unwrap().is_empty());
+    assert!(storage.lock().unwrap().contains_key(&session_key));
     // assert_eq!(&errors, storage.lock().unwrap()[0].errors.as_ref().unwrap());
 }
 
@@ -674,6 +693,8 @@ async fn test_history_encryt_method_overwrites_middleware() {
 
 #[tokio::test]
 async fn test_history_encrypt_from_config() {
+    maybe_initialize_sessions_storage();
+
     let inertia = actix_web::web::Data::new(
         Inertia::new(get_inertia_config().encrypt_history().build()).unwrap(),
     );
@@ -695,6 +716,8 @@ async fn test_history_encrypt_from_config() {
 
 #[tokio::test]
 async fn test_history_encrypt_overwrites_config() {
+    maybe_initialize_sessions_storage();
+
     let inertia = actix_web::web::Data::new(
         Inertia::new(get_inertia_config().encrypt_history().build()).unwrap(),
     );
@@ -716,6 +739,8 @@ async fn test_history_encrypt_overwrites_config() {
 
 #[tokio::test]
 async fn test_history_encrypt_method_overwrites_everything() {
+    maybe_initialize_sessions_storage();
+
     let inertia = actix_web::web::Data::new(
         Inertia::new(get_inertia_config().encrypt_history().build()).unwrap(),
     );
@@ -761,10 +786,12 @@ async fn test_clear_history() {
 #[tokio::test]
 #[allow(clippy::await_holding_lock)]
 async fn test_redirect_back_with_reflash_session() {
+    let session_key = "test_redirect_back_with_reflash_session".to_string();
+
     let app = actix_web::test::init_service(
         generate_actix_app()
             .await
-            .wrap(ReflashTemporarySessionMiddleware),
+            .wrap(from_fn(reflash_temporary_session_middleware)),
     )
     .await;
 
@@ -773,6 +800,8 @@ async fn test_redirect_back_with_reflash_session() {
         .insert_header(InertiaHeader::Version(TEST_INERTIA_VERSION).convert())
         .insert_header(InertiaHeader::Inertia.convert())
         .to_request();
+
+    req.extensions_mut().insert(SessionKey(session_key));
 
     let response = actix_web::test::call_service(&app, req).await;
 
@@ -820,4 +849,191 @@ async fn test_redirect_back_with_referer_header() {
     );
 }
 
+#[tokio::test]
+async fn test_redirect_back_with_errors() {
+    let session_key = "test_redirect_back_with_errors".to_string();
+
+    let app = actix_web::test::init_service(
+        generate_actix_app()
+            .await
+            .wrap(InertiaMiddleware::new())
+            .wrap(from_fn(reflash_temporary_session_middleware)),
+    )
+    .await;
+
+    let request = actix_web::test::TestRequest::post()
+        .uri("/redirect/back/with/errors")
+        .insert_header(InertiaHeader::Version(TEST_INERTIA_VERSION).convert())
+        .insert_header(InertiaHeader::Inertia.convert())
+        .to_request();
+
+    request
+        .extensions_mut()
+        .insert(SessionKey(session_key.clone()));
+
+    let response = actix_web::test::call_service(&app, request).await;
+
+    assert_eq!(response.status(), StatusCode::FOUND);
+
+    let sessions = SESSIONS_STORAGE.get().unwrap().lock().unwrap();
+
+    assert!(sessions.contains_key(&session_key));
+    assert!(sessions[&session_key].errors.is_some());
+
+    assert!(sessions[&session_key]
+        .errors
+        .as_ref()
+        .unwrap()
+        .contains_key("foo"));
+
+    assert_eq!(
+        sessions[&session_key].errors.as_ref().unwrap()["foo"],
+        "We are enemies, we are foes..."
+    );
+}
+
 // endregion: --- Redirect Back Tests
+
+// region: --- Error Bag tests
+
+#[tokio::test]
+async fn test_error_bags() {
+    let session_key = "test_error_bags".to_string();
+
+    let app = actix_web::test::init_service(
+        generate_actix_app()
+            .await
+            .wrap(InertiaMiddleware::new())
+            .wrap(from_fn(reflash_temporary_session_middleware)),
+    )
+    .await;
+
+    let request = actix_web::test::TestRequest::post()
+        .uri("/redirect/back/with/errors")
+        .insert_header(InertiaHeader::Version(TEST_INERTIA_VERSION).convert())
+        .insert_header(InertiaHeader::Inertia.convert())
+        .insert_header(InertiaHeader::InertiaErrorBag("myBag").convert())
+        .to_request();
+
+    request
+        .extensions_mut()
+        .insert(SessionKey(session_key.clone()));
+
+    let _ = actix_web::test::call_service(&app, request).await;
+
+    let sessions = SESSIONS_STORAGE.get().unwrap().lock().unwrap().clone();
+
+    assert!(sessions.contains_key(&session_key));
+    assert!(sessions[&session_key].errors.is_some());
+
+    assert!(sessions[&session_key]
+        .errors
+        .as_ref()
+        .unwrap()
+        .contains_key("myBag"));
+
+    assert!(sessions[&session_key].errors.as_ref().unwrap()["myBag"]
+        .as_object()
+        .unwrap()
+        .contains_key("foo"));
+
+    assert_eq!(
+        sessions[&session_key].errors.as_ref().unwrap()["myBag"]["foo"],
+        "We are enemies, we are foes..."
+    );
+
+    let request = actix_web::test::TestRequest::get()
+        .uri("/withprops")
+        .append_header(InertiaHeader::Version("v1.0.0").convert())
+        .append_header(InertiaHeader::Inertia.convert())
+        .to_request();
+
+    request.extensions_mut().insert(SessionKey(session_key));
+
+    let body = actix_web::test::call_and_read_body(&app, request)
+        .await
+        .to_vec();
+
+    let body: InertiaPage = serde_json::from_slice(body.as_slice()).unwrap();
+
+    assert!(body.get_props().contains_key("errors"));
+    assert!(body
+        .get_props()
+        .get("errors")
+        .unwrap()
+        .as_object()
+        .unwrap()
+        .contains_key("myBag"));
+
+    assert!(body.get_props()["errors"]["myBag"]
+        .as_object()
+        .unwrap()
+        .get("foo")
+        .is_some_and(|foo| foo.eq("We are enemies, we are foes...")));
+}
+
+#[tokio::test]
+async fn test_default_error_bag() {
+    let session_key = "test_error_bags".to_string();
+
+    let app = actix_web::test::init_service(
+        generate_actix_app()
+            .await
+            .wrap(InertiaMiddleware::new())
+            .wrap(from_fn(reflash_temporary_session_middleware)),
+    )
+    .await;
+
+    let request = actix_web::test::TestRequest::post()
+        .uri("/redirect/back/with/errors")
+        .insert_header(InertiaHeader::Version(TEST_INERTIA_VERSION).convert())
+        .insert_header(InertiaHeader::Inertia.convert())
+        .to_request();
+
+    request
+        .extensions_mut()
+        .insert(SessionKey(session_key.clone()));
+
+    let _ = actix_web::test::call_service(&app, request).await;
+
+    let sessions = SESSIONS_STORAGE.get().unwrap().lock().unwrap().clone();
+
+    assert_eq!(
+        sessions
+            .get(&session_key)
+            .as_ref()
+            .unwrap()
+            .errors
+            .as_ref()
+            .unwrap()
+            .get("foo")
+            .unwrap()
+            .as_str()
+            .unwrap(),
+        "We are enemies, we are foes..."
+    );
+
+    let request = actix_web::test::TestRequest::get()
+        .uri("/withprops")
+        .append_header(InertiaHeader::Version("v1.0.0").convert())
+        .append_header(InertiaHeader::Inertia.convert())
+        .to_request();
+
+    request.extensions_mut().insert(SessionKey(session_key));
+
+    let body = actix_web::test::call_and_read_body(&app, request)
+        .await
+        .to_vec();
+
+    let body: InertiaPage = serde_json::from_slice(body.as_slice()).unwrap();
+
+    assert!(body.get_props().contains_key("errors"));
+    assert!(body
+        .get_props()
+        .get("errors")
+        .unwrap()
+        .get("foo")
+        .is_some_and(|foo| foo.eq("We are enemies, we are foes...")));
+}
+
+// endregion: --- Error Bag tests

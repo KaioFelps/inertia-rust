@@ -6,7 +6,7 @@ use serde_json::{Map, Value};
 ///
 /// You must inject it by yourself by a second middleware, which gets these information from
 /// your framework sessions manager.
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Debug)]
 pub struct InertiaTemporarySession {
     pub errors: Option<Map<String, Value>>,
     pub prev_req_url: String,
