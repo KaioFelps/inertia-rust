@@ -1,10 +1,13 @@
+use std::collections::HashMap;
+
 use crate::facade::InertiaFacade;
 use crate::inertia::InertiaResponder;
 use crate::utils::inertia_err_msg;
-use crate::{Component, Inertia, InertiaError, InertiaProps};
+use crate::{hashmap, Component, Inertia, InertiaError, InertiaProps};
 use actix_web::web::{Data, Redirect};
 use actix_web::{HttpRequest, HttpResponse};
 use async_trait::async_trait;
+use serde_json::Value;
 
 #[async_trait(?Send)]
 impl InertiaFacade<HttpRequest, HttpResponse, Redirect> for Inertia {
@@ -42,7 +45,13 @@ impl InertiaFacade<HttpRequest, HttpResponse, Redirect> for Inertia {
     #[inline]
     fn back(req: &HttpRequest) -> Redirect {
         let inertia = extract_inertia(req);
-        inertia.inner_back(req)
+        inertia.inner_back_with_errors(req, hashmap![])
+    }
+
+    #[inline]
+    fn back_with_errors(req: &HttpRequest, errors: HashMap<&str, Value>) -> Redirect {
+        let inertia = extract_inertia(req);
+        inertia.inner_back_with_errors(req, errors)
     }
 }
 

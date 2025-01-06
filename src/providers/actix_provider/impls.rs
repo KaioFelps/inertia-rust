@@ -21,6 +21,7 @@ use actix_web::{
     ResponseError,
 };
 use async_trait::async_trait;
+use serde_json::{json, to_value, Map, Value};
 use std::collections::HashMap;
 
 impl Responder for InertiaPage<'_> {
@@ -158,9 +159,9 @@ impl InertiaResponder<HttpResponse, HttpRequest, Redirect> for Inertia {
     }
 
     #[inline]
-    fn inner_back(&self, req: &HttpRequest) -> Redirect {
-        let extensions = req.extensions();
-        let session = extensions.get::<InertiaTemporarySession>();
+    fn inner_back_with_errors(&self, req: &HttpRequest, errors: HashMap<&str, Value>) -> Redirect {
+        let session = req.extensions().get::<InertiaTemporarySession>().cloned();
+
         let previous_uri = if let Some(session) = session {
             session.prev_req_url.clone()
         } else {
@@ -171,8 +172,49 @@ impl InertiaResponder<HttpResponse, HttpRequest, Redirect> for Inertia {
                 })
         };
 
+        if !errors.is_empty() {
+            let mut errors_map = Map::new();
+
+            for (key, value) in errors {
+                match to_value(value) {
+                    Ok(value) => {
+                        errors_map.insert(key.to_string(), value);
+                    }
+
+                    Err(err) => {
+                        log::error!("Failed to serialize session's error value: {}", err);
+                        continue;
+                    }
+                }
+            }
+
+            req.extensions_mut()
+                .insert(SessionErrors(resolve_session_errors(errors_map, req)));
+        }
+
         Redirect::new(req.uri().to_string(), previous_uri).using_status_code(StatusCode::FOUND)
     }
+}
+
+fn resolve_session_errors(errors: Map<String, Value>, req: &HttpRequest) -> Map<String, Value> {
+    if let Some(error_bag_header) = req.headers().get(super::headers::X_INERTIA_ERROR_BAG) {
+        if let Ok(bag) = error_bag_header.to_str() {
+            return Map::from_iter([(
+                bag.to_string(),
+                to_value(errors).unwrap_or_else(|err| {
+                    log::error!("Failed to serialize session errors: {}", err);
+                    json!({})
+                }),
+            )]);
+        } else {
+            log::warn!(
+                "Received an invalid header {} value. Opting out of error bag.",
+                super::headers::X_INERTIA_ERROR_BAG,
+            );
+        }
+    }
+
+    errors
 }
 
 impl ResponseError for InertiaError {
@@ -219,6 +261,11 @@ where
     }
 }
 
+/// Contains the Errors from this session.
+/// Might be added to the request extensions through `Inertia::back_with_errors` method.
+/// Must be added to the sessions by your own custom middleware at the end of a request,
+/// so that it is fetched on the subsequent request from that session.
+pub struct SessionErrors(pub Map<String, Value>);
 pub(crate) struct ShallClearHistory;
 pub(crate) struct ShallEncryptHistory(pub bool);
 

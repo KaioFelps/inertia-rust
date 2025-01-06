@@ -37,6 +37,7 @@ pub mod actix {
     pub use super::providers::actix::encrypt_middleware::EncryptHistoryMiddleware;
     pub use super::providers::actix::headers::InertiaHeader;
     pub use super::providers::actix::middleware::InertiaMiddleware;
+    pub use super::providers::actix::SessionErrors;
 }
 
 #[cfg(feature = "vite-template-resolver")]

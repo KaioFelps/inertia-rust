@@ -1,5 +1,8 @@
+use std::collections::HashMap;
+
 use crate::{Component, InertiaError, InertiaProps};
 use async_trait::async_trait;
+use serde_json::Value;
 
 #[async_trait(?Send)]
 pub trait InertiaFacade<THttpRequest, TResponse, TRedirect> {
@@ -60,4 +63,10 @@ pub trait InertiaFacade<THttpRequest, TResponse, TRedirect> {
     ///
     /// [Flash Messages and Validation Errors]: https://kaiofelps.github.io/inertia-rust/advanced/flash-messages.html
     fn back(req: &THttpRequest) -> TRedirect;
+
+    /// Triggers a redirect to the previous URL (or "/", if there is no previous URL) with
+    /// errors. Please refer to [Flash Messages and Validation Errors] for more information.
+    ///
+    /// [Flash Messages and Validation Errors]: https://kaiofelps.github.io/inertia-rust/advanced/flash-messages.html
+    fn back_with_errors(req: &THttpRequest, errors: HashMap<&str, Value>) -> TRedirect;
 }

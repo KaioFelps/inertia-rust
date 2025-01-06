@@ -8,6 +8,7 @@ use async_trait::async_trait;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use std::collections::HashMap;
 use std::io;
 
 pub const X_INERTIA: &str = "x-inertia";
@@ -69,7 +70,8 @@ pub trait InertiaResponder<TResponder, THttpRequest, TRedirect> {
         props: InertiaProps<'b>,
     ) -> Result<TResponder, InertiaError>;
 
-    fn inner_back(&self, req: &THttpRequest) -> TRedirect;
+    fn inner_back_with_errors(&self, req: &THttpRequest, errors: HashMap<&str, Value>)
+        -> TRedirect;
 
     fn inner_location(req: &THttpRequest, url: &str) -> TResponder;
 
