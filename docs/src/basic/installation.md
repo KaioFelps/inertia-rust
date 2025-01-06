@@ -16,7 +16,7 @@ The **vite-template-resolver** feature enables the `ViteTemplateResolver`. We'll
 [Template Resolvers], along with how to set up your own template resolver. On this documentation, we'll use
 [vite-rust] and [Actix Web], so you must have them installed.
 
-[Template Resolvers]: ./advanced/template_resolvers.md
+[Template Resolvers]: ../advanced/template_resolvers.md
 [vite-rust]: https://github.com/KaioFelps/vite-rust
 [Actix Web]: https://actix.rs/
 
@@ -57,7 +57,7 @@ pub async fn initialize_vite() -> Vite {
 // src/config/inertia.rs
 use super::vite::initialize_vite;
 use inertia_rust::{
-    resolvers::ViteTemplateResolver, Inertia, InertiaConfig, InertiaVersion, SsrClient,
+    template_resolvers::ViteTemplateResolver, Inertia, InertiaConfig, InertiaVersion, SsrClient,
 };
 use std::{env, io, sync::Arc};
 
