@@ -50,7 +50,7 @@ where
     /// # Examples
     /// ```rust
     /// use inertia_rust::{InertiaVersion, InertiaConfig};
-    /// # use inertia_rust::{ViewData, InertiaError, TemplateResolver};
+    /// # use inertia_rust::{ViewData, InertiaError, template_resolvers::TemplateResolver};
     /// #
     /// #   struct YourTemplateResolver;
     /// #
