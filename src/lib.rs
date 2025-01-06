@@ -28,7 +28,6 @@ pub use page::InertiaPage;
 pub use page::InertiaSSRPage;
 pub use props::InertiaProp;
 pub use props::InertiaProps;
-pub use template_resolver::TemplateResolver;
 pub use temporary_session::InertiaSessionToReflash;
 pub use temporary_session::InertiaTemporarySession;
 
@@ -41,6 +40,7 @@ pub mod actix {
 }
 
 #[cfg(feature = "vite-template-resolver")]
-pub mod resolvers {
+pub mod template_resolvers {
     pub use super::features::template_resolvers::ViteTemplateResolver;
+    pub use super::template_resolver::TemplateResolver;
 }

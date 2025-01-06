@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use inertia_rust::{InertiaError, TemplateResolver, ViewData};
+use inertia_rust::{template_resolvers::TemplateResolver, InertiaError, ViewData};
 use std::path::Path;
 
 use crate::super_trim;

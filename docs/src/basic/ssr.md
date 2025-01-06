@@ -15,7 +15,7 @@ First of all, enable SSR in your Inertia initialization function:
 // src/config/inertia.rs
 use super::vite::initialize_vite;
 use inertia_rust::{
-    resolvers::ViteTemplateResolver, Inertia, InertiaConfig, InertiaVersion, SsrClient,
+    template_resolvers::ViteTemplateResolver, Inertia, InertiaConfig, InertiaVersion, SsrClient,
 };
 use std::{env, io, sync::Arc};
 

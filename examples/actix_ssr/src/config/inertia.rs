@@ -1,7 +1,7 @@
 use std::io;
 
 use inertia_rust::{
-    resolvers::ViteTemplateResolver, Inertia, InertiaConfig, InertiaVersion, SsrClient,
+    template_resolvers::ViteTemplateResolver, Inertia, InertiaConfig, InertiaVersion, SsrClient,
 };
 
 use crate::ASSETS_VERSION;
