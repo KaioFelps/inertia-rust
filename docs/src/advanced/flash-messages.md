@@ -26,8 +26,6 @@ It's up to you to set up a middleware that extracts errors from the session and 
 `InertiaTemporarySession` to the request's extensions, however, there is a useful snippet containing a
 sample of this middleware in [Actix Web Implementations] chapter.
 
-[Actix Web Implementations]: (../advanced/actix-web-implementations.md#temporary-session-middleware-with-reflash)]
-
 ## Reflash Session Middleware
 
 Sometimes, Inertia Rust will trigger a forced-refresh (see [Assets Management] topic from Inertia.js
@@ -42,7 +40,7 @@ client.
 Check a actix web implementation of this middleware at [Actix Web Implementations] chapter.
 
 [Assets Management]: https://inertiajs.com/asset-versioning
-[Actix Web Implementations]: (../advanced/actix-web-implementations.md#temporary-session-middleware-with-reflash)
+[Actix Web Implementations]: ./actix-web-implementations.md#temporary-session-middleware-with-reflash
 
 ## Redirecting Back With Errors
 
@@ -76,7 +74,8 @@ Again, it's not possible for us to make this little helper, since it'd be necess
 management crates as dependency. Nor can we provide the utility trait so that you implement it yourself,
 since you can only implement your own traits for foreign struct.
 
-However, you can refer to [Actix Web Implementations] and grab a snippet containing an sample implementation
-of a trait that enhances `Inertia` struct, providing a `back_with_errors` method.
+However, you can refer to [Actix Web Implementations](./actix-web-implementations.md#the-back-with-errors-method)
+and grab a snippet containing an sample implementation of a trait that enhances `Inertia` struct, providing
+a `back_with_errors` method.
 
-[Actix Web Implementations]: (../advanced/actix-web-implementations.md#the-back-with-errors-method)
+
