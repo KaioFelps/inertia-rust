@@ -141,9 +141,13 @@ where
 }
 ```
 
-Yet you need to enable your framework session middleware and manager (or your own). As errors
-are retrieved by `remove` method, they are **only available for one request lifetime**. Indeed,
-errors and flash messages shouldn't persist across multiple requests.
+Yet you need to enable your framework session middleware and manager (or your own). As errors are
+retrieved by `remove` method, they are **only available for one request lifetime**. Indeed, errors
+and flash messages shouldn't persist across multiple requests.
+
+> Note: Be sure to register this middleware always after `InertiaMiddleware`. Since actix web calls
+> the middlewares in the opposite order they've been registered, doing this will ensure that
+> `InertiaMiddleware` has the correct `InertiaTemporarySession` when it's finally executed.
 
 For more details on how to configure actix session, refer to their own documentation.
 
