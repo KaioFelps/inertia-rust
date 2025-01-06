@@ -328,11 +328,10 @@ impl InertiaActixHelpers for Inertia {
 }
 
 fn reflash_inertia_session(req: &HttpRequest) {
-    if let Some(inertia_temporary_session) =
-        req.extensions_mut().remove::<InertiaTemporarySession>()
-    {
+    let inertia_temporary_session = req.extensions_mut().remove::<InertiaTemporarySession>();
+    if let Some(session) = inertia_temporary_session {
         req.extensions_mut()
-            .insert(InertiaSessionToReflash(inertia_temporary_session));
+            .insert(InertiaSessionToReflash(session));
     }
 }
 
