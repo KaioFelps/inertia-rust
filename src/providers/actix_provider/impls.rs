@@ -159,7 +159,7 @@ impl InertiaResponder<HttpResponse, HttpRequest, Redirect> for Inertia {
     }
 
     #[inline]
-    fn inner_back_with_errors(&self, req: &HttpRequest, errors: HashMap<&str, Value>) -> Redirect {
+    fn inner_back(&self, req: &HttpRequest) -> Redirect {
         let session = req.extensions().get::<InertiaTemporarySession>().cloned();
 
         let previous_uri = if let Some(session) = session {
@@ -172,6 +172,11 @@ impl InertiaResponder<HttpResponse, HttpRequest, Redirect> for Inertia {
                 })
         };
 
+        Redirect::new(req.uri().to_string(), previous_uri).using_status_code(StatusCode::FOUND)
+    }
+
+    #[inline]
+    fn inner_back_with_errors(&self, req: &HttpRequest, errors: HashMap<&str, Value>) -> Redirect {
         if !errors.is_empty() {
             let mut errors_map = Map::new();
 
@@ -192,7 +197,7 @@ impl InertiaResponder<HttpResponse, HttpRequest, Redirect> for Inertia {
                 .insert(SessionErrors(resolve_session_errors(errors_map, req)));
         }
 
-        Redirect::new(req.uri().to_string(), previous_uri).using_status_code(StatusCode::FOUND)
+        self.inner_back(req)
     }
 }
 

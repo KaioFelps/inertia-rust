@@ -70,6 +70,8 @@ pub trait InertiaResponder<TResponder, THttpRequest, TRedirect> {
         props: InertiaProps<'b>,
     ) -> Result<TResponder, InertiaError>;
 
+    fn inner_back(&self, req: &THttpRequest) -> TRedirect;
+
     fn inner_back_with_errors(&self, req: &THttpRequest, errors: HashMap<&str, Value>)
         -> TRedirect;
 
