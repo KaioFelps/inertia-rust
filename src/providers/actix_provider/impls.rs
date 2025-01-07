@@ -8,7 +8,7 @@ use crate::props::{get_deferred_props, get_mergeable_props, resolve_props};
 use crate::req_type::{InertiaRequestType, PartialComponent};
 use crate::temporary_session::InertiaSessionToReflash;
 use crate::utils::convert_struct_to_stringified_json;
-use crate::utils::{inertia_err_msg, request_page_render};
+use crate::utils::request_page_render;
 use crate::{Component, InertiaError, InertiaPage, InertiaTemporarySession};
 
 use actix_web::body::BoxBody;
@@ -99,12 +99,10 @@ impl InertiaResponder<HttpResponse, HttpRequest, Redirect> for Inertia {
         if self.ssr_url.is_some() {
             match request_page_render(self.ssr_url.as_ref().unwrap(), page.clone()).await {
                 Err(err) => {
-                    log::warn!(
-                        "{}",
-                        inertia_err_msg(format!(
-                            "Error on server-side rendering page {}. {}",
-                            page.component.0, err
-                        ))
+                    log::error!(
+                        "[Inertia Rust] Error on server-side rendering page {}: {}",
+                        page.component.0,
+                        err
                     );
                 }
                 Ok(page) => {

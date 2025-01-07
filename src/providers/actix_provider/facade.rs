@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use crate::facade::InertiaFacade;
 use crate::inertia::InertiaResponder;
-use crate::utils::inertia_err_msg;
 use crate::{Component, Inertia, InertiaError, InertiaProps};
 use actix_web::web::{Data, Redirect};
 use actix_web::{HttpRequest, HttpResponse};
@@ -57,7 +56,7 @@ impl InertiaFacade<HttpRequest, HttpResponse, Redirect> for Inertia {
 
 fn extract_inertia(req: &HttpRequest) -> &Inertia {
     match req.app_data::<Data<Inertia>>() {
-        None => panic!("{}", &inertia_err_msg("There is no Inertia struct in AppData. Please, assure you have correctly configured Inertia.".into())),
+        None => panic!("[Inertia Rust] There is no Inertia struct in AppData. Please, assure you have correctly configured Inertia."),
         Some(inertia) => inertia
     }
 }
