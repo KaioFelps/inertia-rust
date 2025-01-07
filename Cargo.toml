@@ -4,7 +4,7 @@ description = "A Rust server-adapter for building modern MVC web apps with Inert
 repository = "https://github.com/KaioFelps/inertia-rust"
 keywords = ["inertiajs", "front-end", "react", "svelte", "vue"]
 categories = ["network-programming", "template-engine", "visualization", "web-programming", "web-programming::http-server"]
-version = "2.0.0"
+version = "2.1.0"
 edition = "2021"
 readme = "README.md"
 authors = [ "Kaio Felps" ]
@@ -26,8 +26,8 @@ serde_json = "~1.0"
 async-trait = "~0.1.83"
 reqwest = { version = "~0.12", features = ["json"] }
 log = "0.4.22"
-tokio = { version = "~1.40.0", features = ["fs", "io-std", "test-util", "rt", "macros"] }
+tokio = { version = "~1", features = ["fs", "io-std", "test-util", "rt", "macros"] }
 futures = "~0.3.30"
-actix-web = { version = "~4.9.0", features = ["default"], optional = true }
+actix-web = { version = "~4", features = ["default"], optional = true }
 vite-rust = { version = "~0.2", optional = true, features = ["basic-directives"] }
 futures-util = "~0.3.31"
