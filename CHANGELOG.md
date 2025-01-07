@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.1.0
+### Changed
+- lowered min required version for `tokio` and `actix-web` crates;
+- fixed `inertia_rust` version in the installation chapter, at the `Cargo.toml` snippet.
+
 ## v2.0.0
 > [!WARNING]
 > We've jumped straight to v2.0 in order to keep up with Inertia.js versions, as this is the respective inertia-rust
