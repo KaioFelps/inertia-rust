@@ -7,7 +7,7 @@ provider, assure the needed peer crate is also available.
 # Cargo.toml
 
 [dependencies]
-inertia-rust = { version = "0.2", features = ["actix", "vite-template-resolver"] }
+inertia-rust = { version = "2", features = ["actix", "vite-template-resolver"] }
 actix-web = "4"
 vite-rust = { version = "0.2" }
 ```
