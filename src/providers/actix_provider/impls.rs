@@ -7,7 +7,6 @@ use crate::props::InertiaProps;
 use crate::props::{get_deferred_props, get_mergeable_props, resolve_props};
 use crate::req_type::{InertiaRequestType, PartialComponent};
 use crate::temporary_session::InertiaSessionToReflash;
-use crate::utils::convert_struct_to_stringified_json;
 use crate::utils::request_page_render;
 use crate::{Component, InertiaError, InertiaPage, InertiaTemporarySession};
 
@@ -31,9 +30,7 @@ impl Responder for InertiaPage<'_> {
     fn respond_to(self, _req: &HttpRequest) -> HttpResponse<Self::Body> {
         HttpResponseBuilder::new(StatusCode::OK)
             .append_header(headers::InertiaHeader::Inertia.convert())
-            .body(BoxBody::new(
-                convert_struct_to_stringified_json(self).unwrap(),
-            ))
+            .body(BoxBody::new(serde_json::to_string(&self).unwrap()))
     }
 }
 
@@ -402,6 +399,8 @@ impl FromRequest for InertiaTemporarySession {
 
 #[cfg(test)]
 mod test {
+    use std::str::FromStr;
+
     use crate::config::InertiaConfig;
     use crate::inertia::{InertiaHttpRequest, InertiaResponder, ViewData};
     use crate::props::InertiaProp;
@@ -414,8 +413,7 @@ mod test {
     use crate::{hashmap, Component, Inertia, InertiaError, InertiaPage, InertiaVersion};
     use actix_web::body::MessageBody;
     use actix_web::test;
-    use serde_json::json;
-    use std::str::from_utf8;
+    use serde_json::Value;
 
     use super::resolve_props;
 
@@ -424,8 +422,8 @@ mod test {
         let mut request = test::TestRequest::default();
         request = request.insert_header((X_INERTIA_PARTIAL_COMPONENT, "/Index"));
         request = request.insert_header((X_INERTIA_PARTIAL_DATA, "events,popularUsers")); // not any props but events and popularUsers
-
         request = request.insert_header((X_INERTIA_PARTIAL_EXCEPT, "auth")); // all props but auth
+
         let request = request.to_http_request();
 
         let partials = request.get_request_type().unwrap();
@@ -505,9 +503,11 @@ mod test {
             .unwrap()
             .into_body();
 
+        let stringified_body = String::from_utf8(body.try_into_bytes().unwrap().to_vec()).unwrap();
+
         assert_eq!(
-            from_utf8(&body.try_into_bytes().unwrap()[..]).unwrap(),
-            serde_json::to_string(&json!(page)).unwrap(),
+            Value::from_str(&stringified_body).unwrap(),
+            serde_json::to_value(&page).unwrap(),
         );
     }
 }
