@@ -76,6 +76,27 @@ pub async fn initialize_inertia() -> Result<Inertia, io::Error> {
 }
 ```
 
+### Inertia Configuration
+
+| Option            | Type (default)                            | Description   |
+| ---               | ---                                       | ---           |
+| url               | `&str`                                    | A valid [href](https://developer.mozilla.org/en-US/docs/Web/API/Location) of the current application |
+| version           | `InertiaVersion`                          | The current asset version of the application. See [Asset versioning](https://inertiajs.com/asset-versioning) for more details. |
+| template_path     | `&str`                                    | The path to the root html template. |
+| template_resolver | `Box<dyn TemplateResolver + Send + Sync>` | A valid [Template Resolver]. |
+| with_ssr          | `bool` (`false`)                          | Whether Server-side Rendering should be enabled or not. |
+| custom_ssr_client | `Option<SsrClient>` (`SsrClient::default`)| The Inertia Server address. |
+| view_data         | `Option<ViewData>` (`None`)               | Optional view data to be passed to the root template. (needs to be handled by the Template Resolver) |
+| encrypt_history   | `bool` (`false`)                          | Whether to encrypt the session or not. Refer to [History encryption] for more details. |
+
+For even more details, read the [`InertiaConfig`] and [`InertiaConfigBuilder`] documentations.
+
+[Template Resolver]: https://kaiofelps.github.io/inertia-rust/advanced/template_resolvers.html
+[Flash Messages and Validation Errors]: https://kaiofelps.github.io/inertia-rust/advanced/flash-messages.html
+[History encryption]: https://inertiajs.com/history-encryption
+[`InertiaConfig`]: https://docs.rs/inertia-rust/latest/inertia_rust/struct.InertiaConfig.html
+[`InertiaConfigBuilder`]: https://docs.rs/inertia-rust/latest/inertia_rust/struct.InertiaConfigBuilder.html
+
 ## Actix Web Server
 ```rust
 // src/main.rs

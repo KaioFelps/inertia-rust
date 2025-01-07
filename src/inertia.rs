@@ -181,22 +181,10 @@ impl Inertia {
     /// Initializes an instance of [`Inertia`] struct.
     ///
     /// # Arguments
-    /// * `url`                     -   A valid [href] of the current application
-    /// * `version`                 -   The current asset version of the application.
-    ///                                 See [Asset versioning] for more details.
-    /// * `template_path`           -   The path for the root html template.
-    /// * `template_resolver`       -   A function that renders the given root template html. Check
-    ///                                 more details at [`Inertia::template_resolver`] doc string.
-    ///                                 If you don't plan to use it, just pass an empty tuple (both here
-    ///                                 and in your template resolver).
-    /// * `encrypt_history`         -   Whether to encrypt or not the session. Refer to [History encryption]
-    ///                                 for more details.
+    /// * `config`  - A [`InertiaConfig`] instance.
     ///
     ///  # Errors
     /// Returns an [`InertiaError::SsrError`] if it fails to connect to the server.
-    ///
-    /// [Flash Messages and Validation Errors]: https://kaiofelps.github.io/inertia-rust/advanced/flash-messages.html
-    /// [History encryption]: https://inertiajs.com/history-encryption
     pub fn new<V>(config: InertiaConfig<V>) -> Result<Self, io::Error>
     where
         V: ToString,

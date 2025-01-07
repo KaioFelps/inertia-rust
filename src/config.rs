@@ -12,21 +12,20 @@ use serde_json::{Map, Value};
 /// * `version`                 -   The current asset version of the application.
 ///                                 See [Asset versioning](https://inertiajs.com/asset-versioning) for more
 ///                                 details.
-/// * `template_path`           -   The path for the root html template.
-/// * `template_resolver`       -   A function that renders the given root template html. Check
-///                                 more details at [`Inertia::template_resolver`] document string.
-/// * `assets_manager`  -   The third parameter of your template resolver. Inertia will
-///                                 pass it by reference when calling the resolver function.
-///                                 If you don't plan to use it, just pass an empty tuple (both here
-///                                 and in your template resolver).
-/// * `with_ssr`                -   Whether Server-side Rendering should be enabled.
+/// * `template_path`           -   The path to the root html template.
+/// * `template_resolver`       -   A valid template resolver. Check [Template Resolvers] chapter for more details.
+/// * `with_ssr`                -   Whether Server-side Rendering should be enabled or not.
 /// * `custom_ssr_client`       -   An [`Option<SsrClient>`] with the Inertia Server address.
 ///                                 If `None` is given, `SsrClient::default` will
 ///                                 be used.
 /// * `view_data`               -   Optional view data to be passed to the root template. It must be
 ///                                 handled by the provided `template_resolver`.
+/// * `encrypt_history`         -   Whether to encrypt or not the session. Refer to [History encryption]
+///                                 for more details.
 ///
-/// [`Inertia::template_resolver`]: crate::inertia::Inertia
+/// [Template Resolvers]: https://kaiofelps.github.io/inertia-rust/advanced/template_resolvers.html
+/// [Flash Messages and Validation Errors]: https://kaiofelps.github.io/inertia-rust/advanced/flash-messages.html
+/// [History encryption]: https://inertiajs.com/history-encryption
 pub struct InertiaConfig<V>
 where
     V: ToString,
@@ -198,7 +197,6 @@ where
     /// * `url`
     /// * `template_path`
     /// * `template_resolver`
-    /// * `assets_manager`
     /// * `version`
     pub fn build(self) -> InertiaConfig<V> {
         if self.url.is_none() {
