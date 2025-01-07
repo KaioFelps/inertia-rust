@@ -24,7 +24,7 @@
 As the breaking changes that has occurred are important and too complex for a simple bullet list, they'll be better
 described in their own sub-topics below.
 
-### Template Resolvers
+#### Template Resolvers
 Before, you'd specifya reference to a closure returning a boxed async function that would actually resolve your
 template. Also, it'd require another field specifying the third parameter to be passed to the closure (by the
 Inertia rendering methods). What if you don't actually need this third parameter? You would need to pass an `&()`
@@ -39,7 +39,7 @@ This is better explained on the **[Template Resolvers]** section from the docume
 
 [Template Resolvers]: https://kaiofelps.github.io/inertia-rust/basic/advanced/template_resolvers.html
 
-### `reflash_inertia_session` method
+#### `reflash_inertia_session` method
 This field was optional and would default to a useless callback (something like `|_| Ok(())`). It'd be used for
 reflashing the session when Inertia Rust would decide to trigger a forced-refresh --- due to assets version
 mismatch.
