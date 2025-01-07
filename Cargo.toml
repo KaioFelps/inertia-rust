@@ -2,7 +2,8 @@
 name = "inertia-rust"
 description = "A Rust server-adapter for building modern MVC web apps with Inertia."
 repository = "https://github.com/KaioFelps/inertia-rust"
-keywords = ["inertia", "mvc", "react"]
+keywords = ["inertiajs", "front-end", "react", "svelte", "vue"]
+categories = ["network-programming", "template-engine", "visualization", "web-programming", "web-programming::http-server"]
 version = "2.0.0"
 edition = "2021"
 readme = "README.md"
