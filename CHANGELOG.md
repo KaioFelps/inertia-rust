@@ -7,7 +7,7 @@
 - Inertia Middleware `with_shared_props` return type is now a async callback, so that props can be
     asynchronously resolved from inside the middleware.
 
-### Breaking CHanges
+### Breaking Changes
 #### Inertia Middleware
 When sharing props, instead of:
 ```rust
