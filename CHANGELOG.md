@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+## v2.2.0
+### Changed
+- Inertia Middleware `with_shared_props` return type is now a async callback, so that props can be
+    asynchronously resolved from inside the middleware.
+
+### Breaking CHanges
+#### Inertia Middleware
+When sharing props, instead of:
+```rust
+InertiaMiddleware::new().with_shared_props(Arc::new(|_req: &ServiceRequest| {
+    hashmap![ "foo" => InertiaProp::Always("bar".into()) ]
+})),
+```
+
+do:
+```rust
+InertiaMiddleware::new().with_shared_props(Arc::new(move |_req: &HttpRequest| {    
+    async move {
+        hashmap![ "foo" => InertiaProp::Always("bar".into()) ]
+    }
+    .boxed_local()
+})),
+```
+
 ## v2.1.0
 ### Changed
 - lowered min required version for `tokio` and `actix-web` crates;
