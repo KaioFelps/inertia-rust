@@ -308,7 +308,7 @@ impl InertiaHttpRequest for HttpRequest {
     fn check_inertia_version(&self, current_version: &str) -> bool {
         self.headers()
             .get(headers::X_INERTIA_VERSION)
-            .map_or(true, |version| {
+            .is_none_or(|version| {
                 version
                     .to_str()
                     .is_ok_and(|version| version == current_version)
