@@ -13,6 +13,7 @@ use actix_web::{
     App, HttpMessage, HttpRequest, HttpResponse, Responder,
 };
 use common::template_resolver::{get_dynamic_csr_expect, MockedTemplateResolver};
+use futures::FutureExt;
 use inertia_rust::actix::SessionErrors;
 use inertia_rust::{
     actix::{EncryptHistoryMiddleware, InertiaHeader, InertiaMiddleware},
@@ -419,16 +420,23 @@ async fn test_render_with_props() {
     );
 }
 
+async fn foo(_baz: &HttpRequest) {}
+
 #[tokio::test]
 async fn test_shared_props() {
     const TEST_SHARED_PROPERTY_KEY: &str = "sharedProperty";
     const TEST_SHARED_PROPERTY_VALUE: &str = "Some amazing value!";
 
     let app = actix_web::test::init_service(generate_actix_app().await.wrap(
-        InertiaMiddleware::new().with_shared_props(Arc::new(|_req| {
-            hashmap![
-            TEST_SHARED_PROPERTY_KEY => InertiaProp::Always(TEST_SHARED_PROPERTY_VALUE.into()),
-            ]
+        InertiaMiddleware::new().with_shared_props(Arc::new(move |req| {
+            let req = req.clone();
+            async move {
+                foo(&req).await;
+                hashmap![
+                    TEST_SHARED_PROPERTY_KEY => InertiaProp::Always(TEST_SHARED_PROPERTY_VALUE.into()),
+                ]
+            }
+            .boxed_local()
         })),
     ))
     .await;
