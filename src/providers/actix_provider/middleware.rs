@@ -1,20 +1,24 @@
 use actix_web::dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform};
 use actix_web::http::{Method, StatusCode};
-use actix_web::Error;
 use actix_web::HttpMessage;
+use actix_web::{Error, HttpRequest};
+use futures::FutureExt;
 use futures_util::future::LocalBoxFuture;
 use serde_json::to_value;
 use std::collections::HashMap;
-use std::future::{ready, Ready};
+use std::future::{ready, Future, Ready};
+use std::pin::Pin;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::temporary_session::InertiaTemporarySession;
 use crate::{InertiaProp, InertiaProps};
 
-type SharedPropsCallback<'a> = dyn Fn(&ServiceRequest) -> InertiaProps<'a>;
+type SharedPropsCallback<'a> =
+    Arc<dyn Fn(&HttpRequest) -> Pin<Box<dyn Future<Output = InertiaProps<'a>>>>>;
 
 pub struct InertiaMiddleware<'a> {
-    shared_props_cb: Arc<SharedPropsCallback<'a>>,
+    shared_props_cb: SharedPropsCallback<'a>,
 }
 
 impl Default for InertiaMiddleware<'_> {
@@ -26,11 +30,11 @@ impl Default for InertiaMiddleware<'_> {
 impl<'a> InertiaMiddleware<'a> {
     pub fn new() -> Self {
         Self {
-            shared_props_cb: Arc::new(|_req| HashMap::new()),
+            shared_props_cb: Arc::new(move |_req| async move { HashMap::new() }.boxed()),
         }
     }
 
-    pub fn with_shared_props(mut self, props: Arc<SharedPropsCallback<'a>>) -> Self {
+    pub fn with_shared_props(mut self, props: SharedPropsCallback<'a>) -> Self {
         self.shared_props_cb = props;
         self
     }
@@ -41,7 +45,7 @@ impl<'a> InertiaMiddleware<'a> {
 // `B` - type of response's body
 impl<'a, S, B> Transform<S, ServiceRequest> for InertiaMiddleware<'a>
 where
-    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
+    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'a,
     S::Future: 'static,
     B: 'static,
     'a: 'static,
@@ -55,22 +59,22 @@ where
     fn new_transform(&self, service: S) -> Self::Future {
         let shpcb = self.shared_props_cb.clone();
         ready(Ok(InertiaMiddlewareService {
-            service,
+            service: Rc::new(service),
             shared_props: shpcb,
         }))
     }
 }
 
 pub struct InertiaMiddlewareService<'a, S> {
-    service: S,
-    shared_props: Arc<SharedPropsCallback<'a>>,
+    service: Rc<S>,
+    shared_props: SharedPropsCallback<'a>,
 }
 
 pub(crate) struct SharedProps<'a>(pub InertiaProps<'a>);
 
 impl<'a, S, B> Service<ServiceRequest> for InertiaMiddlewareService<'a, S>
 where
-    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
+    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'a,
     S::Future: 'static,
     B: 'static,
     'a: 'static,
@@ -82,19 +86,22 @@ where
     forward_ready!(service);
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        let mut shared_props = (self.shared_props)(&req);
+        let srvc = self.service.clone();
+        let shared_props = self.shared_props.clone();
 
-        if let Some(request_props) = req.extensions().get::<InertiaTemporarySession>() {
-            let errors = to_value(&request_props.errors).unwrap();
-            shared_props.insert("errors", InertiaProp::Always(errors));
-        }
+        async move {
+            let mut shared_props = shared_props(req.request()).await;
 
-        req.extensions_mut().insert(SharedProps(shared_props));
+            if let Some(request_props) = req.extensions().get::<InertiaTemporarySession>() {
+                let errors = to_value(&request_props.errors).unwrap();
+                shared_props.insert("errors", InertiaProp::Always(errors));
+            }
 
-        let fut: <S as Service<ServiceRequest>>::Future = self.service.call(req);
+            req.extensions_mut().insert(SharedProps(shared_props));
 
-        Box::pin(async move {
-            let mut res: ServiceResponse<B> = fut.await?;
+            let fut = srvc.call(req);
+
+            let mut res = fut.await?;
 
             let req_method = res.request().method();
             let res_status = res.status();
@@ -107,6 +114,7 @@ where
             }
 
             Ok(res)
-        })
+        }
+        .boxed_local()
     }
 }
