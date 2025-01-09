@@ -2,7 +2,7 @@ use std::{error::Error, fmt, io};
 
 use crate::node_process::NodeJsError;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum InertiaError {
     SerializationError(String),
     HeaderError(String),
