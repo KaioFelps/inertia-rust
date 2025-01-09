@@ -35,7 +35,7 @@ mod test {
         sync::{Arc, Mutex},
     };
 
-    use crate::InertiaProp;
+    use crate::{InertiaProp, IntoInertiaPropResult};
 
     #[test]
     fn test_hashmap_macro() {
@@ -72,7 +72,7 @@ mod test {
             let message_clone = message_clone.clone();
             {
                 an_async_operation().await;
-                format!("{} {}", message_clone, *counter_clone.lock().unwrap()).into()
+                Ok(format!("{} {}", message_clone, *counter_clone.lock().unwrap()).into())
             }
         ));
 
@@ -85,13 +85,13 @@ mod test {
 
             Box::pin(async move {
                 an_async_operation().await;
-                format!("{} {}", message_clone, *counter_clone.lock().unwrap()).into()
+                format!("{} {}", message_clone, *counter_clone.lock().unwrap()).into_inertia_value()
             })
         }));
 
         assert_eq!(
-            prop_with_arc.resolve_unconditionally().await,
-            prop_with_macro.resolve_unconditionally().await
+            prop_with_arc.resolve_unconditionally().await.unwrap(),
+            prop_with_macro.resolve_unconditionally().await.unwrap()
         );
     }
 }

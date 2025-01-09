@@ -22,7 +22,7 @@ async fn main() -> std::io::Result<()> {
                 // get the sessions from the request
                 // depending on your opted framework
                 let session = req.get_session();
-                let flash = serde_json::to_value(session.get::<String>("flash").unwrap()).unwrap();
+                let flash = session.get::<String>("flash").unwrap();
                 async move {
                     hashmap![ "flash" => InertiaProp::data(flash) ]
                 }

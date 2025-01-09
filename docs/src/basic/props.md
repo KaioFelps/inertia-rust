@@ -4,10 +4,6 @@ It's possible to pass data from the server to the front-end as simple props. To 
 create a `HashMap` with `&str` keys and `InertiaProp` values. Then, use `Inertia::render_with_props`
 passing the props hashmap as the third parameter.
 
-Every `InertiaProp` variant must contain --- or resolve to --- an `serde_json::Value` object. You
-can achieve this by calling `serde_json::to_value(value)` or `value.into()`. `value` must be 
-serializable.
-
 Also, for defining the props hash map, we provide a very trivial macro: `hashmap!`. You can use it
 like this:
 
@@ -42,17 +38,35 @@ impl User {
 #[get("/users")]
 async fn home(req: HttpRequest) -> impl Responder {
     let props = hashmap![
-        "users" => InertiaProp::data(User::all().await).unwrap(),
+        "users" => InertiaProp::data(User::all().await),
     ];
 
     Inertia::render_with_props(&req, "Users/Index".into(), props).await
 }
 ```
 
-A new enum has been introduced to our code right now: `InertiaProp`. It contains all the variants
+Indeed, all `hashmap!` do is to create a `std::collections::HashMap` and insert each item you've passed
+into it.
+
+Note that a new enum has been introduced to our code right now: `InertiaProp`. It contains all the variants
 of props that Inertia can handle.
 
-On the official documentation, you might find the following PHP snippet:
+Every `InertiaProp` variant must contain --- or resolve to --- an `Result<serde_json::Value, InertiaError`>
+object. You can achieve this by calling `value.into_inertia_value()`. `value` must be serializable. Also,
+you must bring the `IntoInertiaPropResult` trait into the scope.
+
+If you're using `InertiaProp` helpers, you don't even need to worry about serializing by yourself (again,
+since the object *is* serializable):
+
+```rust
+use inertia_rust::{InertiaProp, IntoInertiaPropResult};
+
+let prop = InertiaProp::Data("foo".into_inertia_value());
+// or
+let prop = InertiaProp::data("foo"); // using `data` helper for generating a `InertiaProp::Data`
+```
+
+On the official Inertia.js documentation, you may find the following PHP snippet:
 
 ```php
 return Inertia::render('Users/Index', [
@@ -90,12 +104,12 @@ return Inertia::render_with_props(&req, "Users/Index", hashmap![
     // ALWAYS included on standard visits
     // OPTIONALLY included on partial reloads
     // ONLY evaluated when needed
-    "users" => InertiaProp::lazy(prop_resolver!({ User::all().await.into() })),
+    "users" => InertiaProp::lazy(prop_resolver!({ User::all().await.into_inertia_value() })),
 
     // NEVER included on standard visits
     // OPTIONALLY included on partial reloads
     // ONLY evaluated when needed
-    "users" => InertiaProp::demand(prop_resolver!({ User::all().await.into() })),
+    "users" => InertiaProp::demand(prop_resolver!({ User::all().await.into_inertia_value() })),
 
     // ALWAYS included on standard visits
     // ALWAYS included on partial reloads
@@ -112,15 +126,10 @@ asynchronous, so that you can `.await` inside of them. To use it, it'd be necess
 ```rust
 use std::sync::Arc;
 use inertia_rust::InertiaProp;
-use serde_json::to_value;
+use inertia_rust::IntoInertiaPropResult;
 
 let lazy_prop = InertiaProp::Lazy(Arc::new(move || Box::pin(async move {
-    users = User::all().await;
-    to_value(users).unwrap()
-
-    // or
-
-    User::all().await.into()
+    User::all().await.into_inertia_value();
 })));
 ```
 
@@ -132,10 +141,9 @@ as you've seen above:
 
 ```rust
 use std::sync::Arc;
-use inertia_rust::{InertiaProp, prop_resolver};
-use serde_json::to_value;
+use inertia_rust::{prop_resolver, InertiaProp, IntoInertiaPropResult};
 
-let lazy_prop = InertiaProp::Lazy(prop_resolver!({ User::all().await.into() }));
+let lazy_prop = InertiaProp::Lazy(prop_resolver!({ User::all().await.into_inertia_value() }));
 ```
 
 There are some cases --- mainly in test environments or playgrounds --- where you might want to mock
@@ -144,6 +152,7 @@ some database and, therefore, need to move values to inside of the resolver clos
 ```rust
 use std::sync::Arc;
 use inertia_rust::InertiaProp;
+use inertia_rust::IntoInertiaPropResult;
 
 let user = Arc::new(User { name: "John Doe".into(), email: "johndoe@gmail.com".into() });
 let permissions = Arc::new(vec!["read", "delete", "update", "delete"]);
@@ -153,7 +162,7 @@ InertiaProp::lazy(Arc::new(move || {
     let permissions = permissions.clone();
 
     Box::pin(async move {
-        user_can(user, permissions).await
+        user_can(user, permissions).await.into_inertia_value()
     })
 }));
 ```
@@ -166,7 +175,7 @@ by commas. The actual async closure goes as the second parameter, then:
 
 ```rust
 use std::sync::Arc;
-use inertia_rust::{prop_resolver, InertiaProp};
+use inertia_rust::{prop_resolver, InertiaProp, IntoInertiaPropResult};
 
 let user = Arc::new(User { name: "John Doe".into(), email: "johndoe@gmail.com".into() });
 let permissions = Arc::new(vec!["read", "delete", "update", "delete"]);
@@ -174,6 +183,6 @@ let permissions = Arc::new(vec!["read", "delete", "update", "delete"]);
 InertiaProp::lazy(prop_resolver!(
     let user = user.clone(),                // statements separated by comma
     let permissions = permissions.clone();  // statements and block separated by semicolon
-    { user_can(user, permissions).await }   // block
+    { user_can(user, permissions).await.into_inertia_value() }   // block
 ));
 ```

@@ -20,7 +20,9 @@ use inertia_rust::{
     hashmap, prop_resolver, InertiaConfigBuilder, InertiaFacade, InertiaPage, InertiaService,
     InertiaSessionToReflash, InertiaTemporarySession,
 };
-use inertia_rust::{Component, Inertia, InertiaConfig, InertiaProp, InertiaVersion};
+use inertia_rust::{
+    Component, Inertia, InertiaConfig, InertiaProp, InertiaVersion, IntoInertiaPropResult,
+};
 use serde::Deserialize;
 use serde_json::{json, to_value, Map};
 use std::{
@@ -118,14 +120,14 @@ async fn merge_and_deferred_props(
                     let counter = TIMES_DEFERRED_RESOLVER_HAS_EXECUTED.get_or_init(|| Arc::new(Mutex::new(0)));
                     *counter.lock().unwrap() += 1;
 
-                    to_value(users_clone
-                    .clone()
-                    .iter()
-                    .skip((page -1)* per_page)
-                    .take(per_page)
-                    .cloned()
-                    .collect::<Vec<_>>())
-                    .unwrap()
+                    users_clone
+                        .clone()
+                        .iter()
+                        .skip((page -1)* per_page)
+                        .take(per_page)
+                        .cloned()
+                        .collect::<Vec<_>>()
+                        .into_inertia_value()
                 }))
                 .into_mergeable(),
                 "permissions" => InertiaProp::merge(permissions.into_iter().skip((page-1)*per_page).take(per_page).collect::<Vec<_>>())
@@ -433,7 +435,7 @@ async fn test_shared_props() {
             async move {
                 foo(&req).await;
                 hashmap![
-                    TEST_SHARED_PROPERTY_KEY => InertiaProp::Always(TEST_SHARED_PROPERTY_VALUE.into()),
+                    TEST_SHARED_PROPERTY_KEY => InertiaProp::always(TEST_SHARED_PROPERTY_VALUE),
                 ]
             }
             .boxed_local()

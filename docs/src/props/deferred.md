@@ -11,7 +11,7 @@ consuming data, your page might load faster.
 
 ```rust
 use actix_web::{get, HttpRequest, Responder};
-use inertia_rust::{hashmap, prop_resolver, Inertia, InertiaProp};
+use inertia_rust::{hashmap, prop_resolver, Inertia, InertiaProp, IntoInertiaPropResult};
 
 // let's pretend these are some ORM's models and
 // assume they have an `all` method.
@@ -24,7 +24,7 @@ pub async fn users(req: HttpRequest) -> impl Responder {
     Inertia::render_with_props(&req, "Users/Index", hashmap![
         'users' => InertiaProp::data(User::all().await),
         'roles' => InertiaProp::data(Role::all().await),
-        'permissions' => InertiaProp::defer(prop_resolver!({ Permission::all().await.into() })),
+        'permissions' => InertiaProp::defer(prop_resolver!({ Permission::all().await.into_inertia_value() })),
     ]).await
 }
 ```
@@ -41,10 +41,10 @@ pub async fn users(req: HttpRequest) -> impl Responder {
     Inertia::render(&req, "Users/Index", hashmap![
         'users' => User::all(),
         'roles' => Role::all(),
-        'permissions' => InertiaProp::defer(prop_resolver!({ Permission::all().await })),
-        'teams' => InertiaProp::defer_with_group(prop_resolver!({ Team::all().await, 'attributes' })),
-        'projects' => InertiaProp::defer_with_group(prop_resolver!({ Project::all().await, 'attributes' })),
-        'tasks' => InertiaProp::defer_with_group(prop_resolver!({ Task::all().await, 'attributes' })),
+        'permissions' => InertiaProp::defer(prop_resolver!({ Permission::all().await.into_inertia_value() })),
+        'teams' => InertiaProp::defer_with_group(prop_resolver!({ Team::all().await.into_inertia_value() }), 'attributes'),
+        'projects' => InertiaProp::defer_with_group(prop_resolver!({ Project::all().await.into_inertia_value() }), 'attributes'),
+        'tasks' => InertiaProp::defer_with_group(prop_resolver!({ Task::all().await.into_inertia_value() }), 'attributes'),
     ]).await
 }
 ```

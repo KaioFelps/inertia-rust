@@ -63,7 +63,7 @@ impl InertiaResponder<HttpResponse, HttpRequest, Redirect> for Inertia {
         let reset = req.get_merge_props_to_be_reset();
         let deferred_props = get_deferred_props(&props, &req_type);
         let merge_props = get_mergeable_props(&props, reset);
-        let mut props = resolve_props(&props, &req_type).await;
+        let mut props = resolve_props(&props, &req_type).await?;
 
         let shared_props = req
             .extensions()
@@ -71,7 +71,7 @@ impl InertiaResponder<HttpResponse, HttpRequest, Redirect> for Inertia {
             .map(|shared_props| shared_props.0.clone());
 
         if let Some(shared_props) = shared_props {
-            let shared_props = resolve_props(&shared_props, &req_type).await;
+            let shared_props = resolve_props(&shared_props, &req_type).await?;
             props.extend(shared_props);
         }
 
@@ -410,7 +410,10 @@ mod test {
     };
     use crate::req_type::PartialComponent;
     use crate::template_resolver::TemplateResolver;
-    use crate::{hashmap, Component, Inertia, InertiaError, InertiaPage, InertiaVersion};
+    use crate::{
+        hashmap, Component, Inertia, InertiaError, InertiaPage, InertiaVersion,
+        IntoInertiaPropResult,
+    };
     use actix_web::body::MessageBody;
     use actix_web::test;
     use serde_json::Value;
@@ -470,8 +473,8 @@ mod test {
         .unwrap();
 
         let props = hashmap![
-            "title" => InertiaProp::Data("My website's cool title!".into()),
-            "content" => InertiaProp::Data("Such a nice content, isn't it?".into()),
+            "title" => InertiaProp::Data("My website's cool title!".into_inertia_value()),
+            "content" => InertiaProp::Data("Such a nice content, isn't it?".into_inertia_value()),
         ];
 
         let fake_req = test::TestRequest::get()
@@ -490,7 +493,9 @@ mod test {
             Component("/Users/Index".into()),
             "/users",
             Some("gen_the_version"),
-            resolve_props(&props, &fake_req.get_request_type().unwrap()).await,
+            resolve_props(&props, &fake_req.get_request_type().unwrap())
+                .await
+                .unwrap(),
             None,
             None,
             false,
