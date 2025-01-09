@@ -3,8 +3,9 @@ use actix_web::{
     dev::{ServiceFactory, ServiceRequest, ServiceResponse},
     App,
 };
-use inertia_rust::{actix::InertiaMiddleware, hashmap, prop_resolver, InertiaProp};
-use serde_json::to_value;
+use inertia_rust::{
+    actix::InertiaMiddleware, hashmap, prop_resolver, InertiaProp, IntoInertiaPropResult,
+};
 use std::{path::Path, sync::Arc};
 
 pub fn get_server() -> App<
@@ -18,12 +19,12 @@ pub fn get_server() -> App<
 > {
     let mut app = App::new()
         .wrap(
-            InertiaMiddleware::new().with_shared_props(Arc::new(move |_req| {
+            InertiaMiddleware::new().with_shared_props(Arc::new(move |_req| Box::pin(async move {
                 hashmap![
                     "version" => InertiaProp::always("0.1.0"),
-                    "assetsVersion" => InertiaProp::lazy(prop_resolver!({to_value(ASSETS_VERSION.get().unwrap()).unwrap()}))
+                    "assetsVersion" => InertiaProp::lazy(prop_resolver!({ ASSETS_VERSION.get().unwrap().into_inertia_value() }))
                 ]
-            })),
+            }))),
         )
         .configure(register_routes);
 

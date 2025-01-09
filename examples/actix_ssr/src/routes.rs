@@ -1,7 +1,10 @@
 use actix_web::{get, web, HttpRequest, Responder};
-use inertia_rust::{hashmap, prop_resolver, Inertia, InertiaFacade, InertiaProp, InertiaService};
+use inertia_rust::{
+    hashmap, prop_resolver, Inertia, InertiaFacade, InertiaProp, InertiaService,
+    IntoInertiaPropResult,
+};
 use serde::Deserialize;
-use serde_json::{json, to_value};
+use serde_json::json;
 
 use crate::domain::tasks::service::get_tasks;
 
@@ -15,8 +18,8 @@ pub fn register_routes(cfg: &mut web::ServiceConfig) {
 #[get("/")]
 async fn home(req: HttpRequest) -> impl Responder {
     let props = hashmap![
-        "auth" => InertiaProp::Always(json!({ "user": "Inertia-Rust" })),
-        "message" => InertiaProp::Data("This message is sent from the server!".to_string().into()),
+        "auth" => InertiaProp::always(json!({ "user": "Inertia-Rust" })),
+        "message" => InertiaProp::data("This message is sent from the server!"),
     ];
 
     Inertia::render_with_props(&req, "Index".into(), props).await
@@ -25,7 +28,7 @@ async fn home(req: HttpRequest) -> impl Responder {
 #[get("/contact")]
 async fn contact(req: HttpRequest) -> impl Responder {
     let props = hashmap![
-        "user" => InertiaProp::Always(json!({
+        "user" => InertiaProp::always(json!({
             "name": "John Doe",
             "email": "johndoe@example.com"
         }))
@@ -49,7 +52,7 @@ async fn r#todo(req: HttpRequest, query: web::Query<TodoQuery>) -> impl Responde
         hashmap![
             "tasks" => InertiaProp::defer(prop_resolver!({
                 let tasks = get_tasks(page).await;
-                to_value(tasks).unwrap()
+                tasks.into_inertia_value()
             })).into_mergeable(),
             "page" => InertiaProp::data(page)
         ],
