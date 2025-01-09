@@ -2,6 +2,54 @@
 
 ## Unreleased
 
+## v2.3.0
+### Added
+- `IntoInertiaPropResult` trait, which introduces `into_inertia_value`.
+
+### Changed
+- `InertiaProp` enums now require either `Result<Value, InertiaError>` or an async callback that returns it;
+- `InertiaProp` enum constructors automatic serializes and map the error to `InertiaError`;
+- `render_with_props` now will immediately return an `InertiaError` if any prop fails to be resolved.
+
+### Breaking Changes
+#### Serializing Props
+Instead of calling `to_value(...).unwrap()`, you must call `into_inertia_value` into a serializable object.
+This applies for `InertiaProp`s which takes a callback and also for any prop that is being instantiating
+directly.
+
+```diff
+use inertia_rust::{
+    hashmap,
+    prop_resolver,
+    InertiaProp,
++   IntoInertiaError;
+};
+- use serde_json::to_value;
+
+hashmap![
+-   "foo" => InertiaProp::Data(to_value("Foo").unwrap()),
++   "foo" => InertiaProp::Data("Foo".into_inertia_value()),
+    "users" => InertiaProp::defer(prop_resolver!(
+            let users_clone = users.clone(); {
+            let counter = TIMES_DEFERRED_RESOLVER_HAS_EXECUTED.get_or_init(|| Arc::new(Mutex::new(0)));
+            *counter.lock().unwrap() += 1;
+
+-           to_value(users_clone
++           users_clone
+                .clone()
+                .iter()
+                .skip((page -1)* per_page)
+                .take(per_page)
+                .cloned()
+                .collect::<Vec<_>>()
+-           ).unwrap()
++               .into_inertia_value()
+        }))
+        .into_mergeable(),
+        "permissions" => InertiaProp::merge(permissions.into_iter().skip((page-1)*per_page).take(per_page).collect::<Vec<_>>())
+],
+```
+
 ## v2.2.0
 ### Changed
 - Inertia Middleware `with_shared_props` return type is now a async callback, so that props can be
