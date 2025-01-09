@@ -332,7 +332,7 @@ pub fn get_deferred_props<'b>(
 mod test {
     use crate::props::{get_deferred_props, get_mergeable_props, InertiaProp};
     use crate::req_type::{InertiaRequestType, PartialComponent};
-    use crate::{hashmap, prop_resolver, Component, InertiaPage};
+    use crate::{hashmap, prop_resolver, Component, InertiaPage, IntoInertiaPropResult};
     use actix_web::test;
     use serde::Serialize;
     use serde_json::{json, to_value, Value};
@@ -355,11 +355,9 @@ mod test {
         };
 
         let props = hashmap![
-            "event" => InertiaProp::Data(json!({"name": "John Doe"})),
-            "categories" => InertiaProp::Data(vec!["foo".to_string(), "bar".to_string()].into()),
-            "events" => InertiaProp::Data(
-                to_value(vec![to_value(event).unwrap()]).unwrap(),
-            )
+            "event" => InertiaProp::data(json!({"name": "John Doe"})),
+            "categories" => InertiaProp::Data(Ok(vec!["foo".to_string(),"bar".to_string()].into())),
+            "events" => InertiaProp::data(vec![to_value(event).unwrap()])
         ];
 
         // Request headers
@@ -377,7 +375,7 @@ mod test {
             Component("Events".into()),
             "/events/80",
             Some("generated_version"),
-            resolve_props(&props, &req_type).await,
+            resolve_props(&props, &req_type).await.unwrap(),
             None,
             None,
             false,
@@ -407,8 +405,8 @@ mod test {
     #[test]
     async fn test_inertia_standard_visit_page() {
         let props = hashmap! [
-            "radioStatus" => InertiaProp::Demand(Arc::new(|| Box::pin(async move { json!({"announcer": "John Doe"}) }))),
-            "categories" => InertiaProp::Data(vec!["foo".to_string(), "bar".to_string()].into())
+            "radioStatus" => InertiaProp::Demand(Arc::new(|| Box::pin(async move { Ok(json!({"announcer":"John Doe"})) }))),
+            "categories" => InertiaProp::data(vec!["foo".to_string(), "bar".to_string()])
         ];
 
         // Request headers
@@ -420,7 +418,7 @@ mod test {
             Component("Categories".into()),
             "/categories",
             Some("generated_version"),
-            resolve_props(&props, &req_type).await,
+            resolve_props(&props, &req_type).await.unwrap(),
             None,
             None,
             false,
@@ -447,9 +445,9 @@ mod test {
 
     fn get_deferred_props_hashmap<'a>() -> HashMap<&'a str, InertiaProp<'a>> {
         hashmap![
-            "users" => InertiaProp::Deferred(prop_resolver!({ to_value(vec!["user1", "user2", "user3"]).unwrap() }), Some("users")),
-            "permissions" => InertiaProp::Deferred(prop_resolver!({ to_value(vec!["delete", "update", "read"]).unwrap()}), Some("users")),
-            "events" => InertiaProp::Deferred(prop_resolver!({ to_value(vec!["event1", "event2", "event3"]).unwrap() }), None)
+            "users" => InertiaProp::Deferred(prop_resolver!({ vec!["user1", "user2", "user3"].into_inertia_value() }), Some("users")),
+            "permissions" => InertiaProp::Deferred(prop_resolver!({ vec!["delete", "update", "read"].into_inertia_value() }), Some("users")),
+            "events" => InertiaProp::Deferred(prop_resolver!({ vec!["event1", "event2", "event3"].into_inertia_value() }), None)
         ]
     }
 
@@ -463,7 +461,9 @@ mod test {
             clear_history: false,
             encrypt_history: false,
             merge_props: None,
-            props: resolve_props(&props, &InertiaRequestType::Standard).await,
+            props: resolve_props(&props, &InertiaRequestType::Standard)
+                .await
+                .unwrap(),
             url: "foo",
             version: Some("foo")
         });
@@ -508,7 +508,9 @@ mod test {
             clear_history: false,
             encrypt_history: false,
             merge_props: None,
-            props: resolve_props(&props, &partial_req_for_default).await,
+            props: resolve_props(&props, &partial_req_for_default)
+                .await
+                .unwrap(),
             url: "foo",
             version: Some("foo")
         });
@@ -549,7 +551,7 @@ mod test {
             clear_history: false,
             encrypt_history: false,
             merge_props: None,
-            props: resolve_props(&props, &partial_req_for_users).await,
+            props: resolve_props(&props, &partial_req_for_users).await.unwrap(),
             url: "foo",
             version: Some("foo")
         });
@@ -593,20 +595,20 @@ mod test {
             let permissions_memory_db = ["read", "update", "delete"];
 
             let props = hashmap![
-                "permissions" => InertiaProp::Mergeable(Box::new(InertiaProp::Data(to_value(
-                    permissions_memory_db.iter().skip((page -1) * 2).take(2).cloned().collect::<Vec<_>>()
-                ).unwrap()))),
+                "permissions" => InertiaProp::Mergeable(Box::new(InertiaProp::Data(
+                    permissions_memory_db.iter().skip((page -1) * 2).take(2).cloned().collect::<Vec<_>>().into_inertia_value()
+                ))),
                 "users" => InertiaProp::defer(prop_resolver!(
                     let users = users_memory_db.clone();
                     {
-                    to_value(users
-                        .clone()
-                        .iter()
-                        .skip((page - 1) * 3)
-                        .take(3)
-                        .cloned()
-                        .collect::<Vec<_>>())
-                        .unwrap()
+                        users
+                            .clone()
+                            .iter()
+                            .skip((page - 1) * 3)
+                            .take(3)
+                            .cloned()
+                            .collect::<Vec<_>>()
+                            .into_inertia_value()
                     }))
                     .into_mergeable()
             ];
@@ -625,7 +627,9 @@ mod test {
                         component: "Foo".into(),
                         deferred_props: get_deferred_props(&props, &InertiaRequestType::Standard),
                         merge_props: get_mergeable_props(&props, vec![]),
-                        props: resolve_props(&props, &InertiaRequestType::Standard).await,
+                        props: resolve_props(&props, &InertiaRequestType::Standard)
+                            .await
+                            .unwrap(),
                         url: "",
                         version: Some("")
                     }),
@@ -635,7 +639,7 @@ mod test {
                         component: "Foo".into(),
                         deferred_props: get_deferred_props(&props, &partial_req),
                         merge_props: get_mergeable_props(&props, vec![]),
-                        props: resolve_props(&props, &partial_req).await,
+                        props: resolve_props(&props, &partial_req).await.unwrap(),
                         url: "",
                         version: Some("")
                     }),
@@ -729,15 +733,15 @@ mod test {
             let per_page = 2;
 
             let props = hashmap![
-                "permissions" => InertiaProp::Data(to_value(
+                "permissions" => InertiaProp::Data(
                     permissions_mem_db
-                    .iter()
-                    .skip((page -1) * per_page)
-                    .take(per_page)
-                    .cloned()
-                    .collect::<Vec<_>>())
-                    .unwrap())
-                    .into_mergeable()
+                        .iter()
+                        .skip((page -1) * per_page)
+                        .take(per_page)
+                        .cloned()
+                        .collect::<Vec<_>>()
+                        .into_inertia_value())
+                        .into_mergeable()
             ];
 
             json!(InertiaPage {
@@ -746,7 +750,9 @@ mod test {
                 component: "Foo".into(),
                 deferred_props: None,
                 merge_props: get_mergeable_props(&props, keys_to_reset.to_vec()),
-                props: resolve_props(&props, &InertiaRequestType::Standard).await,
+                props: resolve_props(&props, &InertiaRequestType::Standard)
+                    .await
+                    .unwrap(),
                 url: "",
                 version: None,
             })

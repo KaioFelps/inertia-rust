@@ -410,7 +410,10 @@ mod test {
     };
     use crate::req_type::PartialComponent;
     use crate::template_resolver::TemplateResolver;
-    use crate::{hashmap, Component, Inertia, InertiaError, InertiaPage, InertiaVersion};
+    use crate::{
+        hashmap, Component, Inertia, InertiaError, InertiaPage, InertiaVersion,
+        IntoInertiaPropResult,
+    };
     use actix_web::body::MessageBody;
     use actix_web::test;
     use serde_json::Value;
@@ -470,8 +473,8 @@ mod test {
         .unwrap();
 
         let props = hashmap![
-            "title" => InertiaProp::Data("My website's cool title!".into()),
-            "content" => InertiaProp::Data("Such a nice content, isn't it?".into()),
+            "title" => InertiaProp::Data("My website's cool title!".into_inertia_value()),
+            "content" => InertiaProp::Data("Such a nice content, isn't it?".into_inertia_value()),
         ];
 
         let fake_req = test::TestRequest::get()
@@ -490,7 +493,9 @@ mod test {
             Component("/Users/Index".into()),
             "/users",
             Some("gen_the_version"),
-            resolve_props(&props, &fake_req.get_request_type().unwrap()).await,
+            resolve_props(&props, &fake_req.get_request_type().unwrap())
+                .await
+                .unwrap(),
             None,
             None,
             false,

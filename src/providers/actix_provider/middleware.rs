@@ -4,7 +4,6 @@ use actix_web::HttpMessage;
 use actix_web::{Error, HttpRequest};
 use futures::FutureExt;
 use futures_util::future::LocalBoxFuture;
-use serde_json::to_value;
 use std::collections::HashMap;
 use std::future::{ready, Future, Ready};
 use std::pin::Pin;
@@ -93,8 +92,7 @@ where
             let mut shared_props = shared_props(req.request()).await;
 
             if let Some(request_props) = req.extensions().get::<InertiaTemporarySession>() {
-                let errors = to_value(&request_props.errors).unwrap();
-                shared_props.insert("errors", InertiaProp::Always(errors));
+                shared_props.insert("errors", InertiaProp::always(&request_props.errors));
             }
 
             req.extensions_mut().insert(SharedProps(shared_props));
