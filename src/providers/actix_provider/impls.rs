@@ -63,7 +63,7 @@ impl InertiaResponder<HttpResponse, HttpRequest, Redirect> for Inertia {
         let reset = req.get_merge_props_to_be_reset();
         let deferred_props = get_deferred_props(&props, &req_type);
         let merge_props = get_mergeable_props(&props, reset);
-        let mut props = resolve_props(&props, &req_type).await;
+        let mut props = resolve_props(&props, &req_type).await?;
 
         let shared_props = req
             .extensions()
@@ -71,7 +71,7 @@ impl InertiaResponder<HttpResponse, HttpRequest, Redirect> for Inertia {
             .map(|shared_props| shared_props.0.clone());
 
         if let Some(shared_props) = shared_props {
-            let shared_props = resolve_props(&shared_props, &req_type).await;
+            let shared_props = resolve_props(&shared_props, &req_type).await?;
             props.extend(shared_props);
         }
 
