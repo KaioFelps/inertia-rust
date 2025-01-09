@@ -17,6 +17,10 @@ impl fmt::Display for InertiaError {
     }
 }
 
+pub trait IntoInertiaError {
+    fn into_inertia_error(self) -> InertiaError;
+}
+
 impl Error for InertiaError {}
 
 impl InertiaError {
@@ -34,5 +38,17 @@ impl InertiaError {
 
     pub fn to_io_error(self) -> io::Error {
         io::Error::new(io::ErrorKind::Other, self.get_cause())
+    }
+}
+
+impl IntoInertiaError for InertiaError {
+    fn into_inertia_error(self) -> InertiaError {
+        self
+    }
+}
+
+impl IntoInertiaError for serde_json::Error {
+    fn into_inertia_error(self) -> InertiaError {
+        InertiaError::SerializationError(self.to_string())
     }
 }
