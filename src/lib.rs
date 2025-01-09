@@ -16,7 +16,7 @@ mod utils;
 pub mod node_process;
 
 pub use config::{InertiaConfig, InertiaConfigBuilder};
-pub use error::InertiaError;
+pub use error::{InertiaError, IntoInertiaError};
 pub use facade::InertiaFacade;
 pub use inertia::{Component, Inertia, InertiaService, InertiaVersion, SsrClient, ViewData};
 pub use page::{InertiaPage, InertiaSSRPage};

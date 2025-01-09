@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## v2.3.1
+### Changed
+- `IntoInertiaError` now is public;
+
 ## v2.3.0
 ### Added
 - `IntoInertiaPropResult` trait, which introduces `into_inertia_value`.
