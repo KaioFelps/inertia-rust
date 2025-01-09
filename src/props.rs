@@ -1,4 +1,5 @@
 use crate::{
+    error::IntoInertiaError,
     page::DeferredProps,
     req_type::{InertiaRequestType, PartialComponent},
     InertiaError,
@@ -12,6 +13,18 @@ type PropResolver = Arc<
 >;
 
 pub type InertiaProps<'a> = HashMap<&'a str, InertiaProp<'a>>;
+
+pub trait IntoInertiaPropResult {
+    /// Converts a serializeable object into a [`serde_json::Value`]. If it fails,
+    /// automatically maps the error to [`InertiaError`].
+    fn into_inertia_value(self) -> Result<Value, InertiaError>;
+}
+
+impl<T: Serialize> IntoInertiaPropResult for T {
+    fn into_inertia_value(self) -> Result<Value, InertiaError> {
+        to_value(self).map_err(IntoInertiaError::into_inertia_error)
+    }
+}
 
 #[derive(Clone)]
 pub enum InertiaProp<'a> {
