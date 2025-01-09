@@ -18,18 +18,10 @@ pub mod node_process;
 pub use config::{InertiaConfig, InertiaConfigBuilder};
 pub use error::InertiaError;
 pub use facade::InertiaFacade;
-pub use inertia::Component;
-pub use inertia::Inertia;
-pub use inertia::InertiaService;
-pub use inertia::InertiaVersion;
-pub use inertia::SsrClient;
-pub use inertia::ViewData;
-pub use page::InertiaPage;
-pub use page::InertiaSSRPage;
-pub use props::InertiaProp;
-pub use props::InertiaProps;
-pub use temporary_session::InertiaSessionToReflash;
-pub use temporary_session::InertiaTemporarySession;
+pub use inertia::{Component, Inertia, InertiaService, InertiaVersion, SsrClient, ViewData};
+pub use page::{InertiaPage, InertiaSSRPage};
+pub use props::{InertiaProp, InertiaProps, IntoInertiaPropResult};
+pub use temporary_session::{InertiaSessionToReflash, InertiaTemporarySession};
 
 #[cfg(feature = "actix")]
 pub mod actix {
