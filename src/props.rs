@@ -59,14 +59,22 @@ pub enum InertiaProp<'a> {
 
 impl<'a> InertiaProp<'a> {
     #[inline]
-    pub(crate) async fn resolve_unconditionally(self) -> Value {
+    pub(crate) async fn resolve_unconditionally(self) -> Result<Value, InertiaError> {
         match self {
             InertiaProp::Always(value) => value,
             InertiaProp::Data(value) => value,
-            InertiaProp::Demand(resolver) => resolver().await,
-            InertiaProp::Deferred(resolver, _group) => resolver().await,
-            InertiaProp::Mergeable(prop) => Box::pin(prop.resolve_unconditionally()).await,
-            InertiaProp::Lazy(resolver) => resolver().await,
+            InertiaProp::Demand(resolver) => resolver()
+                .await
+                .map_err(IntoInertiaError::into_inertia_error),
+            InertiaProp::Deferred(resolver, _group) => resolver()
+                .await
+                .map_err(IntoInertiaError::into_inertia_error),
+            InertiaProp::Mergeable(prop) => Box::pin(prop.resolve_unconditionally())
+                .await
+                .map_err(IntoInertiaError::into_inertia_error),
+            InertiaProp::Lazy(resolver) => resolver()
+                .await
+                .map_err(IntoInertiaError::into_inertia_error),
         }
     }
 
@@ -89,27 +97,21 @@ impl<'a> InertiaProp<'a> {
     where
         T: Serialize,
     {
-        InertiaProp::Data(
-            to_value(value).expect("Called 'InertiaProp::data' with an non-serializable value."),
-        )
+        InertiaProp::Data(value.into_inertia_value())
     }
 
     pub fn always<T>(value: T) -> InertiaProp<'a>
     where
         T: Serialize,
     {
-        InertiaProp::Always(
-            to_value(value).expect("Called 'InertiaProp::always' with an non-serializable value."),
-        )
+        InertiaProp::Always(value.into_inertia_value())
     }
 
     pub fn merge<T>(value: T) -> InertiaProp<'a>
     where
         T: Serialize,
     {
-        let prop = InertiaProp::Data(
-            to_value(value).expect("Called 'InertiaProp::merge' with an non-serializable value."),
-        );
+        let prop = InertiaProp::Data(value.into_inertia_value());
         InertiaProp::Mergeable(Box::new(prop))
     }
 
@@ -134,7 +136,7 @@ impl<'a> InertiaProp<'a> {
 pub(crate) async fn resolve_props<'a>(
     raw_props: &'a InertiaProps<'a>,
     req_type: &InertiaRequestType,
-) -> Map<String, Value> {
+) -> Result<Map<String, Value>, InertiaError> {
     let mut props = Map::new();
 
     match req_type {
@@ -150,55 +152,106 @@ pub(crate) async fn resolve_props<'a>(
                     }
                 }
 
-                props.insert(
-                    key.to_string(),
-                    prop.clone().resolve_unconditionally().await,
-                );
+                match prop.clone().resolve_unconditionally().await {
+                    Ok(value) => {
+                        props.insert(key.to_string(), value);
+                    }
+
+                    Err(err) => {
+                        log::error!("Failed to resolve prop {}: {}", key, err);
+                    }
+                }
             }
         }
 
         InertiaRequestType::Partial(partial) => {
             for (key, prop) in raw_props {
                 let key = key.to_string();
+
                 match prop {
                     InertiaProp::Always(value) => {
-                        props.insert(key, value.clone());
+                        let value = value.clone().map_err(|err| {
+                            log::error!("Failed to resolve always prop {}: {}", &key, err);
+                            err
+                        })?;
+
+                        if should_be_pushed(&key, partial) {
+                            props.insert(key, value);
+                        }
                     }
 
                     InertiaProp::Data(value) => {
+                        let value = value.clone().map_err(|err| {
+                            log::error!("Failed to resolve data prop {}: {}", &key, err);
+                            err
+                        })?;
+
                         if should_be_pushed(&key, partial) {
-                            props.insert(key, value.clone());
+                            props.insert(key, value);
                         }
                     }
 
                     InertiaProp::Lazy(resolver) => {
+                        let value = resolver().await.map_err(|err| {
+                            log::error!("Failed to resolve lazy prop {}: {}", &key, err);
+                            err
+                        })?;
+
                         if should_be_pushed(&key, partial) {
-                            props.insert(key, resolver().await);
+                            props.insert(key, value);
                         }
                     }
 
                     InertiaProp::Demand(resolver) => {
+                        let value = resolver().await.map_err(|err| {
+                            log::error!("Failed to resolve demand prop {}: {}", &key, err);
+                            err
+                        })?;
+
                         if should_be_pushed(&key, partial) {
-                            props.insert(key, resolver().await);
+                            props.insert(key, value);
                         }
                     }
 
                     InertiaProp::Deferred(resolver, _) => {
+                        let value = resolver().await.map_err(|err| {
+                            log::error!("Failed to resolve deferred prop {}: {}", &key, err);
+                            err
+                        })?;
+
                         if should_be_pushed(&key, partial) {
-                            props.insert(key, resolver().await);
+                            props.insert(key, value);
                         }
                     }
 
                     InertiaProp::Mergeable(prop) => match &**prop {
                         InertiaProp::Data(value) => {
+                            let value = value.clone().map_err(|err| {
+                                log::error!(
+                                    "Failed to resolve mergeable data prop {}: {}",
+                                    &key,
+                                    err
+                                );
+                                err
+                            })?;
+
                             if should_be_pushed(&key, partial) {
-                                props.insert(key.to_string(), value.clone());
+                                props.insert(key, value);
                             }
                         }
 
                         InertiaProp::Deferred(resolver, _) => {
+                            let value = resolver().await.map_err(|err| {
+                                log::error!(
+                                    "Failed to resolve mergeable deferred prop {}: {}",
+                                    &key,
+                                    err
+                                );
+                                err
+                            })?;
+
                             if should_be_pushed(&key, partial) {
-                                props.insert(key.to_string(), resolver().await);
+                                props.insert(key, value);
                             }
                         }
 
@@ -209,7 +262,7 @@ pub(crate) async fn resolve_props<'a>(
         }
     };
 
-    props
+    Ok(props)
 }
 
 #[inline]
