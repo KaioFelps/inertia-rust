@@ -1,12 +1,15 @@
 use crate::{
     page::DeferredProps,
     req_type::{InertiaRequestType, PartialComponent},
+    InertiaError,
 };
 use serde::Serialize;
 use serde_json::{to_value, Map, Value};
 use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
 
-type PropResolver = Arc<dyn Fn() -> Pin<Box<dyn Future<Output = Value> + Send>> + Send + Sync>;
+type PropResolver = Arc<
+    dyn Fn() -> Pin<Box<dyn Future<Output = Result<Value, InertiaError>> + Send>> + Send + Sync,
+>;
 
 pub type InertiaProps<'a> = HashMap<&'a str, InertiaProp<'a>>;
 
@@ -15,7 +18,7 @@ pub enum InertiaProp<'a> {
     /// - ALWAYS included on standard visits
     /// - OPTIONALLY included on partial reloads
     /// - ALWAYS evaluated
-    Data(Value),
+    Data(Result<Value, InertiaError>),
     /// - ALWAYS included on standard visits
     /// - OPTIONALLY included on partial reloads
     /// - ONLY evaluated when included
@@ -23,7 +26,7 @@ pub enum InertiaProp<'a> {
     /// - ALWAYS included on standard visits
     /// - ALWAYS included on partial reloads (even if not requested or excepted)
     /// - ALWAYS evaluated
-    Always(Value),
+    Always(Result<Value, InertiaError>),
     /// - NEVER included on standard visits
     /// - OPTIONALLY included on partial reloads
     /// - ONLY evaluated when needed
