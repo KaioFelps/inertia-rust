@@ -219,7 +219,7 @@ pub(crate) async fn resolve_props<'a>(
 
 #[inline]
 fn should_be_pushed(key: &String, partial: &PartialComponent) -> bool {
-    partial.only.contains(key) || partial.only.is_empty() && !partial.except.contains(key)
+    partial.only.contains(key) && !partial.except.contains(key)
 }
 
 #[inline]
