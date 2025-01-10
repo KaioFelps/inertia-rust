@@ -295,21 +295,26 @@ mod test {
 
     #[test]
     async fn test_inertia_partials_visit_page() {
+        let lazy_evaluation_counter = Arc::new(Mutex::new(0));
+        let counter_clone = lazy_evaluation_counter.clone();
+
         #[derive(Serialize)]
         struct Events {
             id: u16,
             title: String,
         }
 
-        let event = Events {
-            id: 1,
-            title: "Baile".into(),
-        };
-
         let props = hashmap![
-            "event" => InertiaProp::data(json!({"name": "John Doe"})),
+            "auth" => InertiaProp::always(json!({"name": "John Doe"})),
             "categories" => InertiaProp::Data(Ok(vec!["foo".to_string(),"bar".to_string()].into())),
-            "events" => InertiaProp::data(vec![to_value(event).unwrap()])
+            "events" => InertiaProp::lazy(prop_resolver!(let counter = counter_clone.clone(); {
+                *counter.lock().unwrap() += 1;
+                let event = Events {
+                    id: 1,
+                    title: "Baile".into(),
+                };
+                vec![event].into_inertia_value()
+            }))
         ];
 
         // Request headers
@@ -339,9 +344,9 @@ mod test {
             "component": "Events",
             "encryptHistory":false,
             "props": {
-            // "auth": { "name": "John Doe" },              // NOT included
-            // "categories": ["foo", "bar"],                // NOT included
-            "events": [{"id": 1, "title": "Baile"}]      // included
+                // "categories": ["foo", "bar"],                // NOT included
+                "events": [{"id": 1, "title": "Baile"}],      // included and evaluated
+                "auth": { "name": "John Doe" },              // ALWAYS included
             },
             "url": "/events/80",
             "version": "generated_version",
@@ -352,6 +357,44 @@ mod test {
             json!(page).to_string(),
             serde_json::to_string(&json_page_example).unwrap(),
         );
+
+        let req_type = InertiaRequestType::Partial(PartialComponent {
+            component: Component("Events".to_string()),
+            only: Vec::new(),
+            except: Vec::new(),
+        });
+
+        let page = InertiaPage::new(
+            Component("Events".into()),
+            "/events/80",
+            Some("generated_version"),
+            resolve_props(&props, &req_type).await.unwrap(),
+            None,
+            None,
+            false,
+            false,
+        );
+
+        let json_page_example = json!({
+            "clearHistory":false,
+            "component": "Events",
+            "encryptHistory":false,
+            "props": {
+            "auth": { "name": "John Doe" },              // ALWAYS included
+            // "categories": ["foo", "bar"],                // NOT included
+            // "events": [{"id": 1, "title": "Baile"}]      // NOT included NOR EVALUATED
+            },
+            "url": "/events/80",
+            "version": "generated_version",
+
+        });
+
+        assert_eq!(
+            json!(page).to_string(),
+            serde_json::to_string(&json_page_example).unwrap(),
+        );
+
+        assert_eq!(*lazy_evaluation_counter.lock().unwrap(), 1);
     }
 
     #[test]
@@ -361,9 +404,6 @@ mod test {
             "categories" => InertiaProp::data(vec!["foo".to_string(), "bar".to_string()])
         ];
 
-        // Request headers
-        // X-Inertia: true
-        // X-Inertia-Version: generated_version
         let req_type = InertiaRequestType::Standard;
 
         let page = InertiaPage::new(
