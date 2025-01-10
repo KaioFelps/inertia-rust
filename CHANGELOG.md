@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## v2.3.2
+### Fixed
+- Partial requests would receive props that haven't been requested if `only` header is empty.
+- `InertiaProp::resolve_props` would always evaluate lazy props;
+
 ## v2.3.1
 ### Changed
 - `IntoInertiaError` now is public;
