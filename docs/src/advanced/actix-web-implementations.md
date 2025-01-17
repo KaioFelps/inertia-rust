@@ -133,10 +133,8 @@ where
                     (prev_url, req.uri().to_string(), errors)
                 };
 
-            if let Some(errors) = optional_errors {
-                if let Err(err) = session.insert(ERRORS_KEY, inertia_session.errors) {
-                    error!("Failed to add errors to session: {}", err);
-                }
+            if let Err(err) = session.insert(ERRORS_KEY, optional_errors.unwrap_or_default()) {
+                error!("Failed to add errors to session: {}", err);
             }
 
             if let Err(err) = session.insert(PREV_REQ_KEY, prev_url) {
