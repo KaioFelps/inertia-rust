@@ -220,4 +220,36 @@ mod test {
 
         assert_eq!(html, expected);
     }
+
+    #[test]
+    fn invalid_view_data_becomes_null() {
+        let mut html = r#"
+            <!doctype html>
+            <html lang="pt-BR" class="h-full">
+            <head>
+                <meta name="ssr" content="@inertia::view_data(isSsr)">
+            </head>
+            <body class="h-full bg-purple-100">
+                @inertia::view_data(body.h1)
+            </body>
+            </html>
+        "#
+        .to_string();
+
+        view_data_directive(&mut html, &Map::new());
+
+        let expected = r#"
+            <!doctype html>
+            <html lang="pt-BR" class="h-full">
+            <head>
+                <meta name="ssr" content="null">
+            </head>
+            <body class="h-full bg-purple-100">
+                null
+            </body>
+            </html>
+        "#;
+
+        assert_eq!(html, expected);
+    }
 }
