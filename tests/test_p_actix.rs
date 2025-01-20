@@ -12,7 +12,9 @@ use actix_web::{
     web::{Data, Query, Redirect},
     App, HttpMessage, HttpRequest, HttpResponse, Responder,
 };
-use common::template_resolver::{get_dynamic_csr_expect, MockedTemplateResolver};
+use common::template_resolver::{
+    get_dynamic_csr_expect, get_dynamic_csr_with_view_data_expect, MockedTemplateResolver,
+};
 use futures::FutureExt;
 use inertia_rust::actix::SessionErrors;
 use inertia_rust::{
@@ -89,6 +91,12 @@ async fn with_props(req: HttpRequest) -> impl Responder {
         HashMap::from([("user", InertiaProp::always("John Doe"))]),
     )
     .await
+}
+
+#[get("/withviewdata")]
+async fn with_view_data(req: HttpRequest) -> impl Responder {
+    Inertia::view_data(&req, hashmap![ "title" => "View Data Title".into() ]);
+    Inertia::render(&req, "Index".into()).await
 }
 
 #[derive(Deserialize)]
@@ -312,6 +320,7 @@ async fn generate_actix_app() -> App<
         .service(redirect_back_with_header)
         .service(redirect_back_with_reflash)
         .service(redirect_back_with_errors)
+        .service(with_view_data)
 }
 
 // endregion: --- Service
@@ -1044,6 +1053,35 @@ async fn test_default_error_bag() {
         .unwrap()
         .get("foo")
         .is_some_and(|foo| foo.eq("We are enemies, we are foes...")));
+}
+
+#[tokio::test]
+async fn test_view_data() {
+    let app = actix_web::test::init_service(generate_actix_app().await).await;
+
+    let request = actix_web::test::TestRequest::get()
+        .uri("/withviewdata")
+        .to_request();
+
+    let response = actix_web::test::call_service(&app, request).await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response.into_body();
+    let body_bytes = actix_web::body::to_bytes(body).await.unwrap();
+    let html_body = String::from_utf8(body_bytes.to_vec()).unwrap();
+
+    assert_eq!(
+        get_dynamic_csr_with_view_data_expect(
+            "/withviewdata",
+            "{}",
+            "Index",
+            TEST_INERTIA_VERSION,
+            "View Data Title",
+            false
+        ),
+        super_trim(html_body)
+    );
 }
 
 // endregion: --- Error Bag tests

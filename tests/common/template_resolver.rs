@@ -13,6 +13,8 @@ pub fn get_dynamic_csr_expect(url: &str, props: &str, component: &str, version: 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="ssr" value="false">
+    <title inertia></title>
     
 </head>
 <body>
@@ -20,6 +22,34 @@ pub fn get_dynamic_csr_expect(url: &str, props: &str, component: &str, version: 
 </body>
 </html>"#,
         component, props, url, version
+    ))
+}
+
+pub fn get_dynamic_csr_with_view_data_expect(
+    url: &str,
+    props: &str,
+    component: &str,
+    version: &str,
+    title: &str,
+    is_ssr: bool,
+) -> String {
+    super_trim(format!(
+        r#"
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="ssr" value="{}">
+    <title inertia>{}</title>
+    
+</head>
+<body>
+    <div id="app" data-page={{"component":"{}","props":{},"url":"{}","version":"{}","clearHistory":false,"encryptHistory":false}}></div>
+</body>
+</html>"#,
+        is_ssr, title, component, props, url, version
     ))
 }
 
@@ -54,6 +84,25 @@ impl TemplateResolver for MockedTemplateResolver {
             }
             Ok(html) => html,
         };
+
+        html = html.replace(
+            "%-view_data_title-%",
+            view_data
+                .custom_props
+                .get("title")
+                .map(|v| v.as_str().unwrap())
+                .unwrap_or(""),
+        );
+
+        html = html.replace(
+            "%-view_data_ssr-%",
+            &view_data
+                .custom_props
+                .get("isSsr")
+                .map(|v| v.as_bool().unwrap())
+                .unwrap_or_default()
+                .to_string(),
+        );
 
         match view_data.ssr_page {
             Some(ssr) => {
