@@ -5,9 +5,11 @@ use crate::inertia::{InertiaResponder, X_INERTIA, X_INERTIA_LOCATION};
 use crate::{Component, Inertia, InertiaError, InertiaProps};
 use actix_web::dev::ServiceResponse;
 use actix_web::web::{Data, Redirect};
-use actix_web::{HttpRequest, HttpResponse};
+use actix_web::{HttpMessage, HttpRequest, HttpResponse};
 use async_trait::async_trait;
-use serde_json::Value;
+use serde_json::{Map, Value};
+
+use super::CustomViewData;
 
 #[async_trait(?Send)]
 impl InertiaFacade<HttpRequest, HttpResponse, Redirect> for Inertia {
@@ -52,6 +54,15 @@ impl InertiaFacade<HttpRequest, HttpResponse, Redirect> for Inertia {
     fn back_with_errors(req: &HttpRequest, errors: HashMap<&str, Value>) -> Redirect {
         let inertia = extract_inertia(req);
         inertia.inner_back_with_errors(req, errors)
+    }
+
+    #[inline]
+    fn view_data(req: &HttpRequest, data: HashMap<&str, Value>) {
+        let custom_view_data = CustomViewData(Map::from_iter(
+            data.into_iter().map(|(k, v)| (k.to_string(), v)),
+        ));
+
+        req.extensions_mut().insert(custom_view_data);
     }
 }
 

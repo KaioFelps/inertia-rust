@@ -69,4 +69,7 @@ pub trait InertiaFacade<THttpRequest, TResponse, TRedirect> {
     ///
     /// [Flash Messages and Validation Errors]: https://kaiofelps.github.io/inertia-rust/advanced/flash-messages.html
     fn back_with_errors(req: &THttpRequest, errors: HashMap<&str, Value>) -> TRedirect;
+
+    /// Inserts custom view data to be accessed by the template root.
+    fn view_data(req: &THttpRequest, data: HashMap<&str, Value>);
 }

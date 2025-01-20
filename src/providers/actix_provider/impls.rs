@@ -1,5 +1,5 @@
-use super::headers;
 use super::middleware::SharedProps;
+use super::{headers, CustomViewData};
 
 use crate::facade::InertiaFacade;
 use crate::inertia::{Inertia, InertiaHttpRequest, InertiaResponder, InertiaService, ViewData};
@@ -108,10 +108,18 @@ impl InertiaResponder<HttpResponse, HttpRequest, Redirect> for Inertia {
             };
         }
 
+        let mut custom_view_data = req
+            .extensions_mut()
+            .remove::<CustomViewData>()
+            .map(|data| data.0)
+            .unwrap_or_default();
+
+        custom_view_data.insert("isSsr".into(), ssr_page.is_some().into());
+
         let view_data = ViewData {
             ssr_page,
             page,
-            custom_props: self.custom_view_data.clone(),
+            custom_props: custom_view_data,
         };
 
         let html = match self
