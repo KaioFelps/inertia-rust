@@ -109,3 +109,38 @@ this property! We didn't provide any props to the page, though. We'll fix this i
 props are discussed.
 
 [Inertia.js documentation]: https://inertia-rails.dev/guide/client-side-setup
+
+## Root Template Data
+
+Depending on the template resolver you're using, there are different manners of passing data directly to
+the root template.
+
+The built-in `ViteTemplateResolver` allows you to achieve this through request's view data:
+
+```rust
+use inertia_rust::{hashmap, Inertia, InertiaFacade};
+use actix_web::{get, Responder, HttpRequest};
+
+#[get("/")]
+async fn index(req: HttpRequest) -> impl Responder {
+    Inertia::view_data(&req, hashmap![ "meta" => "Your page description".into() ]);
+    Inertia::render(&req, "Index".into()).await
+}
+```
+
+After calling the `view_data` method, you can access the defined data in your template HTML the following
+way:
+
+```html
+<meta name="description" content="@inertia::view_data(meta)">
+```
+
+If the value isn't defined, ViteTemplateResolver replaces the value by an ordinary JavaSript `null`.
+
+> Remember: a different template resolver could allow you to pass data in different ways, for example,
+> through the actual page props. You should check the template resolver documentation for more details.
+
+### Default View Data
+`ViteTemplateResolver` will always inject a default view data property: `isSsr`. You can use it, for
+instance, to conditionally hydrate or create your React root. This property will be true only when
+the Inertia response has been server-side rendered.
