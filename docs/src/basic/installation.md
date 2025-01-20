@@ -87,7 +87,6 @@ pub async fn initialize_inertia() -> Result<Inertia, io::Error> {
 | template_resolver | `Box<dyn TemplateResolver + Send + Sync>` | A valid [Template Resolver]. |
 | with_ssr          | `bool` (`false`)                          | Whether Server-side Rendering should be enabled or not. |
 | custom_ssr_client | `Option<SsrClient>` (`SsrClient::default`)| The Inertia Server address. |
-| view_data         | `Option<ViewData>` (`None`)               | Optional view data to be passed to the root template. (needs to be handled by the Template Resolver) |
 | encrypt_history   | `bool` (`false`)                          | Whether to encrypt the session or not. Refer to [History encryption] for more details. |
 
 For even more details, read the [`InertiaConfig`] and [`InertiaConfigBuilder`] documentations.
