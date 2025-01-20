@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+### Added
+- `@inertia::view_data()` directive for `ViteTemplateResolver`;
 
 ## v2.3.3
 ### Added
