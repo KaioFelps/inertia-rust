@@ -32,7 +32,7 @@ use actix_web::dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Tr
 use actix_web::Error;
 use actix_web::HttpMessage;
 use futures_util::future::LocalBoxFuture;
-use inertia_rust::{InertiaSessionToReflash, InertiaTemporarySession, actix::SessionErrors};
+use inertia_rust::{actix::{is_inertia_response, SessionErrors}, InertiaSessionToReflash, InertiaTemporarySession};
 use log::error;
 use serde_json::Map;
 use std::future::{ready, Ready};
@@ -99,7 +99,7 @@ where
         // ---
 
         let temporary_session = InertiaTemporarySession {
-            errors,
+            errors: errors.clone(),
             prev_req_url: prev_url.clone(),
         };
 
@@ -112,18 +112,26 @@ where
             let req = res.request();
             let session = req.get_session();
 
-            let inertia_session = req.extensions_mut().remove::<InertiaSessionToReflash>();
+            // If it's not a Inertia redirect or response, it might be assets response
+            // then, reflash everything so that assets don't affect real user's requests
+            let (prev_url, curr_url, optional_errors) = if !is_inertia_response(&req) {
+                (before_prev_url, prev_url, errors)
+            } else {
+                let inertia_session = req.extensions_mut().remove::<InertiaSessionToReflash>();
 
-            // if it needs to reflash a temporary flash session, then
-            // replace data from inertia session middleware with the same as before,
-            // so that the further request generates the same InertiaTemporarySession,
-            // containing the exactly same errors, previous url, and current url.
-            //
-            // otherwise, gets the previous request's URI and stores the current one's as the next
-            // request "previous", moving the navigation history
-            let (prev_url, curr_url, optional_errors) =
+                // if it needs to reflash a temporary flash session, then
+                // replace data from inertia session middleware with the same as before,
+                // so that the further request generates the same InertiaTemporarySession,
+                // containing the exactly same errors, previous url, and current url.
+                //
+                // otherwise, gets the previous request's URI and stores the current one's as the next
+                // request "previous", moving the navigation history
                 if let Some(InertiaSessionToReflash(inertia_session)) = inertia_session {
-                    (before_prev_url, inertia_session.prev_req_url, inertia_session.errors)
+                    (
+                        before_prev_url,
+                        inertia_session.prev_req_url,
+                        inertia_session.errors,
+                    )
                 } else {
                     let errors = req
                         .extensions_mut()
@@ -131,7 +139,8 @@ where
                         .map(|SessionErrors(errors)| errors);
 
                     (prev_url, req.uri().to_string(), errors)
-                };
+                }
+            };
 
             if let Err(err) = session.insert(ERRORS_KEY, optional_errors.unwrap_or_default()) {
                 error!("Failed to add errors to session: {}", err);
@@ -155,7 +164,7 @@ Yet you need to enable your framework session middleware and manager (or your ow
 retrieved by `remove` method, they are **only available for one request lifetime**. Indeed, errors
 and flash messages shouldn't persist across multiple requests.
 
-> Note: Be sure to register this middleware always after `InertiaMiddleware`. Since actix web calls
+> Note: Be sure to register this middleware always **after** `InertiaMiddleware`. Since actix web calls
 > the middlewares in the opposite order they've been registered, doing this will ensure that
 > `InertiaMiddleware` has the correct `InertiaTemporarySession` when it's finally executed.
 
