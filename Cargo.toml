@@ -31,3 +31,4 @@ futures = "~0.3.30"
 actix-web = { version = "~4", features = ["default"], optional = true }
 vite-rust = { version = "~0.2", optional = true, features = ["basic-directives"] }
 futures-util = "~0.3.31"
+regex = "1.11"
