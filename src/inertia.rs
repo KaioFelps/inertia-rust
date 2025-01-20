@@ -171,8 +171,6 @@ pub struct Inertia {
     pub(crate) template_resolver: Box<dyn TemplateResolver + Send + Sync>,
     /// Address of Inertia local render server. Will be used by Inertia to perform ssr.
     pub(crate) ssr_url: Option<Url>,
-    /// Extra data to be passed to the root template.
-    pub(crate) custom_view_data: Map<String, Value>,
     /// Whether to encrypt or not the page data stored in the browser history.
     pub(crate) encrypt_history: bool,
 }
@@ -220,13 +218,8 @@ impl Inertia {
             version,
             template_resolver: config.template_resolver,
             ssr_url,
-            custom_view_data: config.view_data.unwrap_or_default(),
             encrypt_history: config.encrypt_history,
         })
-    }
-
-    pub fn get_view_data_mut(&mut self) -> &Map<String, Value> {
-        &mut self.custom_view_data
     }
 
     /// Instantiates a [`NodeJsProc`] by calling [`NodeJsProc::start`] with the given path and the

@@ -1,5 +1,4 @@
 use crate::{template_resolver::TemplateResolver, InertiaVersion, SsrClient};
-use serde_json::{Map, Value};
 
 /// A configuration struct for initializing Inertia. You can directly fill the struct or use
 /// the builder fluent syntax by calling `InertiaConfig::builder()`, and finally `InertiaConfig::build()`.
@@ -18,8 +17,6 @@ use serde_json::{Map, Value};
 /// * `custom_ssr_client`       -   An [`Option<SsrClient>`] with the Inertia Server address.
 ///                                 If `None` is given, `SsrClient::default` will
 ///                                 be used.
-/// * `view_data`               -   Optional view data to be passed to the root template. It must be
-///                                 handled by the provided `template_resolver`.
 /// * `encrypt_history`         -   Whether to encrypt or not the session. Refer to [History encryption]
 ///                                 for more details.
 ///
@@ -36,7 +33,6 @@ where
     pub template_resolver: Box<dyn TemplateResolver + Send + Sync>,
     pub with_ssr: bool,
     pub custom_ssr_client: Option<SsrClient>,
-    pub view_data: Option<Map<String, Value>>,
     pub encrypt_history: bool,
 }
 
@@ -88,7 +84,6 @@ where
     pub template_resolver: Option<Box<dyn TemplateResolver + Send + Sync>>,
     pub with_ssr: bool,
     pub custom_ssr_client: Option<SsrClient>,
-    pub view_data: Option<Map<String, Value>>,
     pub encrypt_history: bool,
 }
 
@@ -140,7 +135,6 @@ where
             version: None,
             template_path: None,
             template_resolver: None,
-            view_data: None,
             with_ssr: false,
             custom_ssr_client: None,
             encrypt_history: false,
@@ -172,11 +166,6 @@ where
         template_resolver: Box<dyn TemplateResolver + Send + Sync>,
     ) -> Self {
         self.template_resolver = Some(template_resolver);
-        self
-    }
-
-    pub fn set_view_data(mut self, view_data: Map<String, Value>) -> Self {
-        self.view_data = Some(view_data);
         self
     }
 
@@ -224,7 +213,6 @@ where
             template_path: self.template_path.unwrap(),
             template_resolver: self.template_resolver.unwrap(),
             version: self.version.unwrap(),
-            view_data: self.view_data,
             with_ssr: self.with_ssr,
             custom_ssr_client: self.custom_ssr_client,
             encrypt_history: self.encrypt_history,
@@ -330,7 +318,6 @@ mod test {
             template_resolver: Box::new(MyTemplateResolver),
             template_path: "path",
             version: InertiaVersion::Literal("v1"),
-            view_data: None,
             with_ssr: false,
             custom_ssr_client: None,
             encrypt_history: false,
@@ -345,7 +332,6 @@ mod test {
             &with_builder.version.resolve(),
             &directly_initialized.version.resolve()
         );
-        assert_eq!(&with_builder.view_data, &directly_initialized.view_data);
         assert_eq!(&with_builder.with_ssr, &directly_initialized.with_ssr);
         assert_eq!(
             &with_builder.custom_ssr_client,
