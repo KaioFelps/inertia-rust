@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## v2.3.5
+### Fixed
+- `is_inertia_response` method.
+
 ## v2.3.4
 ### Added
 - `@inertia::view_data()` directive for `ViteTemplateResolver`;
