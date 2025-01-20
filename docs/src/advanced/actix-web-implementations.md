@@ -114,7 +114,7 @@ where
 
             // If it's not a Inertia redirect or response, it might be assets response
             // then, reflash everything so that assets don't affect real user's requests
-            let (prev_url, curr_url, optional_errors) = if !is_inertia_response(&req) {
+            let (prev_url, curr_url, optional_errors) = if !is_inertia_response(&res) {
                 (before_prev_url, prev_url, errors)
             } else {
                 let inertia_session = req.extensions_mut().remove::<InertiaSessionToReflash>();

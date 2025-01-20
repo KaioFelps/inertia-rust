@@ -73,7 +73,7 @@ fn extract_inertia(req: &HttpRequest) -> &Inertia {
     }
 }
 
-pub fn is_inertia_response(res: &ServiceResponse) -> bool {
+pub fn is_inertia_response<B: 'static>(res: &ServiceResponse<B>) -> bool {
     let headers = res.headers();
 
     headers.get(X_INERTIA).is_some()
