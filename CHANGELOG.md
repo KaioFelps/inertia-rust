@@ -1,10 +1,15 @@
 # Changelog
 
 ## Unreleased
+
+## v2.3.4
 ### Added
 - `@inertia::view_data()` directive for `ViteTemplateResolver`;
 - `Inertia::view_data` facade method;
 - New view data methods to documentation.
+
+### Removed
+- Inertia global `view_data` struct and related options -- from `InertiaConfigBuilder`.
 
 ## v2.3.3
 ### Added
