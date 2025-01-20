@@ -27,6 +27,7 @@ pub use temporary_session::{InertiaSessionToReflash, InertiaTemporarySession};
 pub mod actix {
     pub use super::providers::actix::encrypt_middleware::EncryptHistoryMiddleware;
     pub use super::providers::actix::headers::InertiaHeader;
+    pub use super::providers::actix::is_inertia_response;
     pub use super::providers::actix::middleware::InertiaMiddleware;
     pub use super::providers::actix::SessionErrors;
 }

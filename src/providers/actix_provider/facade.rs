@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
 use crate::facade::InertiaFacade;
-use crate::inertia::InertiaResponder;
+use crate::inertia::{InertiaResponder, X_INERTIA, X_INERTIA_LOCATION};
 use crate::{Component, Inertia, InertiaError, InertiaProps};
+use actix_web::dev::ServiceResponse;
 use actix_web::web::{Data, Redirect};
 use actix_web::{HttpRequest, HttpResponse};
 use async_trait::async_trait;
@@ -59,4 +60,12 @@ fn extract_inertia(req: &HttpRequest) -> &Inertia {
         None => panic!("[Inertia Rust] There is no Inertia struct in AppData. Please, assure you have correctly configured Inertia."),
         Some(inertia) => inertia
     }
+}
+
+pub fn is_inertia_response(res: &ServiceResponse) -> bool {
+    let headers = res.headers();
+
+    headers.get(X_INERTIA).is_some()
+        || headers.get("location").is_some()
+        || headers.get(X_INERTIA_LOCATION).is_some()
 }
