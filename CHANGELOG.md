@@ -3,6 +3,8 @@
 ## Unreleased
 ### Added
 - `@inertia::view_data()` directive for `ViteTemplateResolver`;
+- `Inertia::view_data` facade method;
+- New view data methods to documentation.
 
 ## v2.3.3
 ### Added
