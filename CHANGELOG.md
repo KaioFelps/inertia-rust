@@ -2,14 +2,21 @@
 
 ## Unreleased
 
+## v2.3.3
+### Added
+- `is_inertia_response` method.
+
+### Changed
+- `ReflashTemporarySessionMiddleware` implementation in the documentation.
+
 ## v2.3.2
 ### Fixed
-- Partial requests would receive props that haven't been requested if `only` header is empty.
-- `InertiaProp::resolve_props` would always evaluate lazy props;
+- Partial requests would receive props that haven't been requested if `only` header is empty;
+- `InertiaProp::resolve_props` would always evaluate lazy props.
 
 ## v2.3.1
 ### Changed
-- `IntoInertiaError` now is public;
+- `IntoInertiaError` now is public.
 
 ## v2.3.0
 ### Added
