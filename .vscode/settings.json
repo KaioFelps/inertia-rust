@@ -2,6 +2,8 @@
     "rust-analyzer.cargo.features": [
         "actix",
         "vite-template-resolver",
+        "validator",
+        "actix-validator"
     ],
     "rust-analyzer.checkOnSave.command": "clippy",
     "[rust]": {
