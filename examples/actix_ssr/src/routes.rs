@@ -1,7 +1,12 @@
-use actix_web::{get, web, HttpRequest, Responder};
+use crate::dtos::task::CreateTask;
+use actix_web::{
+    get, post,
+    web::{self, Json, Redirect},
+    HttpRequest, Responder,
+};
 use inertia_rust::{
-    hashmap, prop_resolver, Inertia, InertiaFacade, InertiaProp, InertiaService,
-    IntoInertiaPropResult,
+    hashmap, prop_resolver, validators::InertiaValidateOrRedirect, Inertia, InertiaFacade,
+    InertiaProp, InertiaService, IntoInertiaPropResult,
 };
 use serde::Deserialize;
 use serde_json::json;
@@ -12,7 +17,24 @@ pub fn register_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(home)
         .service(contact)
         .inertia_route("/foo", "Foo/Index")
-        .service(r#todo);
+        .service(r#todo)
+        .inertia_route("/todo/create", "Todo/Create")
+        .service(store_task);
+}
+
+#[post("/todo/store")]
+async fn store_task(req: HttpRequest, body: Json<CreateTask>) -> impl Responder {
+    let payload = match body.validate_or_back(&req) {
+        Err(err_redirect) => {
+            println!("errors");
+            return err_redirect;
+        }
+        Ok(payload) => payload,
+    };
+
+    println!("Task successfully created: {:#?}", payload);
+
+    Redirect::to("/todo").see_other()
 }
 
 #[get("/")]

@@ -6,7 +6,8 @@ pub async fn initialize_vite() -> Vite {
     let vite_config = ViteConfig::default()
         .set_manifest_path("public/bundle/manifest.json")
         // so that it won't need manifest when development server is running
-        .set_entrypoints(vec!["www/app.tsx"]);
+        .set_entrypoints(vec!["www/app.tsx"])
+        .set_prefix("bundle");
 
     match Vite::new(vite_config).await {
         Err(err) => panic!("{}", err),

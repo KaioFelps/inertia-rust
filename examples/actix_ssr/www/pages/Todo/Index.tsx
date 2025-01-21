@@ -1,4 +1,4 @@
-import { Deferred, Head, router, usePage } from "@inertiajs/react";
+import { Deferred, Head, Link, router, usePage } from "@inertiajs/react";
 import { useCallback } from "react";
 
 type Task = {
@@ -65,6 +65,17 @@ export default function Todo() {
                     >
                         Show only the current page! 😡
                     </button>
+
+                    <Link
+                        href="/todo/create"
+                        className="
+                            p-7 py-4 rounded-xl bg-green-500/20 hover:bg-green-600/20 active:bg-green-800/20
+                            transition-all duration-100 ring-0 ring-green-400/25 focus:ring-8 outline-none
+                            select-none font-medium text-xl cursor-default
+                        "
+                    >
+                        New
+                    </Link>
                 </div>
             </main>
         </>

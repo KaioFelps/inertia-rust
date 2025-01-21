@@ -2,7 +2,6 @@ import ReactDOMServer from 'react-dom/server'
 import { createInertiaApp } from '@inertiajs/react'
 import createServer from "@inertiajs/react/server";
 import type {Page} from "@inertiajs/core/types"
-import { resolvePageComponent } from "laravel-vite-plugin/inertia-helpers"
 
 const portArgIdx = process.argv.indexOf("--port");
 const port = portArgIdx >= 0 ? Number(process.argv[portArgIdx + 1]) : 1000;

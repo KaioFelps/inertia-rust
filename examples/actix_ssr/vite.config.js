@@ -8,7 +8,6 @@ export default defineConfig(() => {
             laravel({
                 input: 'www/app.tsx',
                 buildDirectory: 'bundle',
-                refresh: 'www/**',
                 ssrOutputDirectory: "dist/ssr",
                 ssr: "www/ssr.tsx",
             }),
@@ -16,6 +15,11 @@ export default defineConfig(() => {
         ],
         // important to serve statics from public dir directly from "localhost:5173/" instead of "localhost:5173/public"
         // just "public" without slash prefix won't work
-        publicDir: "/public"
+        publicDir: "/public",
+        server: {
+            watch: {
+                ignored: ["*"]
+            }
+        }
     }
 });

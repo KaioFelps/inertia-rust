@@ -6,6 +6,7 @@ use server::get_server;
 
 mod config;
 mod domain;
+mod dtos;
 mod routes;
 mod server;
 
