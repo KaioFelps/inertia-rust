@@ -23,7 +23,8 @@ The **vite-template-resolver** feature enables the `ViteTemplateResolver`. We'll
 ## Available Crate Features
 
 * `actix`: enable Actix Web provider;
-* `vite-template-resolver`: enable `ViteTemplateResolver`.
+* `vite-template-resolver`: enable `ViteTemplateResolver`;
+* `actix-validator`: enable `InertiaValidateOrRedirect` trait + implementation for actix web's `HttpRequest` and `Redirect` and with `validator` create.
 
 ## Vite Setup
 
