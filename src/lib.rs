@@ -37,3 +37,11 @@ pub mod template_resolvers {
     pub use super::features::template_resolvers::ViteTemplateResolver;
     pub use super::template_resolver::TemplateResolver;
 }
+
+#[cfg(feature = "validator")]
+pub mod validators {
+    pub use super::features::validators::validator::InertiaValidateOrRedirect;
+
+    #[cfg(feature = "actix-validator")]
+    pub use super::features::validators::validator::actix_validator;
+}
