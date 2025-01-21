@@ -51,7 +51,7 @@ impl InertiaFacade<HttpRequest, HttpResponse, Redirect> for Inertia {
     }
 
     #[inline]
-    fn back_with_errors(req: &HttpRequest, errors: HashMap<&str, Value>) -> Redirect {
+    fn back_with_errors<T: ToString>(req: &HttpRequest, errors: HashMap<T, Value>) -> Redirect {
         let inertia = extract_inertia(req);
         inertia.inner_back_with_errors(req, errors)
     }

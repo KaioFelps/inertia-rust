@@ -72,8 +72,11 @@ pub trait InertiaResponder<TResponder, THttpRequest, TRedirect> {
 
     fn inner_back(&self, req: &THttpRequest) -> TRedirect;
 
-    fn inner_back_with_errors(&self, req: &THttpRequest, errors: HashMap<&str, Value>)
-        -> TRedirect;
+    fn inner_back_with_errors<Key: ToString>(
+        &self,
+        req: &THttpRequest,
+        errors: HashMap<Key, Value>,
+    ) -> TRedirect;
 
     fn inner_location(req: &THttpRequest, url: &str) -> TResponder;
 

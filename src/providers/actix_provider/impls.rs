@@ -179,7 +179,11 @@ impl InertiaResponder<HttpResponse, HttpRequest, Redirect> for Inertia {
     }
 
     #[inline]
-    fn inner_back_with_errors(&self, req: &HttpRequest, errors: HashMap<&str, Value>) -> Redirect {
+    fn inner_back_with_errors<T: ToString>(
+        &self,
+        req: &HttpRequest,
+        errors: HashMap<T, Value>,
+    ) -> Redirect {
         if !errors.is_empty() {
             let mut errors_map = Map::new();
 
