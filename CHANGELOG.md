@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## v2.3.6
+### Added
+- Added new features: `validator`, `actix-validator`;
+- Added `InertiaValidateOrRedirect` trait for validating or generating an error redirect
+    (if `validator` feature is enabled);
+- Implemented `InertiaValidateOrRedirect` for actix-web (if `actix-validator` is enabled).
+
+### Changed
+- `Inertia::back_with_errors` hashmap keys are now anything that implements `ToString` trait.
+
 ## v2.3.5
 ### Fixed
 - `is_inertia_response` method.
