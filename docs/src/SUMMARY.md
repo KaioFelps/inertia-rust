@@ -7,6 +7,7 @@
 - [The Facades](./basic/facades.md)
 - [Routes and Responses](./basic/responses.md)
 - [Props](./basic/props.md)
+- [Forms](./basic/forms.md)
 
 # More About Props
 - [Shared Props](./props/shared.md)
