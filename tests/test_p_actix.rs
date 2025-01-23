@@ -435,16 +435,16 @@ async fn foo(_baz: &HttpRequest) {}
 
 #[tokio::test]
 async fn test_shared_props() {
-    const TEST_SHARED_PROPERTY_KEY: &str = "sharedProperty";
-    const TEST_SHARED_PROPERTY_VALUE: &str = "Some amazing value!";
-
     let app = actix_web::test::init_service(generate_actix_app().await.wrap(
         InertiaMiddleware::new().with_shared_props(Arc::new(move |req| {
             let req = req.clone();
             async move {
                 foo(&req).await;
                 hashmap![
-                    TEST_SHARED_PROPERTY_KEY => InertiaProp::always(TEST_SHARED_PROPERTY_VALUE),
+                    "sharedProp" => InertiaProp::always("Some amazing value!"),
+                    "deferredSharedProp" => InertiaProp::defer(prop_resolver!({
+                        vec!["foo", "bar", "baz"].into_inertia_value()
+                    }))
                 ]
             }
             .boxed_local()
@@ -468,8 +468,19 @@ async fn test_shared_props() {
     let json_body: InertiaPage = serde_json::from_slice(&body[..]).unwrap();
 
     assert_eq!(
-        TEST_SHARED_PROPERTY_VALUE,
-        json_body.get_props().get(TEST_SHARED_PROPERTY_KEY).unwrap()
+        "Some amazing value!",
+        json_body.get_props().get("sharedProp").unwrap()
+    );
+
+    println!("{:#?}", json_body);
+    assert_eq!(
+        &vec!["deferredSharedProp"],
+        json_body
+            .get_deferred_props()
+            .as_ref()
+            .unwrap()
+            .get("default")
+            .unwrap()
     );
 }
 
