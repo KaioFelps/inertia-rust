@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## v2.3.7
+### Fixed
+- Also include deferred and mergeable props from shared props (Inertia Middleware) in the inertia page response.
+
 ## v2.3.6
 ### Added
 - Added new features: `validator`, `actix-validator`;
