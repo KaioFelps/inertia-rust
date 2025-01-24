@@ -8,11 +8,11 @@ use crate::props::{get_deferred_props, get_mergeable_props, resolve_props};
 use crate::req_type::{InertiaRequestType, PartialComponent};
 use crate::temporary_session::InertiaSessionToReflash;
 use crate::utils::request_page_render;
-use crate::{Component, InertiaError, InertiaPage, InertiaTemporarySession};
+use crate::{Component, InertiaError, InertiaPage, InertiaSSRPage, InertiaTemporarySession};
 
 use actix_web::body::BoxBody;
 use actix_web::dev::{ServiceFactory, ServiceRequest};
-use actix_web::http::header::HeaderName;
+use actix_web::http::header::{self, HeaderName, TryIntoHeaderValue};
 use actix_web::http::StatusCode;
 use actix_web::web::{Redirect, ServiceConfig};
 use actix_web::{
@@ -53,88 +53,45 @@ impl InertiaResponder<HttpResponse, HttpRequest, Redirect> for Inertia {
         component: Component,
         mut props: InertiaProps<'b>,
     ) -> Result<HttpResponse, InertiaError> {
-        let shared_props = req
-            .extensions_mut()
-            .remove::<SharedProps>()
-            .map(|shared_props| shared_props.0);
-
-        if let Some(shared_props) = shared_props {
-            props.extend(shared_props);
-        }
-
-        let url = req.uri().to_string();
-        let req_type: InertiaRequestType = req.get_request_type()?;
-
         if let Some(forced_refresh) = self.check_and_handle_version_mismatch(req) {
             return Ok(forced_refresh);
         };
 
-        let reset = req.get_merge_props_to_be_reset();
-        let deferred_props = get_deferred_props(&props, &req_type);
-        let merge_props = get_mergeable_props(&props, reset);
-        let props = resolve_props(&props, &req_type).await?;
+        self.merge_shared_props(&mut props, req);
 
-        let page = InertiaPage::new(
+        let url = req.uri().to_string();
+        let req_type: InertiaRequestType = req.get_request_type()?;
+
+        let page = InertiaPage {
             component,
-            &url,
-            Some(self.version),
-            props,
-            merge_props,
-            deferred_props,
-            req.should_clear_history(),
-            req.should_encrypt_history(self.encrypt_history),
-        );
-
-        if req.is_inertia_request() {
-            let inertia_page = page.respond_to(req);
-            return Ok(inertia_page);
-        }
-
-        let mut ssr_page = None;
-
-        if self.ssr_url.is_some() {
-            match request_page_render(self.ssr_url.as_ref().unwrap(), page.clone()).await {
-                Err(err) => {
-                    log::error!(
-                        "[Inertia Rust] Error on server-side rendering page {}: {}",
-                        page.component.0,
-                        err
-                    );
-                }
-                Ok(page) => {
-                    ssr_page = Some(page);
-                }
-            };
-        }
-
-        let mut custom_view_data = req
-            .extensions_mut()
-            .remove::<CustomViewData>()
-            .map(|data| data.0)
-            .unwrap_or_default();
-
-        custom_view_data.insert("isSsr".into(), ssr_page.is_some().into());
-
-        let view_data = ViewData {
-            ssr_page,
-            page,
-            custom_props: custom_view_data,
+            url: &url,
+            version: Some(self.version),
+            props: resolve_props(&props, &req_type).await?,
+            merge_props: get_mergeable_props(&props, req.get_merge_props_to_be_reset()),
+            deferred_props: get_deferred_props(&props, &req_type),
+            clear_history: req.should_clear_history(),
+            encrypt_history: req.should_encrypt_history(self.encrypt_history),
         };
 
-        let html = match self
-            .template_resolver
-            .resolve_template(self.template_path, view_data)
-            .await
-        {
-            Err(err) => return Err(err),
-            Ok(html) => html,
+        let response = if req.is_inertia_request() {
+            let mut response = page.respond_to(req);
+
+            response.headers_mut().insert(
+                header::CONTENT_TYPE,
+                header::ContentType::json().try_into_value().unwrap(),
+            );
+            response
+        } else {
+            let view_data = self.resolve_view_data(req, page).await;
+            let rendered_page = self.render_page(view_data).await?;
+
+            HttpResponseBuilder::new(StatusCode::OK)
+                .insert_header(header::ContentType::html())
+                .body(rendered_page)
+                .respond_to(req)
         };
 
-        return Ok(HttpResponseBuilder::new(StatusCode::OK)
-            .insert_header(headers::InertiaHeader::Inertia.convert())
-            .insert_header(actix_web::http::header::ContentType::html())
-            .body(html)
-            .respond_to(req));
+        Ok(self.send_response(response))
     }
 
     #[inline]
@@ -368,6 +325,80 @@ fn extract_partials_headers_content(
     };
 
     Ok(partials)
+}
+
+impl Inertia {
+    async fn get_ssr_page(&self, page: &InertiaPage<'_>) -> Option<InertiaSSRPage> {
+        if let Some(ssr_server) = &self.ssr_url {
+            match request_page_render(ssr_server, page).await {
+                Err(err) => {
+                    log::error!(
+                        "[Inertia Rust] Error on server-side rendering page {}: {}",
+                        page.component.0,
+                        err
+                    );
+                }
+                Ok(page) => {
+                    return Some(page);
+                }
+            };
+        }
+
+        None
+    }
+
+    fn resolve_custom_view_data(&self, req: &HttpRequest, is_ssr: bool) -> Map<String, Value> {
+        let mut custom_view_data = req
+            .extensions_mut()
+            .remove::<CustomViewData>()
+            .map(|data| data.0)
+            .unwrap_or_default();
+
+        custom_view_data.insert("isSsr".into(), is_ssr.into());
+        custom_view_data
+    }
+
+    async fn resolve_view_data<'a>(
+        &'a self,
+        req: &'a HttpRequest,
+        page: InertiaPage<'a>,
+    ) -> ViewData<'a> {
+        let ssr_page = self.get_ssr_page(&page).await;
+        let custom_props = self.resolve_custom_view_data(req, ssr_page.is_some());
+
+        ViewData {
+            ssr_page,
+            custom_props,
+            page,
+        }
+    }
+
+    async fn render_page(&self, view_data: ViewData<'_>) -> Result<String, InertiaError> {
+        self.template_resolver
+            .resolve_template(self.template_path, view_data)
+            .await
+    }
+
+    fn send_response(&self, mut response: HttpResponse) -> HttpResponse {
+        let headers = response.headers_mut();
+
+        let (x_inertia, x_inertia_value) = headers::InertiaHeader::Inertia.convert();
+
+        headers.insert(x_inertia, x_inertia_value);
+
+        response
+    }
+
+    fn merge_shared_props(&self, props: &mut InertiaProps<'_>, req: &HttpRequest) {
+        let shared_props = req
+            .extensions_mut()
+            .remove::<SharedProps>()
+            .map(|shared_props| shared_props.0);
+
+        if let Some(shared_props) = shared_props {
+            props.extend(shared_props);
+        }
+    }
 }
 
 trait InertiaActixHelpers {

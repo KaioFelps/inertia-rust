@@ -5,7 +5,7 @@ use crate::{InertiaPage, InertiaSSRPage};
 
 pub(crate) async fn request_page_render(
     server_url: &reqwest::Url,
-    page: InertiaPage<'_>,
+    page: &InertiaPage<'_>,
 ) -> Result<InertiaSSRPage, InertiaError> {
     let mut render_endpoint = server_url.clone();
     render_endpoint.set_path("render");
