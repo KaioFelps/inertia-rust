@@ -2,7 +2,9 @@ use super::middleware::SharedProps;
 use super::{headers, CustomViewData};
 
 use crate::facade::InertiaFacade;
-use crate::inertia::{Inertia, InertiaHttpRequest, InertiaResponder, InertiaService, ViewData};
+use crate::inertia::{
+    Inertia, InertiaHttpRequest, InertiaResponder, InertiaService, ViewData, X_INERTIA,
+};
 use crate::props::InertiaProps;
 use crate::props::{get_deferred_props, get_mergeable_props, resolve_props};
 use crate::req_type::{InertiaRequestType, PartialComponent};
@@ -12,7 +14,7 @@ use crate::{Component, InertiaError, InertiaPage, InertiaSSRPage, InertiaTempora
 
 use actix_web::body::BoxBody;
 use actix_web::dev::{ServiceFactory, ServiceRequest};
-use actix_web::http::header::{self, HeaderName, TryIntoHeaderValue};
+use actix_web::http::header::{self, HeaderName, HeaderValue, TryIntoHeaderValue};
 use actix_web::http::StatusCode;
 use actix_web::web::{Redirect, ServiceConfig};
 use actix_web::{
@@ -385,6 +387,7 @@ impl Inertia {
         let (x_inertia, x_inertia_value) = headers::InertiaHeader::Inertia.convert();
 
         headers.insert(x_inertia, x_inertia_value);
+        headers.insert(header::VARY, HeaderValue::from_static(X_INERTIA));
 
         response
     }
