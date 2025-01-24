@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## v2.3.8
+### Fixed
+- Add `Vary: X-Inertia` header to Inertia responses. This fixes some cache-related issues (for instance, a plain JSON
+    response when navigating through browser history, instead of the actual HTML rendered page).
+
 ## v2.3.7
 ### Fixed
 - Also include deferred and mergeable props from shared props (Inertia Middleware) in the inertia page response.
