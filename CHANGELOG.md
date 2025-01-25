@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+### Changed
+- Merge `inner_render` and `inner_render_with_props` methods.
 
 ## v2.3.8
 ### Fixed
