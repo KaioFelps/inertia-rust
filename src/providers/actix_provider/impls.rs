@@ -40,23 +40,13 @@ impl InertiaResponder<HttpResponse, HttpRequest, Redirect> for Inertia {
         &'b self,
         req: &'b HttpRequest,
         component: Component,
-    ) -> Result<HttpResponse, InertiaError> {
-        self.inner_render_with_props(req, component, HashMap::new())
-            .await
-    }
-
-    #[inline]
-    async fn inner_render_with_props<'b>(
-        &'b self,
-        req: &'b HttpRequest,
-        component: Component,
-        mut props: InertiaProps<'b>,
+        props: Option<InertiaProps<'b>>,
     ) -> Result<HttpResponse, InertiaError> {
         if let Some(forced_refresh) = self.check_and_handle_version_mismatch(req) {
             return Ok(forced_refresh);
         };
 
-        self.merge_shared_props(&mut props, req);
+        let props = self.resolve_request_props(props, req);
 
         let url = req.uri().to_string();
         let req_type: InertiaRequestType = req.get_request_type()?;
@@ -391,7 +381,13 @@ impl Inertia {
         response
     }
 
-    fn merge_shared_props(&self, props: &mut InertiaProps<'_>, req: &HttpRequest) {
+    fn resolve_request_props<'a>(
+        &'a self,
+        props: Option<InertiaProps<'a>>,
+        req: &HttpRequest,
+    ) -> InertiaProps<'a> {
+        let mut props = props.unwrap_or_default();
+
         let shared_props = req
             .extensions_mut()
             .remove::<SharedProps>()
@@ -400,6 +396,8 @@ impl Inertia {
         if let Some(shared_props) = shared_props {
             props.extend(shared_props);
         }
+
+        props
     }
 }
 
@@ -548,7 +546,7 @@ mod test {
         );
 
         let body = inertia
-            .inner_render_with_props(&fake_req, Component("/Users/Index".into()), props)
+            .inner_render(&fake_req, Component("/Users/Index".into()), Some(props))
             .await
             .unwrap()
             .into_body();

@@ -61,13 +61,7 @@ pub trait InertiaResponder<TResponder, THttpRequest, TRedirect> {
         &'b self,
         req: &'b THttpRequest,
         component: Component,
-    ) -> Result<TResponder, InertiaError>;
-
-    async fn inner_render_with_props<'b>(
-        &'b self,
-        req: &'b THttpRequest,
-        component: Component,
-        props: InertiaProps<'b>,
+        props: Option<InertiaProps<'b>>,
     ) -> Result<TResponder, InertiaError>;
 
     fn inner_back(&self, req: &THttpRequest) -> TRedirect;

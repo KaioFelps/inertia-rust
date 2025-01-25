@@ -16,7 +16,7 @@ impl InertiaFacade<HttpRequest, HttpResponse, Redirect> for Inertia {
     #[inline]
     async fn render(req: &HttpRequest, component: Component) -> Result<HttpResponse, InertiaError> {
         let inertia = extract_inertia(req);
-        inertia.inner_render(req, component).await
+        inertia.inner_render(req, component, None).await
     }
 
     #[inline]
@@ -26,7 +26,7 @@ impl InertiaFacade<HttpRequest, HttpResponse, Redirect> for Inertia {
         props: InertiaProps<'_>,
     ) -> Result<HttpResponse, InertiaError> {
         let inertia: &Inertia = extract_inertia(req);
-        inertia.inner_render_with_props(req, component, props).await
+        inertia.inner_render(req, component, Some(props)).await
     }
 
     #[inline]
