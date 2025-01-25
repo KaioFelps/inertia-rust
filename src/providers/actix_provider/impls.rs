@@ -1,6 +1,5 @@
 use super::middleware::SharedProps;
 use super::{headers, CustomViewData};
-
 use crate::facade::InertiaFacade;
 use crate::inertia::{
     Inertia, InertiaHttpRequest, InertiaResponder, InertiaService, ViewData, X_INERTIA,
@@ -11,7 +10,6 @@ use crate::req_type::{InertiaRequestType, PartialComponent};
 use crate::temporary_session::InertiaSessionToReflash;
 use crate::utils::request_page_render;
 use crate::{Component, InertiaError, InertiaPage, InertiaSSRPage, InertiaTemporarySession};
-
 use actix_web::body::BoxBody;
 use actix_web::dev::{ServiceFactory, ServiceRequest};
 use actix_web::http::header::{self, HeaderName, HeaderValue, TryIntoHeaderValue};
@@ -31,7 +29,6 @@ impl Responder for InertiaPage<'_> {
     #[inline]
     fn respond_to(self, _req: &HttpRequest) -> HttpResponse<Self::Body> {
         HttpResponseBuilder::new(StatusCode::OK)
-            .append_header(headers::InertiaHeader::Inertia.convert())
             .body(BoxBody::new(serde_json::to_string(&self).unwrap()))
     }
 }
@@ -167,22 +164,25 @@ impl InertiaResponder<HttpResponse, HttpRequest, Redirect> for Inertia {
 }
 
 fn resolve_session_errors(errors: Map<String, Value>, req: &HttpRequest) -> Map<String, Value> {
-    if let Some(error_bag_header) = req.headers().get(super::headers::X_INERTIA_ERROR_BAG) {
-        if let Ok(bag) = error_bag_header.to_str() {
-            return Map::from_iter([(
-                bag.to_string(),
-                to_value(errors).unwrap_or_else(|err| {
-                    log::error!("Failed to serialize session errors: {}", err);
-                    json!({})
-                }),
-            )]);
-        } else {
-            log::warn!(
-                "Received an invalid header {} value. Opting out of error bag.",
-                super::headers::X_INERTIA_ERROR_BAG,
-            );
-        }
+    let error_bag_header = match req.headers().get(super::headers::X_INERTIA_ERROR_BAG) {
+        Some(bag) => bag,
+        None => return errors,
+    };
+
+    if let Ok(bag) = error_bag_header.to_str() {
+        return Map::from_iter([(
+            bag.to_string(),
+            to_value(errors).unwrap_or_else(|err| {
+                log::error!("Failed to serialize session errors: {}", err);
+                json!({})
+            }),
+        )]);
     }
+
+    log::warn!(
+        "Received an invalid header {} value. Opting out of error bag.",
+        super::headers::X_INERTIA_ERROR_BAG,
+    );
 
     errors
 }
@@ -248,31 +248,28 @@ impl InertiaHttpRequest for HttpRequest {
     }
 
     fn get_request_type(&self) -> Result<InertiaRequestType, InertiaError> {
-        if let Some(header) = self.headers().get(headers::X_INERTIA_PARTIAL_COMPONENT) {
-            let component: Component = header
-                .to_str()
-                .map_err(|_| {
-                    InertiaError::SerializationError(format!(
-                        "Failed to serialize header {}",
-                        headers::X_INERTIA_PARTIAL_COMPONENT
-                    ))
-                })?
-                .into();
+        let header = match self.headers().get(headers::X_INERTIA_PARTIAL_COMPONENT) {
+            Some(header) => header,
+            None => return Ok(InertiaRequestType::Standard),
+        };
 
-            let only = extract_partials_headers_content(self, &headers::X_INERTIA_PARTIAL_DATA)?;
-            let except =
-                extract_partials_headers_content(self, &headers::X_INERTIA_PARTIAL_EXCEPT)?;
+        let component: Component = header
+            .to_str()
+            .map_err(|_| {
+                InertiaError::SerializationError(format!(
+                    "Failed to serialize header {}",
+                    headers::X_INERTIA_PARTIAL_COMPONENT
+                ))
+            })?
+            .into();
 
-            let partials = PartialComponent {
-                component,
-                only,
-                except,
-            };
+        let partial_component = PartialComponent {
+            component,
+            only: extract_partials_headers_content(self, &headers::X_INERTIA_PARTIAL_DATA)?,
+            except: extract_partials_headers_content(self, &headers::X_INERTIA_PARTIAL_EXCEPT)?,
+        };
 
-            return Ok(InertiaRequestType::Partial(partials));
-        }
-
-        Ok(InertiaRequestType::Standard)
+        Ok(InertiaRequestType::Partial(partial_component))
     }
 
     fn check_inertia_version(&self, current_version: &str) -> bool {
@@ -314,39 +311,40 @@ fn extract_partials_headers_content(
     header_name: &HeaderName,
 ) -> Result<Vec<String>, InertiaError> {
     let partials = match req.headers().get(header_name) {
-        None => Vec::new(),
-        Some(value) => match value.to_str() {
-            Ok(value) => value.split(",").map(|v| v.to_string()).collect(),
-            Err(_err) => {
-                return Err(InertiaError::HeaderError(format!(
-                    "Header {}'s value must contain only printable ASCII characters.",
-                    header_name,
-                )))
-            }
-        },
+        None => return Ok(Vec::new()),
+        Some(value) => value,
     };
 
-    Ok(partials)
+    partials
+        .to_str()
+        .map(|partials| partials.split(",").map(|v| v.to_string()).collect())
+        .map_err(|_| {
+            InertiaError::HeaderError(format!(
+                "Header {}'s value must contain only printable ASCII characters.",
+                header_name,
+            ))
+        })
 }
 
 impl Inertia {
     async fn get_ssr_page(&self, page: &InertiaPage<'_>) -> Option<InertiaSSRPage> {
-        if let Some(ssr_server) = &self.ssr_url {
-            match request_page_render(ssr_server, page).await {
-                Err(err) => {
-                    log::error!(
-                        "[Inertia Rust] Error on server-side rendering page {}: {}",
-                        page.component.0,
-                        err
-                    );
-                }
-                Ok(page) => {
-                    return Some(page);
-                }
-            };
-        }
+        let ssr_server_url = match &self.ssr_url {
+            None => return None,
+            Some(url) => url,
+        };
 
-        None
+        request_page_render(ssr_server_url, page)
+            .await
+            .map(Some)
+            .unwrap_or_else(|err| {
+                log::error!(
+                    "[Inertia Rust] Error on server-side rendering page {}: {}",
+                    page.component.0,
+                    err
+                );
+
+                None
+            })
     }
 
     fn resolve_custom_view_data(&self, req: &HttpRequest, is_ssr: bool) -> Map<String, Value> {
@@ -357,6 +355,7 @@ impl Inertia {
             .unwrap_or_default();
 
         custom_view_data.insert("isSsr".into(), is_ssr.into());
+
         custom_view_data
     }
 
@@ -421,6 +420,7 @@ impl InertiaActixHelpers for Inertia {
 
 fn reflash_inertia_session(req: &HttpRequest) {
     let inertia_temporary_session = req.extensions_mut().remove::<InertiaTemporarySession>();
+
     if let Some(session) = inertia_temporary_session {
         req.extensions_mut()
             .insert(InertiaSessionToReflash(session));
