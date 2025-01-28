@@ -58,20 +58,19 @@ pub async fn initialize_vite() -> Vite {
 // src/config/inertia.rs
 use super::vite::initialize_vite;
 use inertia_rust::{
-    template_resolvers::ViteTemplateResolver, Inertia, InertiaConfig, InertiaVersion,
+    template_resolvers::ViteTemplateResolver, Inertia, InertiaConfig, InertiaError, InertiaVersion,
 };
 use std::io;
 
 pub async fn initialize_inertia() -> Result<Inertia, io::Error> {
     let vite = initialize_vite().await;
     let version = vite.get_hash().unwrap_or("development").to_string();
-    let resolver = ViteTemplateResolver::new(vite);
+    let resolver = ViteTemplateResolver::new(vite, "www/root.html").map_err(InertiaError::to_io_error)?;
 
     Inertia::new(
         InertiaConfig::builder()
             .set_url("http://localhost:3000")
             .set_version(InertiaVersion::Literal(version))
-            .set_template_path("www/root.html")
             .set_template_resolver(Box::new(resolver))
             .build(),
     )

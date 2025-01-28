@@ -15,29 +15,30 @@ First of all, enable SSR in your Inertia initialization function:
 // src/config/inertia.rs
 use super::vite::initialize_vite;
 use inertia_rust::{
-    template_resolvers::ViteTemplateResolver, Inertia, InertiaConfig, InertiaVersion, SsrClient,
+    template_resolvers::ViteTemplateResolver, Inertia, InertiaConfig, InertiaError, InertiaVersion,
+    SsrClient,
 };
 use std::io;
 
 pub async fn initialize_inertia() -> Result<Inertia, io::Error> {
-    let vite = Arc::new(initialize_vite().await);
+    let vite = initialize_vite().await;
     let version = vite.get_hash().unwrap_or("development").to_string();
-    let resolver = ViteTemplateResolver::new(vite.clone());
+    let resolver = ViteTemplateResolver::new(vite, "www/root.html").map_err(InertiaError::to_io_error)?;
 
     Inertia::new(
         InertiaConfig::builder()
             .set_url("http://localhost:3000")
             .set_version(InertiaVersion::Literal(version))
-            .set_template_path("www/root.html")
             .set_template_resolver(Box::new(resolver))
             
-            // note these two lines
+            // note these two lines ---
 
             .enable_ssr()
             // `set_ssr_client` is optional. If not set, `SsrClient::default()` will be used,
             // which is is "127.0.0.1:13714"
             .set_ssr_client(SsrClient::new("127.0.0.1", 1000))
 
+            // ---
             .build())
 }
 ```
