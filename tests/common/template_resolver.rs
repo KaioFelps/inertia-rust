@@ -53,37 +53,34 @@ pub fn get_dynamic_csr_with_view_data_expect(
     ))
 }
 
-pub struct MockedTemplateResolver;
+pub struct MockedTemplateResolver {
+    root_template: String,
+}
+
+impl MockedTemplateResolver {
+    pub fn new(template_path: &str) -> Result<Self, InertiaError> {
+        let path = Path::new(template_path);
+
+        let file_data = std::fs::read(path).map_err(|err| {
+            InertiaError::RenderError(format!(
+                "Failed to open root layout at {}: {:#}",
+                path.to_str().unwrap(),
+                err
+            ))
+        })?;
+
+        let root_template = String::from_utf8(file_data).map_err(|err| {
+            InertiaError::RenderError(format!("Failed to read file contents: {err:?}"))
+        })?;
+
+        Ok(Self { root_template })
+    }
+}
 
 #[async_trait(?Send)]
 impl TemplateResolver for MockedTemplateResolver {
-    async fn resolve_template(
-        &self,
-        template_path: &str,
-        view_data: ViewData<'_>,
-    ) -> Result<String, InertiaError> {
-        let path = Path::new(template_path);
-
-        let read_file = tokio::fs::read(&path).await;
-
-        if read_file.is_err() {
-            return Err(InertiaError::SsrError(format!(
-                "Failed to open root layout at {}: {:#}",
-                path.to_str().unwrap(),
-                read_file.unwrap_err()
-            )));
-        }
-
-        let data = read_file.unwrap();
-
-        let mut html = match String::from_utf8(data) {
-            Err(err) => {
-                return Err(InertiaError::SsrError(format!(
-                    "Failed to read file contents: {err:?}"
-                )))
-            }
-            Ok(html) => html,
-        };
+    async fn resolve_template(&self, view_data: ViewData<'_>) -> Result<String, InertiaError> {
+        let mut html = self.root_template.clone();
 
         html = html.replace(
             "%-view_data_title-%",

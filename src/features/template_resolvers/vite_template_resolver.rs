@@ -2,41 +2,29 @@ use crate::{template_resolver::TemplateResolver, InertiaError, ViewData};
 use async_trait::async_trait;
 use regex::Regex;
 use serde_json::{to_value, Map, Value};
-use std::{path::Path, sync::OnceLock};
+use std::sync::OnceLock;
 use vite_rust::{features::html_directives::ViteDefaultDirectives, Vite};
 
 static INERTIA_VIEW_DATA_REGEX: OnceLock<Regex> = OnceLock::new();
 
 pub struct ViteTemplateResolver {
     pub vite: Vite,
+    pub root_template: &'static str,
 }
 
 impl ViteTemplateResolver {
-    pub fn new(vite: Vite) -> Self {
-        Self { vite }
-    }
-}
-
-#[async_trait(?Send)]
-impl TemplateResolver for ViteTemplateResolver {
-    async fn resolve_template(
-        &self,
-        template_path: &str,
-        view_data: ViewData<'_>,
-    ) -> Result<String, InertiaError> {
-        let path = Path::new(template_path);
-        let file = match tokio::fs::read(&path).await {
+    pub fn new(vite: Vite, template_path: &str) -> Result<Self, InertiaError> {
+        let file = match std::fs::read(template_path) {
             Ok(file) => file,
             Err(err) => {
                 return Err(InertiaError::RenderError(format!(
                     "Failed to open root layout at {}: {:#}",
-                    path.to_str().unwrap(),
-                    err
+                    template_path, err
                 )))
             }
         };
 
-        let mut html = match String::from_utf8(file) {
+        let html = match String::from_utf8(file) {
             Err(err) => {
                 return Err(InertiaError::RenderError(format!(
                     "Failed to read file contents: {err:?}"
@@ -44,6 +32,18 @@ impl TemplateResolver for ViteTemplateResolver {
             }
             Ok(html) => html,
         };
+
+        Ok(Self {
+            vite,
+            root_template: Box::leak(html.into_boxed_str()),
+        })
+    }
+}
+
+#[async_trait(?Send)]
+impl TemplateResolver for ViteTemplateResolver {
+    async fn resolve_template(&self, view_data: ViewData<'_>) -> Result<String, InertiaError> {
+        let mut html = self.root_template.to_string();
 
         if let Err(err) = self.vite.vite_directive(&mut html) {
             log::warn!("Failed to resolve vite directive: {}", err);
