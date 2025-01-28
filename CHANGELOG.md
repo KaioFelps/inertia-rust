@@ -4,6 +4,34 @@
 ### Changed
 - Merge `inner_render` and `inner_render_with_props` methods.
 
+### Removed
+- `template_path` field and setters from `Inertia` and `InertiaConfigBuilder`;
+
+### Breaking
+#### Template Resolvers
+`template_path` has been removed from Inertia struct. Now, it's the template resolver's responsability to fetch and
+parse the template HTML. This means `ViteTemplateResolver` now is the one who takes the template path on initialization.
+
+Also, its `new` method now returns a `Result<ViteTemplateResolver, InertiaError>` instead of `ViteTemplateResolver`
+directly, since it looks for the root template in the given path and return an error if it can't find the file.
+
+```diff
+let vite = initialize_vite().await;
+- let resolver = ViteTemplateResolver::new(vite);
++ let resolver = ViteTemplateResolver::new(vite, "www/root.html").unwrap();
+
+let inertia = Inertia::new(
+    InertiaConfig::builder()
+        .set_url("http://localhost:8080")
+        .set_version(InertiaVersion::Literal(ASSETS_VERSION.get().unwrap()))
+-        .set_template_path("www/root.html")
+        .set_template_resolver(Box::new(resolver))
+        .enable_ssr()
+        .set_ssr_client(SsrClient::new("127.0.0.1", 1000))
+        .build(),
+);
+```
+
 ## v2.3.8
 ### Fixed
 - Add `Vary: X-Inertia` header to Inertia responses. This fixes some cache-related issues (for instance, a plain JSON
