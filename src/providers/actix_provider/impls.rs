@@ -345,6 +345,7 @@ impl Inertia {
             .unwrap_or_default();
 
         custom_view_data.insert("isSsr".into(), is_ssr.into());
+        custom_view_data.insert("is_ssr".into(), is_ssr.into());
 
         custom_view_data
     }

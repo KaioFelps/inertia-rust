@@ -57,7 +57,7 @@ impl TemplateResolver for ViteTemplateResolver {
 
         match &view_data.ssr_page {
             Some(ssr) => {
-                html = html.replace("@inertia::body", ssr.get_body());
+                html = html.replace("@inertia::body", &ssr.get_body());
                 html = html.replace("@inertia::head", &ssr.get_head());
             }
             None => {

@@ -103,7 +103,7 @@ impl TemplateResolver for MockedTemplateResolver {
 
         match view_data.ssr_page {
             Some(ssr) => {
-                html = html.replace("%-inertia_body-%", ssr.get_body());
+                html = html.replace("%-inertia_body-%", &ssr.get_body());
                 html = html.replace("%-inertia_head-%", &ssr.get_head());
             }
             None => {
