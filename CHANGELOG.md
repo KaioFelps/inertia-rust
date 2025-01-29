@@ -1,8 +1,13 @@
 # Changelog
 
 ## Unreleased
+### Added
+- `ViteHBSTemplateResolver`, which uses Handlebars as template engine.
+
 ### Changed
-- Merge `inner_render` and `inner_render_with_props` methods.
+- Merged `inner_render` and `inner_render_with_props` methods;
+- Updated the docs for using `ViteHBSTemplateResolver` by default;
+- Deprecated `ViteTemplateResolver`.
 
 ### Removed
 - `template_path` field and setters from `Inertia` and `InertiaConfigBuilder`;
