@@ -74,3 +74,21 @@ impl TemplateResolver for ViteTemplateResolver {
 
 Naturally, there is no untreated `.unwrap()` or `.expect()` in the built-in template resolvers, and every error is
 properly handled.
+
+## The Vite and Handlebars Template Resolver
+
+This template resolver is enabled through the `vite-hbs-template-resolver` feature. It uses [Handlebars], one of the most reliable and production-ready template engines available for Rust.
+
+Through this template resolver, we expose a bunch of properties to you:
+
+- `inertia_head`: the head of your Inertia page component.
+- `inertia_body`: the body of your Inertia page component.
+- `page`: a HashMap containing all of your Inertia page component props (yes, you can directly access them from your
+    template like `page.user.name`, if it's a valid prop sent from your back-end).
+- `view_data`: a HashMap containing the view data custom props. You provide it by using `Inertia::view_data()` method.
+    Check [the Response guide] for more details.
+- `vite`: the vite scripts (already resolved according to the environment [development or production]).
+- `vite_react_refresh`: the script for refreshing your React application on development.
+
+[Handlebars]: https://crates.io/crates/handlebars
+[the Response guide]: ../basic/responses.md#root-template-data

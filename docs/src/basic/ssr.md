@@ -77,3 +77,38 @@ async fn main() -> std::io::Result<()> {
 
 Indeed, you can replace `let _ = node.kill().await;` with `std::mem::drop(node.kill())`, but `.await`ing it
 guarantees the process is killed.
+
+Inertia always inserts a view data property `isSsr` (or even `is_ssr`), which is a boolean value representing
+if the page has been server-side rendered or not.
+
+You might use it on your `app.tsx` to conditionally *hydrate* or *create* your front-end according to the
+response being or not SSRendered.
+
+Adds the following meta tag on your root template's `head` element:
+```hbl
+<meta name="ssr" content="{{ view_data.is_ssr }}">
+```
+
+Then, in your `app.ts|js|tsx|jsx` file, add the follow condition:
+```ts
+import "./app.scss";
+
+import { createInertiaApp } from "@inertiajs/react";
+import { createRoot, hydrateRoot } from "react-dom/client";
+
+createInertiaApp({
+  // ...
+  setup({ el, App, props }) {
+    const isSSR = document.head
+      .querySelector("meta[name='ssr']")?
+      .getAttribute("content") === "true" ?? false;
+
+    if (isSSR) {
+      hydrateRoot(el, <App {...props} />);
+      return;
+    }
+
+    createRoot(el).render(<App {...props} />);
+  },
+});
+```

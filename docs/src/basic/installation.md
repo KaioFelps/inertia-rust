@@ -7,23 +7,23 @@ provider, assure the needed peer crate is also available.
 # Cargo.toml
 
 [dependencies]
-inertia-rust = { version = "2", features = ["actix", "vite-template-resolver"] }
+inertia-rust = { version = "2", features = ["actix", "vite-hbs-template-resolver"] }
 actix-web = "4"
 vite-rust = { version = "0.2" }
 ```
 
-The **vite-template-resolver** feature enables the `ViteTemplateResolver`. We'll discuss it furthermore, in the
+The **vite-hbs-template-resolver** feature enables the `ViteHBSTemplateResolver`. We'll discuss it furthermore, in the
 [Template Resolvers], along with how to set up your own template resolver. On this documentation, we'll use
 [vite-rust] and [Actix Web], so you must have them installed.
 
 [Template Resolvers]: ../advanced/template_resolvers.md
-[vite-rust]: https://github.com/KaioFelps/vite-rust
 [Actix Web]: https://actix.rs/
 
 ## Available Crate Features
 
 * `actix`: enable Actix Web provider;
-* `vite-template-resolver`: enable `ViteTemplateResolver`;
+* `vite-template-resolver`: enable `ViteTemplateResolver` *\(deprecated\)*;
+* `vite-hbs-template-resolver`: enable `ViteHBSTemplateResolver`;
 * `actix-validator`: enable `InertiaValidateOrRedirect` trait + implementation for actix web's `HttpRequest` and `Redirect` and with `validator` create.
 
 ## Vite Setup
@@ -58,14 +58,24 @@ pub async fn initialize_vite() -> Vite {
 // src/config/inertia.rs
 use super::vite::initialize_vite;
 use inertia_rust::{
-    template_resolvers::ViteTemplateResolver, Inertia, InertiaConfig, InertiaError, InertiaVersion,
+    template_resolvers::ViteHBSTemplateResolver, Inertia, InertiaConfig, InertiaError,
+    InertiaVersion,
 };
 use std::io;
+use vite_rust::ViteMode;
 
 pub async fn initialize_inertia() -> Result<Inertia, io::Error> {
     let vite = initialize_vite().await;
     let version = vite.get_hash().unwrap_or("development").to_string();
-    let resolver = ViteTemplateResolver::new(vite, "www/root.html").map_err(InertiaError::to_io_error)?;
+    let dev_mode = *vite.mode() == ViteMode::Development;
+
+    let resolver = ViteHBSTemplateResolver::builder()
+        .set_vite(vite)
+        .set_template_path("www/root.hbs") // the path to your root handlebars template
+        .set_dev_mode(dev_mode)
+        .build()
+        .map_err(InertiaError::to_io_error)?;
+
 
     Inertia::new(
         InertiaConfig::builder()
@@ -83,7 +93,6 @@ pub async fn initialize_inertia() -> Result<Inertia, io::Error> {
 | ---               | ---                                       | ---           |
 | url               | `&str`                                    | A valid [href](https://developer.mozilla.org/en-US/docs/Web/API/Location) of the current application |
 | version           | `InertiaVersion`                          | The current asset version of the application. See [Asset versioning](https://inertiajs.com/asset-versioning) for more details. |
-| template_path     | `&str`                                    | The path to the root html template. |
 | template_resolver | `Box<dyn TemplateResolver + Send + Sync>` | A valid [Template Resolver]. |
 | with_ssr          | `bool` (`false`)                          | Whether Server-side Rendering should be enabled or not. |
 | custom_ssr_client | `Option<SsrClient>` (`SsrClient::default`)| The Inertia Server address. |
@@ -123,9 +132,37 @@ async fn main() -> std::io::Result<()> {
 ```
 
 ## Root Template
-`ViteTemplateResolver` receives a path to an HTML template file. Inertia Rust will pass the given `template_path`
-to the resolver. In this case, it's `www/root.html` file.
+`ViteHBSTemplateResolver` receives a path to an handlebars template file. It will read this file and keep the content
+in-memory for rendering it on every request. Your template will look like this:
 
+```hbs
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+    {{!-- only include this line if you're using react --}}
+    {{{ vite_react_refresh }}}
+    {{{ vite }}}
+    {{{ inertia_head }}}
+</head>
+<body class="h-full">
+    {{{ inertia_body }}}
+</body>
+</html>
+```
+
+There are a few more data you can access on your template. Refer to [`ViteHBSTemplateResolver`] specific section
+to check them out.
+
+<details open>
+    <summary summary>For the deprecated <i>ViteTemplateResolver</i>, the template is a little bit different.</summary>
+   
 ```html
 <!-- www/root.html -->
 <!doctype html>
@@ -144,6 +181,10 @@ to the resolver. In this case, it's `www/root.html` file.
 </body>
 </html>
 ```
+
+</details>
+
+[`ViteHBSTemplateResolver`]: ../advanced/template_resolvers.md#the-vite-and-handlebars-template-resolver
 
 ## Inertia Middleware
 

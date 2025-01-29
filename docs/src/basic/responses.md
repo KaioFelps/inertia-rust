@@ -132,7 +132,13 @@ After calling the `view_data` method, you can access the defined data in your te
 way:
 
 ```html
+<!-- using the deprecated ViteTemplateResolver, in a .html file -->
 <meta name="description" content="@inertia::view_data(meta)">
+```
+
+```hbs
+{{!-- using the ViteHBSTemplateResolver, in a .hbs file --}}
+<meta name="description" content="{{ view_data.meta }}">
 ```
 
 If the value isn't defined, ViteTemplateResolver replaces the value by an ordinary JavaSript `null`.
