@@ -39,8 +39,8 @@ create a custom group, call `InertiaProp::defer_with_group` passing the group na
 #[get("/users")]
 pub async fn users(req: HttpRequest) -> impl Responder {
     Inertia::render(&req, "Users/Index", hashmap![
-        'users' => User::all(),
-        'roles' => Role::all(),
+        'users' => InertiaProp::data(User::all().await),
+        'roles' => InertiaProp::data(Role::all().await),
         'permissions' => InertiaProp::defer(prop_resolver!({ Permission::all().await.into_inertia_value() })),
         'teams' => InertiaProp::defer_with_group(prop_resolver!({ Team::all().await.into_inertia_value() }), 'attributes'),
         'projects' => InertiaProp::defer_with_group(prop_resolver!({ Project::all().await.into_inertia_value() }), 'attributes'),
