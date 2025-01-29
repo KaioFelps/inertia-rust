@@ -1,0 +1,11 @@
+{
+    "www/app.tsx": {
+        "file": "assets/app-CEfUlegz.js",
+        "name": "app",
+        "src": "www/app.tsx",
+        "isEntry": true,
+        "css": [
+        "assets/app-BoNdGpDJ.css"
+        ]
+    }
+}
