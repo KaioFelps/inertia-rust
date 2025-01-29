@@ -1,16 +1,24 @@
 use crate::ASSETS_VERSION;
 use inertia_rust::{
-    template_resolvers::ViteTemplateResolver, Inertia, InertiaConfig, InertiaError, InertiaVersion,
-    SsrClient,
+    template_resolvers::ViteHBSTemplateResolver, Inertia, InertiaConfig, InertiaError,
+    InertiaVersion, SsrClient,
 };
 use std::io;
+use vite_rust::ViteMode;
 
 use super::vite::initialize_vite;
 
 pub async fn initialize_inertia() -> Result<Inertia, io::Error> {
     let vite = initialize_vite().await;
-    let resolver =
-        ViteTemplateResolver::new(vite, "www/root.html").map_err(InertiaError::to_io_error)?;
+
+    let dev_mode = *vite.mode() == ViteMode::Development;
+
+    let resolver = ViteHBSTemplateResolver::builder()
+        .set_vite(vite)
+        .set_template_path("www/root.hbs")
+        .set_dev_mode(dev_mode)
+        .build()
+        .map_err(InertiaError::to_io_error)?;
 
     Inertia::new(
         InertiaConfig::builder()
