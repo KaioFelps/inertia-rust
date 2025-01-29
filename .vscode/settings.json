@@ -2,6 +2,7 @@
     "rust-analyzer.cargo.features": [
         "actix",
         "vite-template-resolver",
+        "vite-hbs-template-resolver",
         "validator",
         "actix-validator"
     ],
