@@ -345,6 +345,7 @@ impl Inertia {
             .unwrap_or_default();
 
         custom_view_data.insert("isSsr".into(), is_ssr.into());
+        custom_view_data.insert("is_ssr".into(), is_ssr.into());
 
         custom_view_data
     }
@@ -365,9 +366,7 @@ impl Inertia {
     }
 
     async fn render_page(&self, view_data: ViewData<'_>) -> Result<String, InertiaError> {
-        self.template_resolver
-            .resolve_template(self.template_path, view_data)
-            .await
+        self.template_resolver.resolve_template(view_data).await
     }
 
     fn send_response(&self, mut response: HttpResponse) -> HttpResponse {
@@ -488,11 +487,7 @@ mod test {
 
     #[async_trait::async_trait(?Send)]
     impl TemplateResolver for MyTemplateResolver {
-        async fn resolve_template(
-            &self,
-            _path: &str,
-            view_data: ViewData<'_>,
-        ) -> Result<String, InertiaError> {
+        async fn resolve_template(&self, view_data: ViewData<'_>) -> Result<String, InertiaError> {
             // import the layout root using your favourite engine
             // and renders it passing to it the view_data!
             let page = view_data.page;
@@ -509,7 +504,6 @@ mod test {
             InertiaConfig::builder()
                 .set_url("https://my-inertia-website.com")
                 .set_version(InertiaVersion::Resolver(Box::new(|| "gen_the_version")))
-                .set_template_path("/resources/view/template.hbs")
                 .set_template_resolver(Box::new(MyTemplateResolver))
                 .build(),
         )

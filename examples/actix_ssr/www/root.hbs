@@ -1,5 +1,3 @@
-<!-- DEPRECATED: this is the template for the deprecated `ViteTemplateResolver`. Now,
-this sample application uses the handlebars resolver, and thus, a handlebar template file. -->
 <!doctype html>
 <html lang="en" class="h-full">
 <head>
@@ -10,11 +8,12 @@ this sample application uses the handlebars resolver, and thus, a handlebar temp
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
-    @vite::react
-    @vite
-    @inertia::head
+    <meta name="ssr" content="{{ view_data.is_ssr }}">
+    {{{ vite_react_refresh }}}
+    {{{ vite }}}
+    {{{ inertia_head }}}
 </head>
 <body class="h-full">
-    @inertia::body
+    {{{ inertia_body }}}
 </body>
 </html>

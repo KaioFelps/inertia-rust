@@ -14,7 +14,6 @@ pub trait TemplateResolver {
     ///
     /// # Arguments
     /// Inertia will call this function passing the following parameters to it:
-    /// * `path`        -   The path to the application template (`Inertia::template_path`).
     /// * `view_data`   -   A [`ViewData`] struct,
     ///
     /// # Errors
@@ -23,9 +22,5 @@ pub trait TemplateResolver {
     /// # Return
     /// The return must be the template rendered to HTML. It will be sent as response to full
     /// requests.
-    async fn resolve_template(
-        &self,
-        path: &str,
-        view_data: ViewData<'_>,
-    ) -> Result<String, InertiaError>;
+    async fn resolve_template(&self, view_data: ViewData<'_>) -> Result<String, InertiaError>;
 }

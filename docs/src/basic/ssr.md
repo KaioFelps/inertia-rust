@@ -15,29 +15,30 @@ First of all, enable SSR in your Inertia initialization function:
 // src/config/inertia.rs
 use super::vite::initialize_vite;
 use inertia_rust::{
-    template_resolvers::ViteTemplateResolver, Inertia, InertiaConfig, InertiaVersion, SsrClient,
+    template_resolvers::ViteTemplateResolver, Inertia, InertiaConfig, InertiaError, InertiaVersion,
+    SsrClient,
 };
 use std::io;
 
 pub async fn initialize_inertia() -> Result<Inertia, io::Error> {
-    let vite = Arc::new(initialize_vite().await);
+    let vite = initialize_vite().await;
     let version = vite.get_hash().unwrap_or("development").to_string();
-    let resolver = ViteTemplateResolver::new(vite.clone());
+    let resolver = ViteTemplateResolver::new(vite, "www/root.html").map_err(InertiaError::to_io_error)?;
 
     Inertia::new(
         InertiaConfig::builder()
             .set_url("http://localhost:3000")
             .set_version(InertiaVersion::Literal(version))
-            .set_template_path("www/root.html")
             .set_template_resolver(Box::new(resolver))
             
-            // note these two lines
+            // note these two lines ---
 
             .enable_ssr()
             // `set_ssr_client` is optional. If not set, `SsrClient::default()` will be used,
             // which is is "127.0.0.1:13714"
             .set_ssr_client(SsrClient::new("127.0.0.1", 1000))
 
+            // ---
             .build())
 }
 ```
@@ -76,3 +77,38 @@ async fn main() -> std::io::Result<()> {
 
 Indeed, you can replace `let _ = node.kill().await;` with `std::mem::drop(node.kill())`, but `.await`ing it
 guarantees the process is killed.
+
+Inertia always inserts a view data property `isSsr` (or even `is_ssr`), which is a boolean value representing
+if the page has been server-side rendered or not.
+
+You might use it on your `app.tsx` to conditionally *hydrate* or *create* your front-end according to the
+response being or not SSRendered.
+
+Adds the following meta tag on your root template's `head` element:
+```hbl
+<meta name="ssr" content="{{ view_data.is_ssr }}">
+```
+
+Then, in your `app.ts|js|tsx|jsx` file, add the follow condition:
+```ts
+import "./app.scss";
+
+import { createInertiaApp } from "@inertiajs/react";
+import { createRoot, hydrateRoot } from "react-dom/client";
+
+createInertiaApp({
+  // ...
+  setup({ el, App, props }) {
+    const isSSR = document.head
+      .querySelector("meta[name='ssr']")?
+      .getAttribute("content") === "true" ?? false;
+
+    if (isSSR) {
+      hydrateRoot(el, <App {...props} />);
+      return;
+    }
+
+    createRoot(el).render(<App {...props} />);
+  },
+});
+```

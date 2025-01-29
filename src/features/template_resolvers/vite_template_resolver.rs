@@ -1,42 +1,49 @@
+//! You probably would be better not using this Template Resolver.
+//! It uses regex for resolving every supported directive, which can lead to slower rendering.
+//! Instead, you should use [`ViteHBSTemplateResolver`] with Handlebars.
+//!
+//! [`ViteHBSTemplateResolver`]: crate::features::template_resolvers::ViteHBSTemplateResolver
+#![allow(deprecated)]
 use crate::{template_resolver::TemplateResolver, InertiaError, ViewData};
 use async_trait::async_trait;
 use regex::Regex;
 use serde_json::{to_value, Map, Value};
-use std::{path::Path, sync::OnceLock};
+use std::sync::OnceLock;
 use vite_rust::{features::html_directives::ViteDefaultDirectives, Vite};
 
 static INERTIA_VIEW_DATA_REGEX: OnceLock<Regex> = OnceLock::new();
 
+/// The most simplory template resolver. It uses Vite Rust for assets bundling and
+/// with its basic html directives plus naive regex replacements for handling
+/// Inertia specific directives.
+///
+/// While it allows you to use simple html files as root template, you would be
+/// best armed by using [`ViteHBSTemplateResolver`] (which uses handlebars instead
+/// of Regex \[which isn't even a template engine at all\]).
+///
+/// [`ViteHBSTemplateResolver`]: crate::features::template_resolvers::ViteHBSTemplateResolver
+#[deprecated(
+    since = "2.4.0",
+    note = "`ViteTemplateResolver` leads to slow rendering, since it uses regex for resolving the directives. Replace it with `ViteHBSTemplateResolver`."
+)]
 pub struct ViteTemplateResolver {
     pub vite: Vite,
+    pub root_template: &'static str,
 }
 
 impl ViteTemplateResolver {
-    pub fn new(vite: Vite) -> Self {
-        Self { vite }
-    }
-}
-
-#[async_trait(?Send)]
-impl TemplateResolver for ViteTemplateResolver {
-    async fn resolve_template(
-        &self,
-        template_path: &str,
-        view_data: ViewData<'_>,
-    ) -> Result<String, InertiaError> {
-        let path = Path::new(template_path);
-        let file = match tokio::fs::read(&path).await {
+    pub fn new(vite: Vite, template_path: &str) -> Result<Self, InertiaError> {
+        let file = match std::fs::read(template_path) {
             Ok(file) => file,
             Err(err) => {
                 return Err(InertiaError::RenderError(format!(
                     "Failed to open root layout at {}: {:#}",
-                    path.to_str().unwrap(),
-                    err
+                    template_path, err
                 )))
             }
         };
 
-        let mut html = match String::from_utf8(file) {
+        let html = match String::from_utf8(file) {
             Err(err) => {
                 return Err(InertiaError::RenderError(format!(
                     "Failed to read file contents: {err:?}"
@@ -44,6 +51,18 @@ impl TemplateResolver for ViteTemplateResolver {
             }
             Ok(html) => html,
         };
+
+        Ok(Self {
+            vite,
+            root_template: Box::leak(html.into_boxed_str()),
+        })
+    }
+}
+
+#[async_trait(?Send)]
+impl TemplateResolver for ViteTemplateResolver {
+    async fn resolve_template(&self, view_data: ViewData<'_>) -> Result<String, InertiaError> {
+        let mut html = self.root_template.to_string();
 
         if let Err(err) = self.vite.vite_directive(&mut html) {
             log::warn!("Failed to resolve vite directive: {}", err);
@@ -57,7 +76,7 @@ impl TemplateResolver for ViteTemplateResolver {
 
         match &view_data.ssr_page {
             Some(ssr) => {
-                html = html.replace("@inertia::body", ssr.get_body());
+                html = html.replace("@inertia::body", &ssr.get_body());
                 html = html.replace("@inertia::head", &ssr.get_head());
             }
             None => {

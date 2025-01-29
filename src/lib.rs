@@ -32,9 +32,8 @@ pub mod actix {
     pub use super::providers::actix::SessionErrors;
 }
 
-#[cfg(feature = "vite-template-resolver")]
 pub mod template_resolvers {
-    pub use super::features::template_resolvers::ViteTemplateResolver;
+    pub use super::features::template_resolvers::*;
     pub use super::template_resolver::TemplateResolver;
 }
 

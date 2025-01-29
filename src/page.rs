@@ -35,8 +35,9 @@ impl InertiaSSRPage {
     pub fn get_head(&self) -> String {
         self.head.join("\n")
     }
-    pub fn get_body(&self) -> &String {
-        &self.body
+
+    pub fn get_body(&self) -> String {
+        self.body.clone()
     }
 }
 

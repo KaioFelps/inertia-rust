@@ -160,8 +160,6 @@ pub struct Inertia {
     /// URL used between redirects and responses generation, i.g. "https://myapp.com".
     #[allow(unused)]
     pub(crate) url: &'static str,
-    /// The path to find the root html template to render everything in.
-    pub(crate) template_path: &'static str,
     /// The current assets version.
     pub(crate) version: &'static str,
     /// A struct that implements [TemplateResolver] trait.
@@ -211,7 +209,6 @@ impl Inertia {
 
         Ok(Self {
             url: config.url,
-            template_path: config.template_path,
             version,
             template_resolver: config.template_resolver,
             ssr_url,
@@ -253,7 +250,6 @@ impl Inertia {
     ///     impl TemplateResolver for MyTemplateResolver {
     ///         async fn resolve_template(
     ///             &self,
-    ///             template_path: &str,
     ///             view_data: ViewData<'_>,
     ///         ) -> Result<String, InertiaError> {
     ///             // import the layout root and render it using your template engine
@@ -267,7 +263,6 @@ impl Inertia {
     ///             .set_url("https://www.my-web-app.com")
     ///             .set_version(InertiaVersion::Literal("my-assets-version"))
     ///             .set_template_resolver(Box::new(MyTemplateResolver))
-    ///             .set_template_path("www/index.html")
     ///             .build()
     ///     )
     ///     .unwrap();

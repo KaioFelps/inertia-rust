@@ -58,8 +58,9 @@ fn get_inertia_config() -> InertiaConfigBuilder<&'static str> {
     InertiaConfig::builder()
         .set_url("https://inertiajs.com")
         .set_version(InertiaVersion::Literal(TEST_INERTIA_VERSION))
-        .set_template_path("tests/common/root_layout.html")
-        .set_template_resolver(Box::new(MockedTemplateResolver))
+        .set_template_resolver(Box::new(
+            MockedTemplateResolver::new("tests/common/root_layout.html").unwrap(),
+        ))
 }
 
 fn maybe_initialize_sessions_storage() {
