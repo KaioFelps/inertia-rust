@@ -1,7 +1,7 @@
 # Inertia Rust
 
 > [!NOTE]
-> You are currently seeing the documentation for **inertia-rust v0.2**, which is compatible
+> You are currently seeing the documentation for **inertia-rust v2.\***, which is compatible
 > to Inertia.js v2. While it is not the default version of inertia-rust, refer to the **main**
 > branch to see the documentation for v0.1.
 
