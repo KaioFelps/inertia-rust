@@ -1,3 +1,9 @@
+//! You probably would be better not using this Template Resolver.
+//! It uses regex for resolving every supported directive, which can lead to slower rendering.
+//! Instead, you should use [`ViteHBSTemplateResolver`] with Handlebars.
+//!
+//! [`ViteHBSTemplateResolver`]: crate::features::template_resolvers::ViteHBSTemplateResolver
+#![allow(deprecated)]
 use crate::{template_resolver::TemplateResolver, InertiaError, ViewData};
 use async_trait::async_trait;
 use regex::Regex;
@@ -7,6 +13,19 @@ use vite_rust::{features::html_directives::ViteDefaultDirectives, Vite};
 
 static INERTIA_VIEW_DATA_REGEX: OnceLock<Regex> = OnceLock::new();
 
+/// The most simplory template resolver. It uses Vite Rust for assets bundling and
+/// with its basic html directives plus naive regex replacements for handling
+/// Inertia specific directives.
+///
+/// While it allows you to use simple html files as root template, you would be
+/// best armed by using [`ViteHBSTemplateResolver`] (which uses handlebars instead
+/// of Regex \[which isn't even a template engine at all\]).
+///
+/// [`ViteHBSTemplateResolver`]: crate::features::template_resolvers::ViteHBSTemplateResolver
+#[deprecated(
+    since = "2.4.0",
+    note = "`ViteTemplateResolver` leads to slow rendering, since it uses regex for resolving the directives. Replace it with `ViteHBSTemplateResolver`."
+)]
 pub struct ViteTemplateResolver {
     pub vite: Vite,
     pub root_template: &'static str,
