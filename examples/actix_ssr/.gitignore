@@ -2,3 +2,5 @@ node_modules/
 dist/
 public/bundle
 public/hot
+storage/
+.env

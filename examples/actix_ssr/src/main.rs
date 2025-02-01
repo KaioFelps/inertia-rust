@@ -7,6 +7,7 @@ use server::get_server;
 mod config;
 mod domain;
 mod dtos;
+mod middlewares;
 mod routes;
 mod server;
 

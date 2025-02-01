@@ -1,4 +1,8 @@
-use crate::dtos::task::CreateTask;
+use crate::{
+    domain::tasks::{entity::Task, service::save_task},
+    dtos::task::CreateTask,
+};
+use actix_session::SessionExt;
 use actix_web::{
     get, post,
     web::{self, Json, Redirect},
@@ -9,7 +13,7 @@ use inertia_rust::{
     InertiaProp, InertiaService, IntoInertiaPropResult,
 };
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{json, Map, Value};
 
 use crate::domain::tasks::service::get_tasks;
 
@@ -26,15 +30,46 @@ pub fn register_routes(cfg: &mut web::ServiceConfig) {
 async fn store_task(req: HttpRequest, body: Json<CreateTask>) -> impl Responder {
     let payload = match body.validate_or_back(&req) {
         Err(err_redirect) => {
-            println!("errors");
             return err_redirect;
         }
         Ok(payload) => payload,
     };
 
-    println!("Task successfully created: {:#?}", payload);
+    let title = payload.title.unwrap();
+
+    let task = Task {
+        title: title.clone(),
+        description: payload.content.unwrap(),
+        done: false,
+    };
+
+    save_task(task).await;
+
+    let flash = Map::from_iter(
+        hashmap![ "success".to_string() => Value::String(format!("Task {title} created successfully!")) ],
+    );
+
+    let _ = req.get_session().insert("_flash", flash);
 
     Redirect::to("/todo").see_other()
+}
+
+#[get("/todo")]
+async fn r#todo(req: HttpRequest, query: web::Query<TodoQuery>) -> impl Responder {
+    let page = query.page.unwrap_or(1);
+
+    Inertia::render_with_props(
+        &req,
+        "Todo/Index".into(),
+        hashmap![
+            "tasks" => InertiaProp::defer(prop_resolver!({
+                let tasks = get_tasks(page).await;
+                tasks.into_inertia_value()
+            })).into_mergeable(),
+            "page" => InertiaProp::data(page)
+        ],
+    )
+    .await
 }
 
 #[get("/")]
@@ -62,22 +97,4 @@ async fn contact(req: HttpRequest) -> impl Responder {
 #[derive(Deserialize)]
 struct TodoQuery {
     page: Option<usize>,
-}
-
-#[get("/todo")]
-async fn r#todo(req: HttpRequest, query: web::Query<TodoQuery>) -> impl Responder {
-    let page = query.page.unwrap_or(1);
-
-    Inertia::render_with_props(
-        &req,
-        "Todo/Index".into(),
-        hashmap![
-            "tasks" => InertiaProp::defer(prop_resolver!({
-                let tasks = get_tasks(page).await;
-                tasks.into_inertia_value()
-            })).into_mergeable(),
-            "page" => InertiaProp::data(page)
-        ],
-    )
-    .await
 }

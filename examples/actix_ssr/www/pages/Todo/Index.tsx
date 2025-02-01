@@ -1,5 +1,5 @@
 import { Deferred, Head, Link, router, usePage } from "@inertiajs/react";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type Task = {
     title: string;
@@ -10,15 +10,22 @@ type Task = {
 type TodoProps = {
     page: number,
     tasks: Task[]
+    flash: {
+        success?: string
+    }
 }
 
 export default function Todo() {
-    const page = usePage<TodoProps>().props.page;
+    const [isLoading, setIsLoading] = useState(false);
+
+    const {page, flash} = usePage<TodoProps>().props;
     
     const handleLoadMoreTasks = useCallback(() => {
         router.reload({
             data: { page: page + 1 },
             only: ["page", "tasks"],
+            onStart() { setIsLoading(true) },
+            onFinish() { setIsLoading(false) }
         })
     }, [page]);
 
@@ -26,7 +33,9 @@ export default function Todo() {
         router.reload({
             data: { page },
             only: ["tasks"],
-            reset: [ "tasks" ]
+            reset: [ "tasks" ],
+            onStart() { setIsLoading(true) },
+            onFinish() { setIsLoading(false) }
         })
     }, [page]);
 
@@ -36,8 +45,14 @@ export default function Todo() {
                 <title>inertia-rust to-do!</title>
                 <meta name="description" content="The dumbiest to-do list you've ever seen!" />
             </Head>
-            <main className="w-full max-w-[calc(100%_-_96px)] mx-auto h-full flex flex-col justify-center items-center">
+            <main className="w-full max-w-[calc(100%_-_96px)] mx-auto my-12 min-h-full flex flex-col justify-center items-center">
                 <h1 className="text-6xl font-black text-center mb-5">To-do Tasks</h1>
+
+                {flash.success && (
+                    <span className="text-green-500 bg-green-400/30 px-2 py-1 mb-3 -mx-1 text-sm rounded-md">
+                        {flash.success}
+                    </span>
+                )}
 
                 <Deferred fallback="Loading tasks..." data="tasks"  >
                     <TasksList />
@@ -51,6 +66,7 @@ export default function Todo() {
                             select-none font-medium text-xl cursor-default
                         "
                         onClick={handleLoadMoreTasks}
+                        disabled={isLoading}
                     >
                         Load few more!
                     </button>
@@ -62,6 +78,7 @@ export default function Todo() {
                             select-none font-medium text-xl cursor-default
                         "
                         onClick={handleLoadOnlyCurrentTasks}
+                        disabled={isLoading}
                     >
                         Show only the current page! 😡
                     </button>
