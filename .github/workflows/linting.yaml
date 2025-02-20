@@ -22,7 +22,10 @@ jobs:
       - run: rustup update ${{ matrix.toolchain }}
       - run: rustup default ${{ matrix.toolchain }}
       - run: rustup component add clippy
+      - run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::doc_overindented_list_items
+        if: matrix.toolchain == 'beta'
       - run: cargo clippy --all-targets --all-features -- -D warnings
+        if: matrix.toolchain != 'beta'
   check_code_fmt:
     name: "check code format and linting"
     runs-on: ubuntu-latest
