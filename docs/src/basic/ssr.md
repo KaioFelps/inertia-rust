@@ -6,44 +6,48 @@ very first page will be server-side rendered. Thereafter, they'll be ordinary SP
 > Note: Node.js must be available in order to run the Inertia SSR server.
 
 Enabling SSR is a very simple task. However, you must make few changes in your code so that the Node.js
-process is correctly started and killed --- otherwise, the Node.js process would be left running and not
-letting one start the new server on the given port.
+process is correctly iniitialized and killed --- otherwise, the Node.js process would be left running,
+stopping further servers from running on the port it occupies.
 
-First of all, enable SSR in your Inertia initialization function:
+First of all, enable SSR in your Inertia configs:
 
-```rust
+```diff
 // src/config/inertia.rs
 use super::vite::initialize_vite;
 use inertia_rust::{
-    template_resolvers::ViteTemplateResolver, Inertia, InertiaConfig, InertiaError, InertiaVersion,
-    SsrClient,
+    template_resolvers::ViteHBSTemplateResolver, Inertia, InertiaConfig, InertiaError,
+-   InertiaVersion,
++   InertiaVersion, SsrClient
 };
 use std::io;
 
 pub async fn initialize_inertia() -> Result<Inertia, io::Error> {
     let vite = initialize_vite().await;
     let version = vite.get_hash().unwrap_or("development").to_string();
-    let resolver = ViteTemplateResolver::new(vite, "www/root.html").map_err(InertiaError::to_io_error)?;
+    let dev_mode = *vite.mode() == ViteMode::Development;
+
+    let resolver = ViteHBSTemplateResolver::builder()
+        .set_vite(vite)
+        .set_template_path("www/root.hbs") // the path to your root handlebars template
+        .set_dev_mode(dev_mode)
+        .build()
+        .map_err(InertiaError::to_io_error)?;
 
     Inertia::new(
         InertiaConfig::builder()
             .set_url("http://localhost:3000")
             .set_version(InertiaVersion::Literal(version))
             .set_template_resolver(Box::new(resolver))
-            
-            // note these two lines ---
-
-            .enable_ssr()
-            // `set_ssr_client` is optional. If not set, `SsrClient::default()` will be used,
-            // which is is "127.0.0.1:13714"
-            .set_ssr_client(SsrClient::new("127.0.0.1", 1000))
-
-            // ---
-            .build())
++           .enable_ssr()
++           // `set_ssr_client` is optional. If not set, `SsrClient::default()` will be used,
++           // which is is "127.0.0.1:13714"
++           .set_ssr_client(SsrClient::new("127.0.0.1", 1000))
+            .build(),
+    )
 }
 ```
 
-```rust
+```diff
 // src/main.rs
 use std::sync::{Arc, OnceLock};
 use actix_web::{dev::Path, web::Data, App, HttpServer};
@@ -59,24 +63,30 @@ async fn main() -> std::io::Result<()> {
     // starts a Inertia manager instance.
     let inertia = initialize_inertia().await?;
     let inertia = Data::new(inertia);
-    let inertia_clone = inertia.clone();
++   let inertia_clone = inertia.clone();
 
-    let server = HttpServer::new(move || App::new().app_data(inertia_clone.clone()))
-        .bind(("127.0.0.1", 3000))?;
+-   HttpServer::new(move || App::new().app_data(inertia.clone()))
+-       .bind(("127.0.0.1", 3000))?
+-       .run()
+-       .await
 
-    // Starts a Node.js child process that runs the Inertia's server-side rendering server.
-    // It must be started after the server initialization to ensure that the http server won't
-    // panic and shutdown without killing the Node.Js process.
-    let node = inertia.start_node_server("path/to/your/ssr.js".into())?;
++   let server = HttpServer::new(move || App::new().app_data(inertia_clone.clone()))
++       .bind(("127.0.0.1", 3000))?;
 
-    let server = server.run().await;
-    let _ = node.kill().await;
-
-    return server;
++   // Starts a Node.js child process that runs the Inertia's server-side rendering server.
++   // It must be started after the server initialization to ensure that the http server won't
++   // panic and shutdown without killing the Node.Js process.
++   let node = inertia.start_node_server("path/to/your/ssr.js".into())?;
++
++   let server = server.run().await;
++   let _ = node.kill().await;+
++
++   return server;
+}
 ```
 
-Indeed, you can replace `let _ = node.kill().await;` with `std::mem::drop(node.kill())`, but `.await`ing it
-guarantees the process is killed.
+Indeed, you can replace `let _ = node.kill().await;` with `std::mem::drop(node.kill())`, but `.await`ing on it
+guarantees that the process has been killed before shutting down.
 
 Inertia always inserts a view data property `isSsr` (or even `is_ssr`), which is a boolean value representing
 if the page has been server-side rendered or not.
@@ -84,7 +94,7 @@ if the page has been server-side rendered or not.
 You might use it on your `app.tsx` to conditionally *hydrate* or *create* your front-end according to the
 response being or not SSRendered.
 
-Adds the following meta tag on your root template's `head` element:
+Add the following meta tag on your root template's `head` element:
 ```hbl
 <meta name="ssr" content="{{ view_data.is_ssr }}">
 ```

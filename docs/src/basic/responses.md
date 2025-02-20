@@ -141,12 +141,12 @@ way:
 <meta name="description" content="{{ view_data.meta }}">
 ```
 
-If the value isn't defined, ViteTemplateResolver replaces the value by an ordinary JavaSript `null`.
+If the value isn't defined, the resolvers replace the value by an ordinary JavaSript `null`.
 
 > Remember: a different template resolver could allow you to pass data in different ways, for example,
 > through the actual page props. You should check the template resolver documentation for more details.
 
 ### Default View Data
-`ViteTemplateResolver` will always inject a default view data property: `isSsr`. You can use it, for
-instance, to conditionally hydrate or create your React root. This property will be true only when
-the Inertia response has been server-side rendered.
+`ViteHBSTemplateResolver` will always inject a default view data property: `isSsr` (also accessible by `is_ssr`).
+You can use it, for instance, to conditionally hydrate or create your React root. This property will be true
+only when the Inertia response has been server-side rendered.

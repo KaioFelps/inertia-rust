@@ -33,6 +33,6 @@ use actix_web::{get, Responder, HttpRequest, web::Data};
 
 #[get("/")]
 async fn index(req: HttpRequest, inertia: Data<Inertia>) -> impl Responder {
-    inertia.inner_render(&req, "https://inertiajs.com").await
+    inertia.inner_render(&req, "Index").await
 }
 ```
