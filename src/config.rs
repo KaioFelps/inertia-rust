@@ -7,7 +7,7 @@ use crate::{template_resolver::TemplateResolver, InertiaVersion, SsrClient};
 /// will cause your application to `panic!`
 ///
 /// * `url`                     -   A valid [href](https://developer.mozilla.org/en-US/docs/Web/API/Location)
-///                                 of the currentapplication
+///                                 of the current application
 /// * `version`                 -   The current asset version of the application.
 ///                                 See [Asset versioning](https://inertiajs.com/asset-versioning) for more
 ///                                 details.
