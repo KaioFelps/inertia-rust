@@ -108,19 +108,20 @@ impl InertiaResponder<HttpResponse, HttpRequest, Redirect> for Inertia {
 
     #[inline]
     fn inner_back(&self, req: &HttpRequest) -> Redirect {
-        let session = req.extensions().get::<InertiaTemporarySession>().cloned();
-
-        let previous_uri = if let Some(session) = session {
-            session.prev_req_url.clone()
+        let uri = if let Some(Ok(uri)) = req
+            .headers()
+            .get(HeaderName::from_static("referer"))
+            .map(|header| header.to_str())
+        {
+            uri.to_owned()
         } else {
-            req.headers()
-                .get(HeaderName::from_static("referer"))
-                .map_or("/".to_string(), |header| {
-                    header.to_str().unwrap_or("/").to_string()
-                })
+            req.extensions()
+                .get::<InertiaTemporarySession>()
+                .map(|session| session.prev_req_url.to_owned())
+                .unwrap_or("/".to_owned())
         };
 
-        Redirect::new(req.uri().to_string(), previous_uri).using_status_code(StatusCode::FOUND)
+        Redirect::new(req.uri().to_string(), uri).using_status_code(StatusCode::FOUND)
     }
 
     #[inline]
@@ -453,11 +454,12 @@ mod test {
     use crate::req_type::PartialComponent;
     use crate::template_resolver::TemplateResolver;
     use crate::{
-        hashmap, Component, Inertia, InertiaError, InertiaPage, InertiaVersion,
-        IntoInertiaPropResult,
+        hashmap, Component, Inertia, InertiaError, InertiaPage, InertiaTemporarySession,
+        InertiaVersion, IntoInertiaPropResult,
     };
     use actix_web::body::MessageBody;
-    use actix_web::test;
+    use actix_web::http::header::HeaderValue;
+    use actix_web::{test, HttpMessage, Responder};
     use serde_json::Value;
 
     use super::resolve_props;
@@ -551,5 +553,37 @@ mod test {
             Value::from_str(&stringified_body).unwrap(),
             serde_json::to_value(&page).unwrap(),
         );
+    }
+
+    #[tokio::test]
+    async fn it_should_prefer_referer_header_over_session_prev_url() {
+        let fake_req = test::TestRequest::get()
+            .insert_header((
+                actix_web::http::header::REFERER,
+                HeaderValue::from_static("/foo"),
+            ))
+            .insert_header(InertiaHeader::Inertia.convert())
+            .uri("/bar")
+            .to_http_request();
+
+        let inertia = Inertia::new(
+            InertiaConfig::builder()
+                .set_url("https://my-inertia-website.com")
+                .set_version(InertiaVersion::Resolver(Box::new(|| "gen_the_version")))
+                .set_template_resolver(Box::new(MyTemplateResolver))
+                .build(),
+        )
+        .unwrap();
+
+        let session = InertiaTemporarySession {
+            errors: None,
+            prev_req_url: "/".into(),
+        };
+
+        fake_req.extensions_mut().insert(session);
+
+        let redirect_response = inertia.inner_back(&fake_req).respond_to(&fake_req);
+
+        assert_eq!("/foo", redirect_response.headers().get("location").unwrap());
     }
 }
