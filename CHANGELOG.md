@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+
+## v2.4.1
 ### Changed
 - `Inertia::back` now returns to url suggested by `referer` header rather than session's previous url.
 

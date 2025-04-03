@@ -954,7 +954,7 @@ dependencies = [
 
 [[package]]
 name = "inertia-rust"
-version = "2.4.0"
+version = "2.4.1"
 dependencies = [
  "actix-web",
  "async-trait",
