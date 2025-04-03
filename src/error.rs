@@ -37,7 +37,7 @@ impl InertiaError {
     }
 
     pub fn to_io_error(self) -> io::Error {
-        io::Error::new(io::ErrorKind::Other, self.get_cause())
+        io::Error::other(self.get_cause())
     }
 }
 
