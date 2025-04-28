@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## v2.4.3
+### Changed
+- `InertiaTestRequest` implementation for actix-web now checks for request's Inertia header over response's.
+
 ## v2.4.2
 ### Added
 - `AssertableInertia` and methods for extracting it from test request/responses;
