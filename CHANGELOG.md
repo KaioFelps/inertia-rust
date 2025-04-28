@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## v2.4.2
+### Added
+- `AssertableInertia` and methods for extracting it from test request/responses;
+- Testing guide in the docs.
+
 ## v2.4.1
 ### Changed
 - `Inertia::back` now returns to url suggested by `referer` header rather than session's previous url.
