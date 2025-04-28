@@ -1017,6 +1017,7 @@ async fn test_default_error_bag() {
     .await;
 
     let request = actix_web::test::TestRequest::post()
+        .inertia()
         .uri("/redirect/back/with/errors")
         .insert_header(InertiaHeader::Version(TEST_INERTIA_VERSION).convert())
         .insert_header(InertiaHeader::Inertia.convert())
