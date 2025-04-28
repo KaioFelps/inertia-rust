@@ -451,7 +451,7 @@ impl InertiaTestRequest for TestRequest {
 
 impl<B: MessageBody> IntoAssertableInertia for ServiceResponse<B> {
     fn into_assertable_inertia(self) -> AssertableInertia {
-        if !self.headers().contains_key("x-inertia") {
+        if !self.request().headers().contains_key("x-inertia") {
             panic!("Tried to extract an `AssertableInertia` from a non-inertia request. Try calling `.inertia()` from the test request.");
         }
 
