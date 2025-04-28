@@ -17,6 +17,7 @@ use common::template_resolver::{
 };
 use futures::FutureExt;
 use inertia_rust::actix::SessionErrors;
+use inertia_rust::test::{AssertableInertia, InertiaTestRequest, IntoAssertableInertia};
 use inertia_rust::{
     actix::{EncryptHistoryMiddleware, InertiaHeader, InertiaMiddleware},
     hashmap, prop_resolver, InertiaConfigBuilder, InertiaFacade, InertiaPage, InertiaService,
@@ -1052,14 +1053,13 @@ async fn test_default_error_bag() {
 
     request.extensions_mut().insert(SessionKey(session_key));
 
-    let body = actix_web::test::call_and_read_body(&app, request)
+    let assertable = actix_web::test::call_service(&app, request)
         .await
-        .to_vec();
+        .into_assertable_inertia();
 
-    let body: InertiaPage = serde_json::from_slice(body.as_slice()).unwrap();
+    assert!(assertable.get_props().contains_key("errors"));
 
-    assert!(body.get_props().contains_key("errors"));
-    assert!(body
+    assert!(assertable
         .get_props()
         .get("errors")
         .unwrap()
@@ -1094,6 +1094,47 @@ async fn test_view_data() {
         ),
         super_trim(html_body)
     );
+}
+
+#[tokio::test]
+async fn it_should_allow_to_make_an_inertia_request_and_obtain_an_assertable_inertia_response() {
+    let app = actix_web::test::init_service(generate_actix_app().await).await;
+
+    let request = actix_web::test::TestRequest::get()
+        .inertia()
+        .uri("/withviewdata")
+        .to_request();
+
+    let response = actix_web::test::call_service(&app, request).await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let expected_assertable = AssertableInertia {
+        clear_history: false,
+        encrypt_history: false,
+        component: "Index".into(),
+        url: "/withviewdata".into(),
+        version: Some(TEST_INERTIA_VERSION.into()),
+        merge_props: None,
+        props: Map::with_capacity(0),
+        deferred_props: None,
+    };
+
+    assert_eq!(expected_assertable, response.into_assertable_inertia());
+}
+
+#[tokio::test]
+#[should_panic]
+async fn it_should_not_let_extract_assertable_inertia_from_non_inertia_request() {
+    let app = actix_web::test::init_service(generate_actix_app().await).await;
+
+    let request = actix_web::test::TestRequest::get()
+        .uri("/withviewdata")
+        .to_request();
+
+    actix_web::test::call_service(&app, request)
+        .await
+        .into_assertable_inertia();
 }
 
 // endregion: --- Error Bag tests
