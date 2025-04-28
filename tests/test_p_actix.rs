@@ -930,7 +930,7 @@ async fn test_redirect_back_with_errors() {
 
 #[tokio::test]
 async fn test_error_bags() {
-    let session_key = "test_error_bags".to_string();
+    let session_key = "test_error_bags_1".to_string();
 
     let app = actix_web::test::init_service(
         generate_actix_app()
@@ -976,20 +976,18 @@ async fn test_error_bags() {
 
     let request = actix_web::test::TestRequest::get()
         .uri("/withprops")
+        .inertia()
         .append_header(InertiaHeader::Version("v1.0.0").convert())
-        .append_header(InertiaHeader::Inertia.convert())
         .to_request();
 
     request.extensions_mut().insert(SessionKey(session_key));
 
-    let body = actix_web::test::call_and_read_body(&app, request)
+    let page = actix_web::test::call_service(&app, request)
         .await
-        .to_vec();
+        .into_assertable_inertia();
 
-    let body: InertiaPage = serde_json::from_slice(body.as_slice()).unwrap();
-
-    assert!(body.get_props().contains_key("errors"));
-    assert!(body
+    assert!(page.get_props().contains_key("errors"));
+    assert!(page
         .get_props()
         .get("errors")
         .unwrap()
@@ -997,7 +995,7 @@ async fn test_error_bags() {
         .unwrap()
         .contains_key("myBag"));
 
-    assert!(body.get_props()["errors"]["myBag"]
+    assert!(page.get_props()["errors"]["myBag"]
         .as_object()
         .unwrap()
         .get("foo")
