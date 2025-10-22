@@ -1,5 +1,6 @@
 use super::middleware::SharedProps;
 use super::{headers, CustomViewData};
+use crate::actix::InertiaHeader;
 use crate::facade::InertiaFacade;
 use crate::inertia::{
     Inertia, InertiaHttpRequest, InertiaResponder, InertiaService, ViewData, X_INERTIA,
@@ -8,12 +9,14 @@ use crate::props::InertiaProps;
 use crate::props::{get_deferred_props, get_mergeable_props, resolve_props};
 use crate::req_type::{InertiaRequestType, PartialComponent};
 use crate::temporary_session::InertiaSessionToReflash;
+use crate::test::{AssertableInertia, InertiaTestRequest, IntoAssertableInertia};
 use crate::utils::request_page_render;
 use crate::{Component, InertiaError, InertiaPage, InertiaSSRPage, InertiaTemporarySession};
-use actix_web::body::BoxBody;
-use actix_web::dev::{ServiceFactory, ServiceRequest};
+use actix_web::body::{BoxBody, MessageBody};
+use actix_web::dev::{ServiceFactory, ServiceRequest, ServiceResponse};
 use actix_web::http::header::{self, HeaderName, HeaderValue, TryIntoHeaderValue};
 use actix_web::http::StatusCode;
+use actix_web::test::TestRequest;
 use actix_web::web::{Redirect, ServiceConfig};
 use actix_web::{
     web, App, FromRequest, HttpMessage, HttpRequest, HttpResponse, HttpResponseBuilder, Responder,
@@ -439,6 +442,23 @@ impl FromRequest for InertiaTemporarySession {
             .unwrap_or_default();
 
         std::future::ready(Ok(temporary_session))
+    }
+}
+
+impl InertiaTestRequest for TestRequest {
+    fn inertia(self) -> Self {
+        self.insert_header(InertiaHeader::Inertia.convert())
+    }
+}
+
+impl<B: MessageBody> IntoAssertableInertia for ServiceResponse<B> {
+    fn into_assertable_inertia(self) -> AssertableInertia {
+        if !self.request().headers().contains_key("x-inertia") {
+            panic!("Tried to extract an `AssertableInertia` from a non-inertia request. Try calling `.inertia()` from the test request.");
+        }
+
+        let body = self.into_body().try_into_bytes().ok().unwrap().to_vec();
+        serde_json::from_slice(&body).unwrap()
     }
 }
 

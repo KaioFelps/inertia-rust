@@ -21,3 +21,4 @@
 - [Template Resolvers](./advanced/template_resolvers.md)
 - [Flash Messages and Validation Errors](./advanced/flash-messages.md)
     - [Actix Web Implementations](./advanced/actix-web-implementations.md)
+- [Testing](./advanced/testing.md)

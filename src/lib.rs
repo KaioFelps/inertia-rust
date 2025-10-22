@@ -14,6 +14,7 @@ mod temporary_session;
 mod utils;
 
 pub mod node_process;
+pub mod test;
 
 pub use config::{InertiaConfig, InertiaConfigBuilder};
 pub use error::{InertiaError, IntoInertiaError};
