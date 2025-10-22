@@ -1,7 +1,12 @@
 # Changelog
 
 ## Unreleased
+### Changed
 - Logs Inertia page in debug on every render & when a rendering fails (even if logs are not in debug mode).
+
+### Removed
+- `http_method` module with `HttpMethod` enum — this is not considered a breaking change since the enum
+    were not used within the application nor relevant enough to be using outside of it.
 
 ## v2.4.3
 ### Changed
