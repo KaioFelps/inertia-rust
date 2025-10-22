@@ -1,20 +1,21 @@
 [package]
-version = "2.4.3"
+version = "2.4.4"
 name = "inertia-rust"
 description = "A Rust server-adapter for building modern MVC web apps with Inertia."
 repository = "https://github.com/KaioFelps/inertia-rust"
 keywords = ["inertiajs", "front-end", "react", "svelte", "vue"]
-categories = ["network-programming", "template-engine", "visualization", "web-programming", "web-programming::http-server"]
+categories = [
+    "network-programming",
+    "template-engine",
+    "visualization",
+    "web-programming",
+    "web-programming::http-server",
+]
 edition = "2021"
 readme = "README.md"
-authors = [ "Kaio Felps" ]
+authors = ["Kaio Felps"]
 license-file = "LICENSE"
-exclude = [
-    "examples/*",
-    ".idea/*",
-    ".vscode/*",
-    "docs/"
-]
+exclude = ["examples/*", ".idea/*", ".vscode/*", "docs/"]
 
 [features]
 actix = ["dep:actix-web"]
@@ -33,9 +34,15 @@ futures = "~0.3.30"
 actix-web = { version = "~4", features = ["default"], optional = true }
 vite-rust = { version = "~0.2", optional = true }
 futures-util = "~0.3.31"
-regex = { version = "1", optional = true}
+regex = { version = "1", optional = true }
 validator = { version = ">= 0.9, < 1", optional = true }
 handlebars = { version = "6", optional = true }
 
 [dev-dependencies]
-tokio = { version = "~1", features = ["fs", "io-std", "test-util", "rt", "macros"] }
+tokio = { version = "~1", features = [
+    "fs",
+    "io-std",
+    "test-util",
+    "rt",
+    "macros",
+] }

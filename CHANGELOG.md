@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+
+## v2.4.4
 ### Changed
 - Logs Inertia page in debug on every render & when a rendering fails (even if logs are not in debug mode).
 
