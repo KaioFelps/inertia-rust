@@ -151,7 +151,7 @@ impl<'a> InertiaPage<'a> {
         self.encrypt_history
     }
 
-    pub fn get_deferred_props(&self) -> &DeferredProps {
+    pub fn get_deferred_props(&self) -> &'_ DeferredProps<'_> {
         &self.deferred_props
     }
 
