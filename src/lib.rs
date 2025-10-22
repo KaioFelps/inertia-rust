@@ -2,7 +2,6 @@ mod config;
 mod error;
 mod facade;
 mod features;
-mod http_method;
 mod inertia;
 mod macros;
 mod page;
