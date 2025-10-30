@@ -65,8 +65,6 @@ impl InertiaResponder<HttpResponse, HttpRequest, Redirect> for Inertia {
             encrypt_history: req.should_encrypt_history(self.encrypt_history),
         };
 
-        log::debug!("Starting render of page {page:#?}");
-
         let response = if req.is_inertia_request() {
             let mut response = page.respond_to(req);
 
@@ -333,10 +331,10 @@ impl Inertia {
             .await
             .map(Some)
             .unwrap_or_else(|err| {
+                log::debug!("Failed to render page {page:#?}");
                 log::error!(
-                    "[Inertia Rust] Error on server-side rendering page {} with page props {page:#?}: {}",
+                    "Error on server-side rendering page {}: {err}",
                     page.component.0,
-                    err
                 );
 
                 None
