@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+### Changed
+- Undeserializable responses from SSR server now are parsed as string and added to the error message.
 
 ## v2.4.4
 ### Changed
