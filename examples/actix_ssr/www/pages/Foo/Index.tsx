@@ -1,5 +1,5 @@
 import { Head, Link } from "@inertiajs/react";
-import { ArrowLeft } from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeftIcon } from "@phosphor-icons/react/dist/ssr/ArrowLeft";
 import { useEffect } from "react";
 
 export default function Index(props: any) {
@@ -22,7 +22,7 @@ export default function Index(props: any) {
                             flex items-center gap-3 bg-purple-400/25 px-8 py-3 rounded-xl
                         "
                     >
-                        <ArrowLeft size={24} weight="bold" />
+                        <ArrowLeftIcon size={24} weight="bold" />
                         Go back, then?
                     </Link>
                 </div>
