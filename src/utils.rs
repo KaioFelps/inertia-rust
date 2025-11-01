@@ -17,23 +17,34 @@ pub(crate) async fn request_page_render(
         .json(&page)
         .timeout(Duration::from_secs(5))
         .send()
-        .await;
-
-    let response = match response {
-        Err(err) => {
-            return Err(InertiaError::SsrError(format!(
+        .await
+        .map_err(|err| {
+            InertiaError::SsrError(format!(
                 "Failed to render the page at the SSR Server: {}",
                 err
-            )))
-        }
-        Ok(response) => response,
-    };
+            ))
+        })?;
 
-    match response.json::<InertiaSSRPage>().await {
-        Err(err) => Err(InertiaError::SsrError(format!(
-            "Failed to desserialize InertiaSSRPage object: {}",
-            err
-        ))),
-        Ok(page) => Ok(page),
-    }
+    let body = response
+        .bytes()
+        .await
+        .map_err(|err| {
+            InertiaError::SsrError(format!("Failed to read SSR response's bytes: {err}"))
+        })?
+        .to_vec();
+
+    serde_json::from_slice::<InertiaSSRPage>(&body).map_err(|json_err| {
+        let body_as_text = String::from_utf8(body);
+        match body_as_text {
+            Ok(text_body) => InertiaError::SsrError(format!(
+                "Failed to deserialize InertiaSSRPage object \
+                from body with error: {json_err}. Received body: {text_body}"
+            )),
+            Err(text_error) => InertiaError::SsrError(format!(
+                "Failed to deserialize InertiaSSRPage object \
+                from body with error: {json_err}. Also failed to read bytes as text \
+                with error: {text_error}",
+            )),
+        }
+    })
 }

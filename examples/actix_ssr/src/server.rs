@@ -47,7 +47,7 @@ pub fn get_server() -> App<
                 
                 Box::pin(async move {
                     hashmap![
-                        "version" => InertiaProp::always("0.1.0"),
+                        "version" => InertiaProp::always("2"),
                         "assetsVersion" => InertiaProp::lazy(prop_resolver!({ ASSETS_VERSION.get().unwrap().into_inertia_value() })),
                         "flash" => InertiaProp::always(flash)
                     ]

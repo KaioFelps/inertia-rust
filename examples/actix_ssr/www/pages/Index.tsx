@@ -1,5 +1,5 @@
 import { Head, Link } from "@inertiajs/react"
-import { ArrowSquareOut } from "@phosphor-icons/react/dist/ssr/ArrowSquareOut";
+import { ArrowSquareOutIcon } from "@phosphor-icons/react/dist/ssr/ArrowSquareOut";
 import { useState } from "react"
 
 type Props = {
@@ -44,7 +44,7 @@ export default function Index({message, version}: Props) {
                             flex items-center gap-3 bg-purple-400/25 px-8 py-3 rounded-xl
                         "
                     >
-                        Other page? <ArrowSquareOut size={24} weight="bold" />
+                        Other page? <ArrowSquareOutIcon size={24} weight="bold" />
                     </Link>
                 </div>
             </main>

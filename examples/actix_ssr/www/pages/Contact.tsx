@@ -1,5 +1,5 @@
 import { Head, Link } from "@inertiajs/react"
-import { ArrowLeft } from "@phosphor-icons/react/dist/ssr/ArrowLeft"
+import { ArrowLeftIcon } from "@phosphor-icons/react/dist/ssr/ArrowLeft"
 
 type Props = {
     user: {
@@ -25,7 +25,7 @@ export default function Contact({ user, assetsVersion }: Props) {
                         px-8 py-3 rounded-xl cursor-default
                     "
                 >
-                    <span className="transition-all relative left-0 group-hover:-left-1"><ArrowLeft size={24} weight="bold" /></span>
+                    <span className="transition-all relative left-0 group-hover:-left-1"><ArrowLeftIcon size={24} weight="bold" /></span>
                     Back to home!
                 </Link>
 

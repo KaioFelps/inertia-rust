@@ -9,22 +9,20 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@inertiajs/core": "2.0",
-    "@inertiajs/react": "2.0",
-    "@phosphor-icons/react": "^2.1.7",
-    "@vitejs/plugin-react": "^4.3.1",
-    "laravel-vite-plugin": "^1.0.5",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "@inertiajs/core": "2.2",
+    "@inertiajs/react": "2.2",
+    "@phosphor-icons/react": "2.1.10",
+    "@tailwindcss/vite": "^4.1.16",
+    "@vitejs/plugin-react": "5.1.0",
+    "laravel-vite-plugin": "2.0.1",
+    "react": "19",
+    "react-dom": "19"
   },
   "devDependencies": {
     "@types/node": "^22.7.4",
-    "@types/react-dom": "^18.3.0",
-    "autoprefixer": "^10.4.20",
-    "postcss-import": "^16.1.0",
-    "tailwindcss": "^3.4.14",
-    "vite": "5.4.8",
-    "vite-rs-plugin": "^1.0.1"
+    "@types/react-dom": "19",
+    "tailwindcss": "4",
+    "vite": "7"
   },
   "keywords": [],
   "author": "",

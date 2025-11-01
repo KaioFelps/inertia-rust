@@ -1423,7 +1423,7 @@ dependencies = [
 
 [[package]]
 name = "inertia-rust"
-version = "2.4.0"
+version = "2.4.4"
 dependencies = [
  "actix-web",
  "async-trait",
@@ -1434,7 +1434,6 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "tokio",
  "validator",
  "vite-rust",
 ]
