@@ -2,7 +2,8 @@
 
 ## Unreleased
 ### Changed
-- Undeserializable responses from SSR server now are parsed as string and added to the error message.
+- Undeserializable responses from SSR server now are parsed as string and added to the error message;
+- Pages will only be logged in debug level and only when an error occur.
 
 ## v2.4.4
 ### Changed
