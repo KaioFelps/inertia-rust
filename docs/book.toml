@@ -2,7 +2,6 @@
 authors = ["Kaio Felipe"]
 language = "en"
 description = "Learn how to use Inertia with Rust to build single-page apps!"
-multilingual = false
 src = "src"
 title = "Inertia Rust"
 
