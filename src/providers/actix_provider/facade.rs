@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::facade::InertiaFacade;
-use crate::inertia::{InertiaResponder, X_INERTIA, X_INERTIA_LOCATION};
+use crate::inertia::{InertiaHttpRequest, InertiaResponder, X_INERTIA, X_INERTIA_LOCATION};
 use crate::{Component, Inertia, InertiaError, InertiaProps};
 use actix_web::dev::ServiceResponse;
 use actix_web::web::{Data, Redirect};
@@ -63,6 +63,11 @@ impl InertiaFacade<HttpRequest, HttpResponse, Redirect> for Inertia {
         ));
 
         req.extensions_mut().insert(custom_view_data);
+    }
+
+    #[inline]
+    fn check_is_inertia_request(req: &HttpRequest) -> bool {
+        req.is_inertia_request()
     }
 }
 

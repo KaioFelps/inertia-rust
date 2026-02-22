@@ -75,4 +75,7 @@ pub trait InertiaFacade<THttpRequest, TResponse, TRedirect> {
 
     /// Inserts custom view data to be accessed by the template root.
     fn view_data(req: &THttpRequest, data: HashMap<&str, Value>);
+
+    /// Checks whether the request was made by the Inertia client router rather than a standard full-page load.
+    fn check_is_inertia_request(req: &THttpRequest) -> bool;
 }

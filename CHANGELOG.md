@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Exposes inner `InertiaHttpRequest::is_inertia_request` through facade method `Inertia::check_is_inertia_request`.
 
 ## v2.4.5
 ### Changed
